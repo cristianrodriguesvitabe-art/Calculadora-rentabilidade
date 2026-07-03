@@ -144,6 +144,8 @@
   .etable td{padding:8px 8px}.etable thead th{padding:0 8px 10px}
   .etable input{padding:7px 9px;font-size:13.5px}.etable .name{font-weight:500;font-size:13.5px}
   .cellnum{width:112px}
+  .skuprice{width:92px;text-align:right;padding:6px 8px;border:1px solid var(--line2);border-radius:7px;background:var(--paper);font:inherit;font-size:13px;color:var(--ink)}
+  .skuprice:focus{outline:none;border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
   .set-note{font-size:12.5px;color:var(--faint);line-height:1.55;margin-top:10px}
   .addprod{display:grid;grid-template-columns:1fr 120px auto;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line2)}
   .banner{background:var(--berry-soft);border:1px solid #eec9d0;color:#7d2233;border-radius:var(--r);padding:13px 16px;font-size:13px;margin-bottom:20px;line-height:1.5}
@@ -259,7 +261,7 @@
     <div class="summary" id="summary"></div>
     <div class="card" id="tableCard"><div class="pad" style="padding:8px 8px 4px">
       <table><thead><tr>
-        <th>SKU</th><th>Canal</th><th class="r">Preço</th><th class="r">Custo itens</th><th class="r">Result. líq.</th><th class="r">Lucrat.</th><th class="r">Ações</th>
+        <th>SKU</th><th>Canal</th><th class="r">De</th><th class="r">Por</th><th class="r">Frete</th><th class="r">Custo itens</th><th class="r">Result. líq.</th><th class="r">Lucrat.</th><th class="r">Ações</th>
       </tr></thead><tbody id="tbody"></tbody></table>
     </div></div>
     <div class="empty" id="emptyState" style="display:none">
@@ -509,18 +511,23 @@ function compute(){
   const rebate=+$("#rebate").value||0;
   const freight=($("#freight").value===""?ch.fre:(+$("#freight").value||0));
   const N=kit.reduce((s,it)=>s+it.c*it.q,0);
+  const f=financials({L,N,ch,catIdx:selCat,freight,rebate});
+  const rebatePct = L>0 ? rebate/L : 0;
+  return {...f,priceBase,desc,priceFinal,priceDe,pricePor,descPct,rebate,rebatePct,freight,ch};
+}
+// núcleo do cálculo, independente da tela — usado pela calculadora e pela edição rápida de SKUs
+function financials({L,N,ch,catIdx,freight,rebate}){
+  const a=assumptions;
   const O=L*a.outros/100,P=L*a.ded/100, mc=L>0?(L-N-O-P)/L:0;
-  const R=L*a.roi/100,S=L*a.desp/100,T=freight,V=L*a.fin/100;
-  // comissão por categoria (ML) e/ou por faixa (Shopee) + taxa fixa
+  const R=L*a.roi/100,S=L*a.desp/100,T=freight||0,V=L*a.fin/100;
   let comRate=ch.com, F=0;
-  if(ch.categories&&ch.categories.length){const c=ch.categories[selCat]||ch.categories[0];if(c)comRate=c.com;}
+  if(ch.categories&&ch.categories.length){const c=ch.categories[catIdx]||ch.categories[0];if(c)comRate=c.com;}
   if(ch.bands&&ch.bands.length){const b=ch.bands.find(b=>L<=b.max)||ch.bands[ch.bands.length-1];
     if(b){if(b.com!=null)comRate=b.com;F=b.fee||0;}}
-  const U=L*comRate-rebate;
+  const U=L*comRate-(rebate||0);
   const base=(L-N-O-P-R-S-T-U-V-F)*a.irbase/100, X=base>0?base*a.irrate/100:0;
   const Y=L-N-O-R-S-P-V-X-T-U-F, Z=L>0?Y/L:0;
-  const rebatePct = L>0 ? rebate/L : 0;
-  return {L,N,O,P,mc,R,S,T,U,V,F,comRate,X,Y,Z,priceBase,desc,priceFinal,priceDe,pricePor,descPct,rebate,rebatePct,freight,ch};
+  return {L,N,O,P,mc,R,S,T,U,V,F,comRate,X,Y,Z};
 }
 function calc(){
   const r=compute(),meta=assumptions.meta/100;
@@ -611,21 +618,68 @@ function renderSaved(){
   $("#navCount").textContent=list.length;
   if(!list.length){$("#tableCard").style.display="none";$("#summary").style.display="none";$("#emptyState").style.display="block";return;}
   $("#tableCard").style.display="";$("#summary").style.display="";$("#emptyState").style.display="none";
-  const avg=list.reduce((s,r)=>s+r.lucratividade,0)/list.length,below=list.filter(r=>r.lucratividade<meta).length;
+  updateSummary();
+  $("#tbody").innerHTML=list.map(r=>{const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
+    const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
+    const por=(r.pricePor||r.price||0).toFixed(2);
+    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
+    <td><span class="chip">${r.canal}</span></td>
+    <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="de" value="${de}" placeholder="—"></td>
+    <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por}"></td>
+    <td class="r">${brl(r.freight||0)}</td>
+    <td class="r">${brl(r.custoItens)}</td>
+    <td class="r" data-liq="${r.sku}">${brl(r.liquido)}</td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
+    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;}).join("");
+}
+function updateSummary(){
+  const list=Object.values(saved),meta=(assumptions.meta||10)/100;
+  if(!list.length)return;
+  const avg=list.reduce((s,r)=>s+(r.lucratividade||0),0)/list.length,below=list.filter(r=>(r.lucratividade||0)<meta).length;
   $("#summary").innerHTML=`
     <div class="stat"><div class="k">SKUs cadastrados</div><div class="v">${list.length}</div></div>
     <div class="stat"><div class="k">Lucratividade média</div><div class="v" style="color:${avg>=meta?'var(--pos)':'var(--warn)'}">${pct(avg)}</div></div>
     <div class="stat"><div class="k">Abaixo da meta (${(meta*100).toFixed(0)}%)</div><div class="v" style="color:${below?'var(--neg)':'var(--pos)'}">${below}</div></div>`;
-  $("#tbody").innerHTML=list.map(r=>{const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
-    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
-    <td><span class="chip">${r.canal}</span></td><td class="r">${brl(r.price)}</td><td class="r">${brl(r.custoItens)}</td>
-    <td class="r">${brl(r.liquido)}</td><td class="r"><span class="marg ${cls}">${pct(r.lucratividade)}</span></td>
-    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;}).join("");
+}
+function resolveChannel(canalName){
+  let canal=(canalName||"").trim();
+  if(/^(full|env|envios|flex)\s+premium$/i.test(canal)) canal="Mercado Livre Premium";
+  else if(/^(full|env|envios|flex)\s+cl[aá]ssico$/i.test(canal)) canal="Mercado Livre Clássico";
+  return CHANNELS.find(c=>c.n===canal)||CHANNELS.find(c=>c.n===canalName)||CHANNELS[0];
+}
+function recomputeSku(rec){
+  const ch=resolveChannel(rec.canal);
+  let catIdx=0;
+  if(ch.categories&&rec.mlCatName){const k=ch.categories.findIndex(c=>c.n===rec.mlCatName);if(k>=0)catIdx=k;}
+  const N=(rec.itens||[]).reduce((s,it)=>s+it.c*it.q,0);
+  const L=+rec.pricePor||+rec.price||0;
+  const f=financials({L,N,ch,catIdx,freight:+rec.freight||0,rebate:+rec.rebate||0});
+  rec.price=L;rec.priceFinal=L;rec.custoItens=N;
+  rec.descPct=(rec.priceDe>0)?(rec.priceDe-L)/rec.priceDe:0;
+  rec.rebatePct=L>0?(+rec.rebate||0)/L:0;
+  rec.liquido=f.Y;rec.lucratividade=f.Z;
+}
+let skuSaveTimer=null;
+function onSkuInline(e){
+  const t=e.target,sku=t.dataset.skuedit;if(sku==null)return;
+  const rec=saved[sku];if(!rec)return;
+  const v=+t.value||0;
+  if(t.dataset.pf==="de")rec.priceDe=v; else if(t.dataset.pf==="por")rec.pricePor=v; else return;
+  rec.priceMode="depor";
+  recomputeSku(rec);saved[sku]=rec;
+  const row=t.closest("tr"),meta=(assumptions.meta||10)/100;
+  if(row){
+    const liqCell=row.querySelector("[data-liq]"),margCell=row.querySelector("[data-marg]");
+    if(liqCell)liqCell.textContent=brl(rec.liquido);
+    if(margCell){margCell.className="marg "+(rec.lucratividade>=meta?"ok":rec.lucratividade>=0?"mid":"no");margCell.textContent=pct(rec.lucratividade);}
+  }
+  updateSummary();
+  clearTimeout(skuSaveTimer);
+  skuSaveTimer=setTimeout(async()=>{try{await DB.upsertSku(rec);if(SUPA_ON)setSync("cloud");}catch(err){setSync("err");}},600);
 }
 function exportCsv(){
   const list=Object.values(saved).sort((a,b)=>(b.ts||0)-(a.ts||0));if(!list.length){toast("Nada para exportar");return;}
-  const head=["SKU","Nome","Canal","Preco","Custo itens","Frete","Resultado liquido","Lucratividade %","Itens"];
-  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,(r.price||0).toFixed(2),(r.custoItens||0).toFixed(2),(r.freight||0).toFixed(2),(r.liquido||0).toFixed(2),((r.lucratividade||0)*100).toFixed(1),(r.itens||[]).map(i=>`${i.q}x ${i.n}`).join(" | ")]);
+  const head=["SKU","Nome","Canal","Preco De","Preco Por","Frete","Custo itens","Resultado liquido","Lucratividade %","Itens"];
+  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,(r.priceDe||0).toFixed(2),(r.pricePor||r.price||0).toFixed(2),(r.freight||0).toFixed(2),(r.custoItens||0).toFixed(2),(r.liquido||0).toFixed(2),((r.lucratividade||0)*100).toFixed(1),(r.itens||[]).map(i=>`${i.q}x ${i.n}`).join(" | ")]);
   const csv=[head,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
@@ -756,6 +810,7 @@ $("#priceMode").addEventListener("click",e=>{const b=e.target.closest(".seg");if
 $("#saveBtn").onclick=saveSku;
 $("#clearBtn").onclick=()=>{kit=[];autoName="";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
 $("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
+$("#tbody").addEventListener("input",onSkuInline);
 $("#exportCsv").onclick=exportCsv;
 ["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
 $("#chanTable").addEventListener("input",onChanChange);
