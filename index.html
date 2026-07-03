@@ -1,0 +1,606 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renova Be — Rentabilidade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EDF1ED; --paper:#FBFCFA; --surface:#FFFFFF;
+    --ink:#182420; --muted:#5C6B63; --faint:#8A978F;
+    --line:#DCE4DD; --line2:#E9EEE9;
+    --forest:#234B3E; --forest-d:#173328;
+    --berry:#A6394F; --berry-soft:#f7e7ea;
+    --pos:#2E7D5B; --pos-soft:#e4f2ea;
+    --warn:#B8642A; --neg:#B23A2E; --neg-soft:#f6e6e3;
+    --disp:'Fraunces',Georgia,serif; --ui:'Inter',system-ui,sans-serif; --mono:'IBM Plex Mono',monospace;
+    --r:14px; --rs:9px;
+    --sh:0 1px 2px rgba(24,36,32,.04),0 8px 24px rgba(24,36,32,.06);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px 64px}
+  button{font-family:var(--ui);cursor:pointer}
+  input,select{font-family:var(--ui)}
+
+  header{position:sticky;top:0;z-index:30;background:rgba(237,241,237,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar{max-width:1180px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+  .mark{font-family:var(--disp);font-weight:600;font-size:21px;letter-spacing:-.01em}
+  .mark em{font-style:italic;color:var(--forest)}
+  .brand .sub{font-size:12.5px;color:var(--faint);letter-spacing:.02em}
+  nav{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px;flex-wrap:wrap}
+  .tab{border:0;background:transparent;color:var(--muted);font-weight:600;font-size:13.5px;padding:8px 15px;border-radius:999px;transition:.18s}
+  .tab[aria-selected="true"]{background:var(--forest);color:#fff}
+  .tab .n{display:inline-block;min-width:18px;text-align:center;margin-left:6px;font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:999px;background:rgba(255,255,255,.18)}
+  .tab[aria-selected="false"] .n{background:var(--line2);color:var(--muted)}
+
+  .view{display:none;padding-top:26px}
+  .view.on{display:block;animation:fade .3s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .grid{display:grid;grid-template-columns:1fr 430px;gap:22px;align-items:start}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+  .card .pad{padding:20px}
+  .card + .card{margin-top:18px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--forest);margin:0 0 14px}
+  .eyebrow .step{font-family:var(--mono);color:var(--berry);margin-right:8px}
+
+  label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:0 0 6px}
+  .field{margin-bottom:14px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  input[type=text],input[type=number],select{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:var(--rs);padding:10px 12px;font-size:14.5px;color:var(--ink);transition:.15s}
+  input:focus,select:focus{outline:0;border-color:var(--forest);box-shadow:0 0 0 3px rgba(35,75,62,.12);background:#fff}
+  .inwrap{position:relative}
+  .inwrap .pre{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:13px;font-family:var(--mono);pointer-events:none}
+  .inwrap.money input{padding-left:34px}
+  .inwrap .suf{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--faint);font-size:13px;pointer-events:none}
+
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;font-size:13.5px;padding:10px 15px;border-radius:var(--rs);transition:.15s}
+  .btn:hover{border-color:var(--forest);color:var(--forest)}
+  .btn-primary{background:var(--forest);border-color:var(--forest);color:#fff}
+  .btn-primary:hover{background:var(--forest-d);color:#fff}
+  .btn-ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn-ghost:hover{color:var(--berry)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+
+  .add-row{display:grid;grid-template-columns:1fr 88px auto;gap:10px;align-items:end}
+  .kit-list{margin-top:14px;border-top:1px solid var(--line2)}
+  .kit-item{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line2)}
+  .kit-item .nm{font-weight:500;font-size:14px}
+  .kit-item .meta{font-size:12px;color:var(--faint);font-family:var(--mono)}
+  .kit-item .sub{font-family:var(--mono);font-weight:600;font-size:14px;min-width:74px;text-align:right}
+  .qtybox{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .qtybox button{width:28px;height:30px;border:0;background:var(--paper);color:var(--muted);font-size:16px;line-height:1}
+  .qtybox button:hover{background:var(--line2);color:var(--forest)}
+  .qtybox span{min-width:30px;text-align:center;font-family:var(--mono);font-weight:600;font-size:13.5px}
+  .rm{border:0;background:transparent;color:var(--faint);font-size:17px;width:26px;height:26px;border-radius:6px}
+  .rm:hover{background:var(--neg-soft);color:var(--neg)}
+  .kit-empty{padding:22px 4px;color:var(--faint);font-size:13.5px;text-align:center}
+  .kit-total{display:flex;justify-content:space-between;align-items:center;padding-top:13px;font-size:13px;color:var(--muted)}
+  .kit-total b{font-family:var(--mono);font-size:16px;color:var(--ink)}
+
+  .chan-fees{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--muted)}
+  .chan-fees span{font-family:var(--mono)}
+  .chan-fees b{color:var(--forest)}
+
+  .results{position:sticky;top:84px}
+  .verdict{padding:22px 22px 8px}
+  .verdict .lbl{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .bignum{font-family:var(--disp);font-weight:600;font-size:64px;line-height:1;letter-spacing:-.02em;margin:6px 0 2px;transition:color .3s}
+  .bignum.pos{color:var(--pos)} .bignum.neg{color:var(--neg)} .bignum.warn{color:var(--warn)}
+  .liquid{font-family:var(--mono);font-size:15px;color:var(--muted)}
+  .liquid b{color:var(--ink)}
+  .badge{display:inline-flex;align-items:center;gap:7px;margin-top:14px;font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:999px}
+  .badge.ok{background:var(--pos-soft);color:var(--pos)}
+  .badge.no{background:var(--neg-soft);color:var(--neg)}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .mc-strip{display:flex;justify-content:space-between;align-items:center;margin:16px 22px 0;padding:12px 15px;background:var(--paper);border:1px solid var(--line2);border-radius:10px}
+  .mc-strip .k{font-size:12.5px;color:var(--muted);font-weight:600}
+  .mc-strip .v{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--forest)}
+
+  .casc{padding:18px 22px 8px}
+  .casc-h{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .cl{padding:9px 0;border-bottom:1px solid var(--line2)}
+  .cl:last-child{border-bottom:0}
+  .cl-top{display:flex;align-items:baseline;gap:8px}
+  .cl .name{font-size:13.5px}
+  .cl .op{font-family:var(--mono);color:var(--faint);width:14px}
+  .cl .pct{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+  .cl .amt{font-family:var(--mono);font-weight:600;font-size:14px;min-width:88px;text-align:right}
+  .cl.cost .amt{color:var(--neg)}
+  .cl .track{height:4px;border-radius:3px;background:var(--line2);margin-top:7px;overflow:hidden}
+  .cl .bar{height:100%;border-radius:3px;background:var(--berry);width:0;transition:width .45s cubic-bezier(.2,.7,.2,1)}
+  .cl.mile{background:var(--paper);margin:4px -12px;padding:11px 12px;border-radius:9px;border:0}
+  .cl.mile .name{font-weight:600}.cl.mile .amt{color:var(--forest)}
+  .cl.final{margin-top:6px;border-top:1.5px solid var(--ink);border-bottom:0;padding-top:13px}
+  .cl.final .name{font-weight:700;font-size:14.5px}
+  .cl.final .amt{font-size:16px}.cl.final .amt.pos{color:var(--pos)}.cl.final .amt.neg{color:var(--neg)}
+  .save-bar{padding:16px 22px 22px;display:flex;gap:10px}
+  .save-bar .btn-primary{flex:1}
+  .hint{font-size:12px;color:var(--faint);padding:0 22px 18px;margin-top:-6px}
+
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+  @media(max-width:640px){.summary{grid-template-columns:1fr}}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh)}
+  .stat .k{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+  .stat .v{font-family:var(--disp);font-weight:600;font-size:34px;margin-top:6px;letter-spacing:-.01em}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 14px 12px}
+  thead th.r{text-align:right}
+  tbody tr{border-top:1px solid var(--line2)}
+  tbody tr:hover{background:var(--paper)}
+  tbody td{padding:13px 14px;font-size:13.5px;vertical-align:middle}
+  td.r{text-align:right;font-family:var(--mono)}
+  .sku-code{font-family:var(--mono);font-weight:600}
+  .sku-name{font-size:12px;color:var(--faint);margin-top:2px}
+  .chip{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--line2);color:var(--muted)}
+  .marg{font-family:var(--mono);font-weight:600}
+  .marg.ok{color:var(--pos)}.marg.no{color:var(--neg)}.marg.mid{color:var(--warn)}
+  .tacts{display:flex;gap:6px;justify-content:flex-end}
+  .iact{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--muted)}
+  .iact:hover{border-color:var(--forest);color:var(--forest)}
+  .iact.del:hover{border-color:var(--neg);color:var(--neg);background:var(--neg-soft)}
+  .empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:56px 24px;text-align:center;color:var(--muted)}
+  .empty .big{font-family:var(--disp);font-size:22px;color:var(--ink);margin-bottom:8px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--forest-d);color:#fff;padding:12px 20px;border-radius:999px;font-size:13.5px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.28s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .head-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
+  .head-actions h2{font-family:var(--disp);font-weight:600;font-size:24px;margin:0;letter-spacing:-.01em}
+
+  /* Settings */
+  .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:820px){.set-grid{grid-template-columns:1fr}}
+  .set-full{grid-column:1/-1}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
+  .subh{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--berry);margin:18px 0 2px;grid-column:1/-1}
+  .subh:first-child{margin-top:4px}
+  .etable td{padding:8px 8px}
+  .etable thead th{padding:0 8px 10px}
+  .etable input{padding:7px 9px;font-size:13.5px}
+  .etable .name{font-weight:500;font-size:13.5px}
+  .cellnum{width:112px}
+  .storage-flag{font-size:12px;color:var(--faint);display:flex;align-items:center;gap:7px;margin-left:auto}
+  .storage-flag .dot{width:7px;height:7px;border-radius:50%;background:var(--pos)}
+  .set-note{font-size:12.5px;color:var(--faint);line-height:1.55;margin-top:10px}
+  .addprod{display:grid;grid-template-columns:1fr 120px auto;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line2)}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<header>
+  <div class="bar">
+    <div class="brand">
+      <span class="mark">Renova <em>Be</em></span>
+      <span class="sub">Calculadora de rentabilidade</span>
+    </div>
+    <nav role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="saved">SKUs <span class="n" id="navCount">0</span></button>
+      <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ CALCULADORA ============ -->
+  <section class="view on" id="view-calc">
+    <div class="grid">
+      <div>
+        <div class="card"><div class="pad">
+          <p class="eyebrow"><span class="step">01</span>Identificação</p>
+          <div class="row2">
+            <div class="field"><label for="sku">SKU do kit</label><input type="text" id="sku" placeholder="ex.: COLRNBCRAN1" autocomplete="off"></div>
+            <div class="field"><label for="kitname">Nome / descrição</label><input type="text" id="kitname" placeholder="ex.: Kit Cranberry + Retinol" autocomplete="off"></div>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label for="channel">Canal de venda</label>
+            <select id="channel"></select>
+            <div class="chan-fees"><span>Comissão <b id="fCom">—</b></span><span>Frete <b id="fFre">—</b></span></div>
+          </div>
+        </div></div>
+
+        <div class="card"><div class="pad">
+          <p class="eyebrow"><span class="step">02</span>Itens do kit</p>
+          <div class="add-row">
+            <div><label for="pick">Produto</label><select id="pick"></select></div>
+            <div><label for="pickqty">Qtde</label><input type="number" id="pickqty" value="1" min="1" step="1"></div>
+            <button class="btn btn-primary" id="addItem" style="height:40px">Adicionar</button>
+          </div>
+          <div style="margin-top:8px">
+            <button class="btn-ghost btn" id="toggleAvulso" style="padding:4px 0;font-size:12.5px">+ item avulso (fora do catálogo)</button>
+            <div id="avulso" style="display:none;margin-top:8px" class="row3">
+              <input type="text" id="avNome" placeholder="Nome do item">
+              <div class="inwrap money"><span class="pre">R$</span><input type="number" id="avCusto" placeholder="custo" step="0.01" min="0"></div>
+              <button class="btn" id="addAvulso" style="height:40px">Incluir</button>
+            </div>
+          </div>
+          <div class="kit-list" id="kitList"></div>
+          <div class="kit-total"><span>Custo total dos itens</span><b id="kitTotal">R$ 0,00</b></div>
+        </div></div>
+
+        <div class="card"><div class="pad">
+          <p class="eyebrow"><span class="step">03</span>Preço &amp; ajustes de venda</p>
+          <div class="row3">
+            <div class="field" style="margin-bottom:0"><label for="price">Preço de venda</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="price" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field" style="margin-bottom:0"><label for="reaj">Reajuste / desconto</label><div class="inwrap"><input type="number" id="reaj" value="0" step="1" style="padding-right:26px"><span class="suf">%</span></div></div>
+            <div class="field" style="margin-bottom:0"><label for="rebate">Rebate</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="rebate" value="0" step="0.01" min="0"></div></div>
+          </div>
+          <p class="set-note" style="margin-top:12px">Desconto entra negativo (ex.: <b>−40</b>). Rebate é o subsídio do canal que abate a comissão. As taxas e custos vêm da aba <b>Ajustes</b>.</p>
+        </div></div>
+      </div>
+
+      <div class="results">
+        <div class="card">
+          <div class="verdict">
+            <div class="lbl">Lucratividade</div>
+            <div class="bignum" id="bigMargin">0,0%</div>
+            <div class="liquid">Resultado líquido&nbsp; <b id="liqVal">R$ 0,00</b></div>
+            <div class="badge no" id="metaBadge"><span class="dot"></span><span id="metaTxt">Abaixo da meta</span></div>
+          </div>
+          <div class="mc-strip"><span class="k">Margem de contribuição</span><span class="v" id="mcVal">0,0%</span></div>
+          <div class="casc"><div class="casc-h">Para onde vai cada real</div><div id="cascade"></div></div>
+          <div class="save-bar"><button class="btn btn-primary" id="saveBtn">Salvar SKU</button><button class="btn" id="clearBtn">Limpar</button></div>
+          <div class="hint" id="saveHint">Preencha o SKU e adicione itens para salvar.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SKUs ============ -->
+  <section class="view" id="view-saved">
+    <div class="head-actions">
+      <h2>SKUs cadastrados</h2>
+      <div style="display:flex;gap:8px"><button class="btn" id="exportCsv">Exportar CSV</button><button class="btn btn-primary" id="goCalc">+ Novo SKU</button></div>
+    </div>
+    <div class="summary" id="summary"></div>
+    <div class="card" id="tableCard"><div class="pad" style="padding:8px 8px 4px">
+      <table><thead><tr>
+        <th>SKU</th><th>Canal</th><th class="r">Preço</th><th class="r">Custo itens</th><th class="r">Result. líq.</th><th class="r">Lucrat.</th><th class="r">Ações</th>
+      </tr></thead><tbody id="tbody"></tbody></table>
+    </div></div>
+    <div class="empty" id="emptyState" style="display:none">
+      <div class="big">Nenhum SKU cadastrado ainda</div>
+      <div>Monte um kit na calculadora e toque em “Salvar SKU”. Ele aparece aqui e fica guardado no navegador.</div>
+      <button class="btn btn-primary" style="margin-top:18px" id="goCalc2">Ir para a calculadora</button>
+    </div>
+  </section>
+
+  <!-- ============ AJUSTES ============ -->
+  <section class="view" id="view-settings">
+    <div class="head-actions">
+      <h2>Ajustes</h2>
+      <div class="storage-flag"><span class="dot" id="stDot"></span><span id="stTxt">Alterações salvas automaticamente</span></div>
+    </div>
+    <div class="set-grid">
+      <div class="card set-full"><div class="pad">
+        <p class="eyebrow">Percentuais gerais &amp; IR/CS</p>
+        <div class="pgrid">
+          <div class="subh">Aplicados a todos os canais</div>
+          <div><label>Outros custos %</label><div class="inwrap"><input type="number" id="a_outros" step="0.1"><span class="suf">%</span></div></div>
+          <div><label>Deduções / impostos %</label><div class="inwrap"><input type="number" id="a_ded" step="0.1"><span class="suf">%</span></div></div>
+          <div><label>ROI %</label><div class="inwrap"><input type="number" id="a_roi" step="0.1"><span class="suf">%</span></div></div>
+          <div><label>Despesas %</label><div class="inwrap"><input type="number" id="a_desp" step="0.1"><span class="suf">%</span></div></div>
+          <div><label>Desp. financeira %</label><div class="inwrap"><input type="number" id="a_fin" step="0.1"><span class="suf">%</span></div></div>
+          <div><label>Meta mínima de lucratividade %</label><div class="inwrap"><input type="number" id="a_meta" step="1"><span class="suf">%</span></div></div>
+          <div class="subh">IR / CS</div>
+          <div><label>Base de cálculo %</label><div class="inwrap"><input type="number" id="a_irbase" step="1"><span class="suf">%</span></div></div>
+          <div><label>Alíquota IR/CS %</label><div class="inwrap"><input type="number" id="a_irrate" step="1"><span class="suf">%</span></div></div>
+        </div>
+      </div></div>
+
+      <div class="card"><div class="pad">
+        <p class="eyebrow">Tarifas por canal</p>
+        <table class="etable"><thead><tr><th>Canal</th><th class="r">Comissão %</th><th class="r">Frete R$</th></tr></thead>
+        <tbody id="chanTable"></tbody></table>
+      </div></div>
+
+      <div class="card"><div class="pad">
+        <p class="eyebrow">Custos dos produtos</p>
+        <table class="etable"><thead><tr><th>Produto</th><th class="r">Custo R$</th><th></th></tr></thead>
+        <tbody id="prodTable"></tbody></table>
+        <div class="addprod">
+          <input type="text" id="npNome" placeholder="Novo produto">
+          <div class="inwrap money"><span class="pre">R$</span><input type="number" id="npCusto" placeholder="custo" step="0.01" min="0"></div>
+          <button class="btn" id="npAdd">Adicionar</button>
+        </div>
+      </div></div>
+
+      <div class="card set-full"><div class="pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+        <p class="set-note" style="margin:0;flex:1;min-width:240px">Tudo o que você muda aqui é salvo automaticamente e passa a valer na calculadora. Para voltar aos valores originais da planilha, use o botão ao lado.</p>
+        <button class="btn" id="restoreBtn">Restaurar padrões da planilha</button>
+      </div></div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- Padrões (da planilha Renova Be) ----------
+const DEF_CATALOG = [
+  {n:"RENOVABE Verisol Cranberry",c:17.98},{n:"RENOVABE Verisol Limão",c:17.98},{n:"RENOVABE Verisol Tangerina",c:17.98},
+  {n:"RENOVABE Verisol Frutas Tropicais",c:17.98},{n:"RENOVABE Verisol Pink Lemonade",c:17.98},{n:"Renova Be Colágeno Chocolate",c:17.98},
+  {n:"RENOVABE Colágeno Plus Lac & Gest Limão",c:18.40},{n:"Renova Be Colágeno Plus Lac-Gest Laranja",c:18.40},{n:"Renova Be Colágeno Tipo II Active Plus",c:10.64},
+  {n:"Renova Be Whey Protein Cookies",c:44.10},{n:"Renova Be Whey Protein Coco",c:44.10},{n:"Renova Be Whey Protein Chocolate",c:44.10},{n:"Renova Be Whey Protein Baunilha",c:44.10},
+  {n:"Renova Be Antioxidante 30ml",c:8.92},{n:"Renova Be Sérum Hidratante 30ml",c:7.22},{n:"Renova Be Antiage 30ml",c:9.32},
+  {n:"Creme Facial + Resveratrol Dia Renova Be 30ml",c:4.40},{n:"Creme Facial + Retinol Noite Renova Be 30ml",c:4.37},
+  {n:"Melatonina Renova Be Maracujá",c:6.33},{n:"Multivitamínico Premium A-Z Renovabe",c:8.33},{n:"Creatina + Morning Shot Renovabe",c:15.73},
+  {n:"Renova Hair Morango",c:12.08},{n:"Renova Hair Tangerina",c:12.08},{n:"Renova Hair Maçã Verde",c:12.08},{n:"Renova Hair Melancia",c:12.08},
+  {n:"Ômega 3 EPA DHA + Vita-E",c:18.50},{n:"Lip Balm Cereja",c:4.61},{n:"Balm Alívio Dores",c:4.35},
+];
+const DEF_CHANNELS = [
+  {n:"Full Clássico",com:0.12,fre:23},{n:"Full Premium",com:0.17,fre:23},{n:"Env Clássico",com:0.12,fre:23},{n:"Env Premium",com:0.17,fre:23},
+  {n:"Flex Clássico",com:0.12,fre:23},{n:"Flex Premium",com:0.17,fre:23},{n:"Shopee",com:0.20,fre:4},{n:"Amazon",com:0.145,fre:22},{n:"Magalu",com:0.18,fre:22},{n:"TikTok",com:0.06,fre:22},
+];
+const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, irbase:70, irrate:34, meta:10};
+
+// ---------- Estado ----------
+let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP);
+let kit = [], saved = {};
+
+function clone(o){return JSON.parse(JSON.stringify(o));}
+const $ = s => document.querySelector(s);
+const brl = v => "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct = v => (v*100).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2000);}
+
+// ---------- Storage adaptável (Claude: window.storage | site hospedado: localStorage | fallback: memória) ----------
+const mem = {};
+const hasWS = (typeof window!=="undefined" && window.storage && typeof window.storage.get==="function");
+const Store = {
+  async list(prefix){
+    try{ if(hasWS){const r=await window.storage.list(prefix); return (r&&r.keys)||[];}
+      return Object.keys(localStorage).filter(k=>k.startsWith(prefix)); }
+    catch(e){ return Object.keys(mem).filter(k=>k.startsWith(prefix)); }
+  },
+  async get(key){
+    try{ if(hasWS){const g=await window.storage.get(key); return g?g.value:null;}
+      return localStorage.getItem(key); }
+    catch(e){ return mem[key]??null; }
+  },
+  async set(key,val){
+    try{ if(hasWS){await window.storage.set(key,val);return;} localStorage.setItem(key,val); }
+    catch(e){ mem[key]=val; }
+  },
+  async del(key){
+    try{ if(hasWS){await window.storage.delete(key);return;} localStorage.removeItem(key); }
+    catch(e){ delete mem[key]; }
+  }
+};
+async function saveConfig(){
+  await Store.set("cfg:assumptions", JSON.stringify(assumptions));
+  await Store.set("cfg:channels", JSON.stringify(CHANNELS));
+  await Store.set("cfg:catalog", JSON.stringify(CATALOG));
+  flashStorage();
+}
+async function loadConfig(){
+  try{const a=await Store.get("cfg:assumptions"); if(a) assumptions={...DEF_ASSUMP,...JSON.parse(a)};}catch(e){}
+  try{const c=await Store.get("cfg:channels"); if(c){const p=JSON.parse(c); if(Array.isArray(p)&&p.length) CHANNELS=p;}}catch(e){}
+  try{const k=await Store.get("cfg:catalog"); if(k){const p=JSON.parse(k); if(Array.isArray(p)&&p.length) CATALOG=p;}}catch(e){}
+}
+let _flash;
+function flashStorage(){const d=$("#stDot"),t=$("#stTxt"); if(!d)return; d.style.background="var(--warn)"; t.textContent="Salvando…"; clearTimeout(_flash); _flash=setTimeout(()=>{d.style.background="var(--pos)";t.textContent="Alterações salvas";},350);}
+
+// ---------- Selects / display ----------
+function buildSelects(){
+  const cur = $("#channel").value;
+  $("#pick").innerHTML = CATALOG.map((it,i)=>`<option value="${i}">${it.n} — ${brl(it.c)}</option>`).join("");
+  $("#channel").innerHTML = CHANNELS.map((ch,i)=>`<option value="${i}">${ch.n}</option>`).join("");
+  if(cur && +cur<CHANNELS.length) $("#channel").value=cur;
+  showChannelFees();
+}
+function curChannel(){return CHANNELS[+$("#channel").value] || CHANNELS[0];}
+function showChannelFees(){const ch=curChannel(); $("#fCom").textContent=pct(ch.com); $("#fFre").textContent=brl(ch.fre);}
+
+// ---------- Kit ----------
+function renderKit(){
+  const el=$("#kitList");
+  if(!kit.length) el.innerHTML='<div class="kit-empty">Nenhum item adicionado. Escolha um produto acima.</div>';
+  else el.innerHTML=kit.map((it,i)=>`
+    <div class="kit-item">
+      <div><div class="nm">${it.n}</div><div class="meta">${brl(it.c)} un.</div></div>
+      <div class="qtybox"><button data-dec="${i}">−</button><span>${it.q}</span><button data-inc="${i}">+</button></div>
+      <div class="sub">${brl(it.c*it.q)}</div>
+      <button class="rm" data-rm="${i}" title="Remover">×</button>
+    </div>`).join("");
+  $("#kitTotal").textContent=brl(kit.reduce((s,it)=>s+it.c*it.q,0));
+  calc();
+}
+function addFromCatalog(){
+  const it=CATALOG[+$("#pick").value]; if(!it)return;
+  const q=Math.max(1,parseInt($("#pickqty").value)||1);
+  const ex=kit.find(k=>k.n===it.n); if(ex){ex.q+=q;ex.c=it.c;} else kit.push({n:it.n,c:it.c,q});
+  renderKit();
+}
+
+// ---------- Motor de cálculo (aba "Análise preço") ----------
+function compute(){
+  const a=assumptions, ch=curChannel();
+  const price=+$("#price").value||0, reaj=(+$("#reaj").value||0)/100, rebate=+$("#rebate").value||0;
+  const L=price*(1+reaj);
+  const N=kit.reduce((s,it)=>s+it.c*it.q,0);
+  const O=L*a.outros/100, P=L*a.ded/100;
+  const mc=L>0?(L-N-O-P)/L:0;
+  const R=L*a.roi/100, S=L*a.desp/100, T=ch.fre, U=L*ch.com-rebate, V=L*a.fin/100;
+  const base=(L-N-O-P-R-S-T-U-V)*a.irbase/100;
+  const X=base>0?base*a.irrate/100:0;
+  const Y=L-N-O-R-S-P-V-X-T-U, Z=L>0?Y/L:0;
+  return {L,N,O,P,mc,R,S,T,U,V,X,Y,Z,price,reaj,rebate,ch};
+}
+function calc(){
+  const r=compute(), meta=assumptions.meta/100;
+  const bm=$("#bigMargin");
+  bm.textContent=r.L>0?pct(r.Z):"0,0%";
+  bm.className="bignum "+(r.L<=0?"":r.Z>=meta?"pos":r.Z>=0?"warn":"neg");
+  $("#liqVal").textContent=brl(r.Y);
+  const badge=$("#metaBadge"),txt=$("#metaTxt");
+  if(r.L<=0){badge.className="badge no";txt.textContent="Informe o preço de venda";}
+  else if(r.Z>=meta){badge.className="badge ok";txt.textContent=`Acima da meta de ${assumptions.meta}%`;}
+  else{badge.className="badge no";txt.textContent=`Abaixo da meta de ${assumptions.meta}%`;}
+  $("#mcVal").textContent=pct(r.mc);
+  const rows=[
+    {name:"Valor de venda",op:"",amt:r.L,kind:"start"},
+    {name:"Custo dos itens",op:"−",amt:r.N,kind:"cost"},
+    {name:"Outros custos",op:"−",amt:r.O,kind:"cost"},
+    {name:"Deduções / impostos",op:"−",amt:r.P,kind:"cost"},
+    {name:"Margem de contribuição",op:"=",amt:r.L-r.N-r.O-r.P,kind:"mile"},
+    {name:"ROI",op:"−",amt:r.R,kind:"cost"},{name:"Despesas",op:"−",amt:r.S,kind:"cost"},
+    {name:"Frete",op:"−",amt:r.T,kind:"cost"},{name:"Comissão do canal",op:"−",amt:r.U,kind:"cost"},
+    {name:"Despesa financeira",op:"−",amt:r.V,kind:"cost"},{name:"IR / CS",op:"−",amt:r.X,kind:"cost"},
+    {name:"Resultado líquido",op:"=",amt:r.Y,kind:"final"},
+  ];
+  const base=r.L>0?r.L:1;
+  $("#cascade").innerHTML=rows.map(row=>{
+    if(row.kind==="mile")return `<div class="cl mile"><div class="cl-top"><span class="op">=</span><span class="name">${row.name}</span><span class="pct">${pct(row.amt/base)}</span><span class="amt">${brl(row.amt)}</span></div></div>`;
+    if(row.kind==="final"){const c=row.amt>=0?"pos":"neg";return `<div class="cl final"><div class="cl-top"><span class="op">=</span><span class="name">${row.name}</span><span class="pct">${pct(row.amt/base)}</span><span class="amt ${c}">${brl(row.amt)}</span></div></div>`;}
+    const isC=row.kind==="cost",w=Math.min(100,Math.abs(row.amt)/base*100);
+    return `<div class="cl ${isC?'cost':''}"><div class="cl-top"><span class="op">${row.op}</span><span class="name">${row.name}</span><span class="pct">${pct(row.amt/base)}</span><span class="amt">${isC?"−":""}${brl(Math.abs(row.amt))}</span></div>${isC?`<div class="track"><div class="bar" style="width:${w}%"></div></div>`:""}</div>`;
+  }).join("");
+  const canSave=$("#sku").value.trim()&&kit.length&&r.L>0;
+  $("#saveBtn").disabled=!canSave;
+  $("#saveHint").textContent=canSave?"Salvar guarda a composição, o canal, o preço e a margem.":(!$("#sku").value.trim()?"Informe um SKU para salvar.":!kit.length?"Adicione ao menos um item.":"Informe o preço de venda.");
+}
+
+// ---------- SKUs ----------
+async function loadSaved(){
+  saved={};
+  const keys=await Store.list("sku:");
+  for(const k of keys){try{const v=await Store.get(k); if(v) saved[k.slice(4)]=JSON.parse(v);}catch(e){}}
+  renderSaved();
+}
+async function saveSku(){
+  const r=compute(), sku=$("#sku").value.trim();
+  if(!sku||!kit.length||r.L<=0)return;
+  const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
+    price:r.price,reaj:+$("#reaj").value||0,rebate:r.rebate,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now()};
+  saved[sku]=rec;
+  await Store.set("sku:"+sku,JSON.stringify(rec));
+  toast(`SKU ${sku} salvo`); renderSaved();
+}
+async function deleteSku(sku){delete saved[sku];await Store.del("sku:"+sku);renderSaved();toast(`SKU ${sku} excluído`);}
+function loadSkuIntoCalc(sku){
+  const r=saved[sku];if(!r)return;
+  $("#sku").value=r.sku;$("#kitname").value=r.nome||"";
+  const ci=CHANNELS.findIndex(c=>c.n===r.canal);$("#channel").value=ci>=0?ci:0;showChannelFees();
+  kit=(r.itens||[]).map(it=>({n:it.n,c:it.c,q:it.q}));
+  $("#price").value=r.price||"";$("#reaj").value=r.reaj||0;$("#rebate").value=r.rebate||0;
+  switchView("calc");renderKit();toast(`SKU ${r.sku} carregado`);
+}
+function renderSaved(){
+  const list=Object.values(saved).sort((a,b)=>b.ts-a.ts),meta=(assumptions.meta||10)/100;
+  $("#navCount").textContent=list.length;
+  if(!list.length){$("#tableCard").style.display="none";$("#summary").style.display="none";$("#emptyState").style.display="block";return;}
+  $("#tableCard").style.display="";$("#summary").style.display="";$("#emptyState").style.display="none";
+  const avg=list.reduce((s,r)=>s+r.lucratividade,0)/list.length, below=list.filter(r=>r.lucratividade<meta).length;
+  $("#summary").innerHTML=`
+    <div class="stat"><div class="k">SKUs cadastrados</div><div class="v">${list.length}</div></div>
+    <div class="stat"><div class="k">Lucratividade média</div><div class="v" style="color:${avg>=meta?'var(--pos)':'var(--warn)'}">${pct(avg)}</div></div>
+    <div class="stat"><div class="k">Abaixo da meta (${(meta*100).toFixed(0)}%)</div><div class="v" style="color:${below?'var(--neg)':'var(--pos)'}">${below}</div></div>`;
+  $("#tbody").innerHTML=list.map(r=>{const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
+    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
+      <td><span class="chip">${r.canal}</span></td><td class="r">${brl(r.price)}</td><td class="r">${brl(r.custoItens)}</td>
+      <td class="r">${brl(r.liquido)}</td><td class="r"><span class="marg ${cls}">${pct(r.lucratividade)}</span></td>
+      <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;}).join("");
+}
+function exportCsv(){
+  const list=Object.values(saved).sort((a,b)=>b.ts-a.ts);if(!list.length){toast("Nada para exportar");return;}
+  const head=["SKU","Nome","Canal","Preco","Custo itens","Resultado liquido","Lucratividade %","Itens"];
+  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,r.price.toFixed(2),r.custoItens.toFixed(2),r.liquido.toFixed(2),(r.lucratividade*100).toFixed(1),r.itens.map(i=>`${i.q}x ${i.n}`).join(" | ")]);
+  const csv=[head,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
+  const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
+}
+
+// ---------- Ajustes (Settings) ----------
+function loadAssumpInputs(){
+  $("#a_outros").value=assumptions.outros;$("#a_ded").value=assumptions.ded;$("#a_roi").value=assumptions.roi;
+  $("#a_desp").value=assumptions.desp;$("#a_fin").value=assumptions.fin;$("#a_meta").value=assumptions.meta;
+  $("#a_irbase").value=assumptions.irbase;$("#a_irrate").value=assumptions.irrate;
+}
+function renderChanTable(){
+  $("#chanTable").innerHTML=CHANNELS.map((ch,i)=>`
+    <tr><td class="name">${ch.n}</td>
+    <td class="r"><input type="number" class="cellnum" data-ci="${i}" data-f="com" step="0.1" value="${+(ch.com*100).toFixed(2)}"></td>
+    <td class="r"><input type="number" class="cellnum" data-ci="${i}" data-f="fre" step="0.5" value="${ch.fre}"></td></tr>`).join("");
+}
+function renderProdTable(){
+  $("#prodTable").innerHTML=CATALOG.map((it,i)=>`
+    <tr><td class="name">${it.n}</td>
+    <td class="r"><input type="number" class="cellnum" data-pi="${i}" step="0.01" value="${it.c}"></td>
+    <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("");
+}
+function syncKitCosts(){ kit.forEach(k=>{const m=CATALOG.find(c=>c.n===k.n); if(m)k.c=m.c;}); }
+
+async function onAssumpChange(){
+  assumptions={outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
+    fin:+$("#a_fin").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
+  await saveConfig(); calc(); renderSaved();
+}
+async function onChanChange(e){
+  const t=e.target; if(t.dataset.ci==null)return;
+  const i=+t.dataset.ci, v=+t.value||0;
+  if(t.dataset.f==="com") CHANNELS[i].com=v/100; else CHANNELS[i].fre=v;
+  await saveConfig(); showChannelFees(); calc();
+}
+async function onProdChange(e){
+  const t=e.target; if(t.dataset.pi==null)return;
+  CATALOG[+t.dataset.pi].c=+t.value||0;
+  syncKitCosts(); await saveConfig(); buildSelects(); renderKit();
+}
+async function addProduct(){
+  const n=$("#npNome").value.trim(), c=+$("#npCusto").value||0;
+  if(!n||c<=0){toast("Informe nome e custo");return;}
+  CATALOG.push({n,c}); $("#npNome").value="";$("#npCusto").value="";
+  await saveConfig(); renderProdTable(); buildSelects(); toast("Produto adicionado");
+}
+async function delProduct(i){
+  const it=CATALOG[i]; if(!confirm(`Remover "${it.n}" do catálogo?`))return;
+  CATALOG.splice(i,1); await saveConfig(); renderProdTable(); buildSelects(); toast("Produto removido");
+}
+async function restoreDefaults(){
+  if(!confirm("Restaurar taxas, percentuais e custos aos valores originais da planilha? (Os SKUs salvos não são afetados.)"))return;
+  CATALOG=clone(DEF_CATALOG);CHANNELS=clone(DEF_CHANNELS);assumptions=clone(DEF_ASSUMP);
+  await saveConfig(); loadAssumpInputs();renderChanTable();renderProdTable();buildSelects();syncKitCosts();renderKit();
+  toast("Padrões restaurados");
+}
+
+// ---------- Navegação ----------
+function switchView(v){
+  document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));
+  ["calc","saved","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
+  if(v==="saved")renderSaved();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+// ---------- Eventos ----------
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.view));
+$("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
+$("#channel").onchange=()=>{showChannelFees();calc();};
+$("#addItem").onclick=addFromCatalog;
+$("#toggleAvulso").onclick=()=>{const a=$("#avulso");a.style.display=a.style.display==="none"?"grid":"none";};
+$("#addAvulso").onclick=()=>{const n=$("#avNome").value.trim(),c=+$("#avCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}kit.push({n,c,q:1});$("#avNome").value="";$("#avCusto").value="";renderKit();};
+$("#kitList").onclick=e=>{const t=e.target;if(t.dataset.rm!=null){kit.splice(+t.dataset.rm,1);renderKit();}else if(t.dataset.inc!=null){kit[+t.dataset.inc].q++;renderKit();}else if(t.dataset.dec!=null){const i=+t.dataset.dec;kit[i].q=Math.max(1,kit[i].q-1);renderKit();}};
+["price","reaj","rebate","sku"].forEach(id=>$("#"+id).addEventListener("input",calc));
+$("#saveBtn").onclick=saveSku;
+$("#clearBtn").onclick=()=>{kit=[];$("#sku").value="";$("#kitname").value="";$("#price").value="";$("#reaj").value=0;$("#rebate").value=0;renderKit();};
+$("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
+$("#exportCsv").onclick=exportCsv;
+["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
+$("#chanTable").addEventListener("input",onChanChange);
+$("#prodTable").addEventListener("input",onProdChange);
+$("#prodTable").addEventListener("click",e=>{if(e.target.dataset.pdel!=null)delProduct(+e.target.dataset.pdel);});
+$("#npAdd").onclick=addProduct;
+$("#restoreBtn").onclick=restoreDefaults;
+
+// ---------- Boot ----------
+(async function(){
+  await loadConfig();
+  loadAssumpInputs(); renderChanTable(); renderProdTable();
+  buildSelects(); renderKit(); calc();
+  await loadSaved();
+})();
+</script>
