@@ -208,15 +208,19 @@
           <p class="eyebrow"><span class="step">03</span>Preço &amp; ajustes de venda</p>
           <div class="seg-wrap" id="priceMode">
             <button class="seg on" data-mode="final">Preço final</button>
+            <button class="seg" data-mode="depor">De / Por</button>
             <button class="seg" data-mode="desc">Preço + desconto %</button>
           </div>
           <div class="row3">
             <div class="field pm-final" style="margin-bottom:0"><label for="priceFinal">Preço de venda (final)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceFinal" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-depor" style="margin-bottom:0;display:none"><label for="priceDe">De (preço cheio)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceDe" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-depor" style="margin-bottom:0;display:none"><label for="pricePor">Por (preço de venda)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="pricePor" placeholder="0,00" step="0.01" min="0"></div></div>
             <div class="field pm-desc" style="margin-bottom:0;display:none"><label for="priceBase">Preço base</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceBase" placeholder="0,00" step="0.01" min="0"></div></div>
             <div class="field pm-desc" style="margin-bottom:0;display:none"><label for="desc">Desconto</label><div class="inwrap"><input type="number" id="desc" value="0" step="1" style="padding-right:26px"><span class="suf">%</span></div></div>
             <div class="field" style="margin-bottom:0"><label for="rebate">Rebate</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="rebate" value="0" step="0.01" min="0"></div></div>
             <div class="field" style="margin-bottom:0"><label for="freight">Frete (R$)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="freight" step="0.5" min="0"></div></div>
           </div>
+          <div id="priceReadout" style="display:none;margin-top:12px;padding:10px 14px;background:var(--paper);border:1px solid var(--line2);border-radius:10px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap"></div>
           <p class="set-note" style="margin-top:12px">O <b>frete</b> vem preenchido com o padrão do canal — altere se mudar. Rebate abate a comissão. Taxas e custos ficam na aba <b>Ajustes</b>.</p>
         </div></div>
       </div>
@@ -437,9 +441,11 @@ function renderKit(){
 // ---------- Cálculo ----------
 function compute(){
   const a=assumptions,ch=curChannel();
-  let L,priceBase=0,desc=0,priceFinal=0;
+  let L,priceBase=0,desc=0,priceFinal=0,priceDe=0,pricePor=0,descPct=0;
   if(priceMode==="final"){priceFinal=+$("#priceFinal").value||0;L=priceFinal;}
-  else{priceBase=+$("#priceBase").value||0;desc=+$("#desc").value||0;L=priceBase*(1-desc/100);}
+  else if(priceMode==="depor"){priceDe=+$("#priceDe").value||0;pricePor=+$("#pricePor").value||0;L=pricePor;
+    descPct = priceDe>0 ? (priceDe-pricePor)/priceDe : 0;}
+  else{priceBase=+$("#priceBase").value||0;desc=+$("#desc").value||0;L=priceBase*(1-desc/100); descPct=desc/100;}
   const rebate=+$("#rebate").value||0;
   const freight=($("#freight").value===""?ch.fre:(+$("#freight").value||0));
   const N=kit.reduce((s,it)=>s+it.c*it.q,0);
@@ -447,7 +453,8 @@ function compute(){
   const R=L*a.roi/100,S=L*a.desp/100,T=freight,U=L*ch.com-rebate,V=L*a.fin/100;
   const base=(L-N-O-P-R-S-T-U-V)*a.irbase/100, X=base>0?base*a.irrate/100:0;
   const Y=L-N-O-R-S-P-V-X-T-U, Z=L>0?Y/L:0;
-  return {L,N,O,P,mc,R,S,T,U,V,X,Y,Z,priceBase,desc,priceFinal,rebate,freight,ch};
+  const rebatePct = L>0 ? rebate/L : 0;
+  return {L,N,O,P,mc,R,S,T,U,V,X,Y,Z,priceBase,desc,priceFinal,priceDe,pricePor,descPct,rebate,rebatePct,freight,ch};
 }
 function calc(){
   const r=compute(),meta=assumptions.meta/100;
@@ -459,6 +466,12 @@ function calc(){
   else if(r.Z>=meta){badge.className="badge ok";txt.textContent=`Acima da meta de ${assumptions.meta}%`;}
   else{badge.className="badge no";txt.textContent=`Abaixo da meta de ${assumptions.meta}%`;}
   $("#mcVal").textContent=pct(r.mc);
+  // leitura de desconto e rebate
+  const ro=$("#priceReadout");const parts=[];
+  if(priceMode==="depor"&&r.priceDe>0){parts.push(`<span>Desconto: <b style="color:var(--berry);font-family:var(--mono)">${pct(r.descPct)}</b></span>`);parts.push(`<span style="color:var(--faint)">Economia: <b style="font-family:var(--mono)">${brl(r.priceDe-r.pricePor)}</b></span>`);}
+  else if(priceMode==="desc"&&r.desc){parts.push(`<span>Desconto aplicado: <b style="color:var(--berry);font-family:var(--mono)">${pct(r.descPct)}</b></span>`);}
+  if(r.rebate>0){parts.push(`<span>Rebate: <b style="color:var(--forest);font-family:var(--mono)">${pct(r.rebatePct)}</b> <span style="color:var(--faint)">(${brl(r.rebate)})</span></span>`);}
+  if(parts.length){ro.style.display="flex";ro.innerHTML=parts.join("");}else{ro.style.display="none";}
   const rows=[
     {name:"Valor de venda",op:"",amt:r.L,kind:"start"},
     {name:"Custo dos itens",op:"−",amt:r.N,kind:"cost"},{name:"Outros custos",op:"−",amt:r.O,kind:"cost"},
@@ -485,6 +498,7 @@ function calc(){
 function applyPriceMode(){
   document.querySelectorAll("#priceMode .seg").forEach(s=>s.classList.toggle("on",s.dataset.mode===priceMode));
   document.querySelectorAll(".pm-final").forEach(el=>el.style.display=priceMode==="final"?"":"none");
+  document.querySelectorAll(".pm-depor").forEach(el=>el.style.display=priceMode==="depor"?"":"none");
   document.querySelectorAll(".pm-desc").forEach(el=>el.style.display=priceMode==="desc"?"":"none");
 }
 
@@ -494,7 +508,7 @@ async function saveSku(){
   const r=compute(),sku=$("#sku").value.trim();
   if(!sku||!kit.length||r.L<=0)return;
   const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
-    priceMode,priceBase:r.priceBase,desc:r.desc,priceFinal:r.L,rebate:r.rebate,freight:r.freight,
+    priceMode,priceBase:r.priceBase,desc:r.desc,priceFinal:r.L,priceDe:r.priceDe,pricePor:r.pricePor,descPct:r.descPct,rebate:r.rebate,rebatePct:r.rebatePct,freight:r.freight,
     price:r.L,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now()};
   saved[sku]=rec;renderSaved();
   try{await DB.upsertSku(rec);toast(`SKU ${sku} salvo`+(SUPA_ON?" na nuvem":""));if(SUPA_ON)setSync("cloud");}
@@ -509,6 +523,7 @@ function loadSkuIntoCalc(sku){
   // modo de preço (compatível com registros antigos)
   priceMode=r.priceMode||"final";applyPriceMode();
   if(priceMode==="final"){$("#priceFinal").value=(r.priceFinal!=null?r.priceFinal:r.price)||"";}
+  else if(priceMode==="depor"){$("#priceDe").value=r.priceDe||"";$("#pricePor").value=(r.pricePor!=null?r.pricePor:r.price)||"";}
   else{$("#priceBase").value=r.priceBase||"";$("#desc").value=(r.desc!=null?r.desc:(r.reaj!=null?-r.reaj:0));}
   $("#rebate").value=r.rebate||0;
   $("#freight").value=(r.freight!=null?r.freight:curChannel().fre);
@@ -604,9 +619,9 @@ $("#toggleAvulso").onclick=()=>{const a=$("#avulso");a.style.display=a.style.dis
 $("#addAvulso").onclick=()=>{const n=$("#avNome").value.trim(),c=+$("#avCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}kit.push({n,c,q:1});$("#avNome").value="";$("#avCusto").value="";renderKit();};
 $("#kitList").onclick=e=>{const t=e.target;if(t.dataset.rm!=null){kit.splice(+t.dataset.rm,1);renderKit();}else if(t.dataset.inc!=null){kit[+t.dataset.inc].q++;renderKit();}else if(t.dataset.dec!=null){const i=+t.dataset.dec;kit[i].q=Math.max(1,kit[i].q-1);renderKit();}};
 $("#priceMode").addEventListener("click",e=>{const b=e.target.closest(".seg");if(!b)return;priceMode=b.dataset.mode;applyPriceMode();calc();});
-["priceFinal","priceBase","desc","rebate","freight","sku"].forEach(id=>$("#"+id).addEventListener("input",calc));
+["priceFinal","priceDe","pricePor","priceBase","desc","rebate","freight","sku"].forEach(id=>$("#"+id).addEventListener("input",calc));
 $("#saveBtn").onclick=saveSku;
-$("#clearBtn").onclick=()=>{kit=[];autoName="";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
+$("#clearBtn").onclick=()=>{kit=[];autoName="";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
 $("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
 $("#exportCsv").onclick=exportCsv;
 ["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
