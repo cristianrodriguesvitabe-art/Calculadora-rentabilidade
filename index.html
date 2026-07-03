@@ -20,13 +20,11 @@
   body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
   .wrap{max-width:1180px;margin:0 auto;padding:0 20px 64px}
   button{font-family:var(--ui);cursor:pointer} input,select{font-family:var(--ui)}
-
   header{position:sticky;top:0;z-index:30;background:rgba(237,241,237,.86);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   .bar{max-width:1180px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   .brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
   .mark{font-family:var(--disp);font-weight:600;font-size:21px;letter-spacing:-.01em}
-  .mark em{font-style:italic;color:var(--forest)}
-  .brand .sub{font-size:12.5px;color:var(--faint)}
+  .mark em{font-style:italic;color:var(--forest)} .brand .sub{font-size:12.5px;color:var(--faint)}
   .sync{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted)}
   .sync .dot{width:7px;height:7px;border-radius:50%;background:var(--faint)}
   .sync.cloud{color:var(--pos);border-color:#bfe0cd}.sync.cloud .dot{background:var(--pos)}
@@ -36,7 +34,6 @@
   .tab[aria-selected="true"]{background:var(--forest);color:#fff}
   .tab .n{display:inline-block;min-width:18px;text-align:center;margin-left:6px;font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:999px;background:rgba(255,255,255,.18)}
   .tab[aria-selected="false"] .n{background:var(--line2);color:var(--muted)}
-
   .view{display:none;padding-top:26px}
   .view.on{display:block;animation:fade .3s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -46,7 +43,6 @@
   .card .pad{padding:20px}.card + .card{margin-top:18px}
   .eyebrow{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--forest);margin:0 0 14px}
   .eyebrow .step{font-family:var(--mono);color:var(--berry);margin-right:8px}
-
   label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin:0 0 6px}
   .field{margin-bottom:14px}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
@@ -61,7 +57,18 @@
   .btn-primary{background:var(--forest);border-color:var(--forest);color:#fff}.btn-primary:hover{background:var(--forest-d);color:#fff}
   .btn-ghost{background:transparent;border-color:transparent;color:var(--muted)}.btn-ghost:hover{color:var(--berry)}
   .btn:disabled{opacity:.45;cursor:not-allowed}
-
+  /* combobox */
+  .combo{position:relative}
+  .combo-list{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:25;background:#fff;border:1px solid var(--line);border-radius:var(--rs);box-shadow:var(--sh);max-height:262px;overflow:auto;display:none}
+  .combo-list.on{display:block}
+  .combo-opt{padding:9px 12px;font-size:13.5px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .combo-opt:hover,.combo-opt.hl{background:var(--paper)}
+  .combo-opt .cst{font-family:var(--mono);color:var(--faint);font-size:12px;white-space:nowrap}
+  .combo-empty{padding:11px 12px;color:var(--faint);font-size:13px}
+  /* segmented */
+  .seg-wrap{display:flex;gap:6px;margin-bottom:14px}
+  .seg{flex:1;border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:600;font-size:13px;padding:9px;border-radius:8px;transition:.15s}
+  .seg.on{background:var(--forest);border-color:var(--forest);color:#fff}
   .add-row{display:grid;grid-template-columns:1fr 88px auto;gap:10px;align-items:end}
   .kit-list{margin-top:14px;border-top:1px solid var(--line2)}
   .kit-item{display:grid;grid-template-columns:1fr auto auto auto;gap:12px;align-items:center;padding:11px 2px;border-bottom:1px solid var(--line2)}
@@ -78,7 +85,6 @@
   .kit-total b{font-family:var(--mono);font-size:16px;color:var(--ink)}
   .chan-fees{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--muted)}
   .chan-fees span{font-family:var(--mono)}.chan-fees b{color:var(--forest)}
-
   .results{position:sticky;top:84px}
   .verdict{padding:22px 22px 8px}
   .verdict .lbl{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
@@ -107,7 +113,6 @@
   .cl.final .amt.pos{color:var(--pos)}.cl.final .amt.neg{color:var(--neg)}
   .save-bar{padding:16px 22px 22px;display:flex;gap:10px}.save-bar .btn-primary{flex:1}
   .hint{font-size:12px;color:var(--faint);padding:0 22px 18px;margin-top:-6px}
-
   .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
   @media(max-width:640px){.summary{grid-template-columns:1fr}}
   .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh)}
@@ -167,18 +172,23 @@
           <p class="eyebrow"><span class="step">01</span>Identificação</p>
           <div class="row2">
             <div class="field"><label for="sku">SKU do kit</label><input type="text" id="sku" placeholder="ex.: COLRNBCRAN1" autocomplete="off"></div>
-            <div class="field"><label for="kitname">Nome / descrição</label><input type="text" id="kitname" placeholder="ex.: Kit Cranberry + Retinol" autocomplete="off"></div>
+            <div class="field"><label for="kitname">Nome / descrição <span style="font-weight:400;color:var(--faint)">(automático)</span></label><input type="text" id="kitname" placeholder="preenche sozinho com os itens" autocomplete="off"></div>
           </div>
           <div class="field" style="margin-bottom:0">
             <label for="channel">Canal de venda</label>
             <select id="channel"></select>
-            <div class="chan-fees"><span>Comissão <b id="fCom">—</b></span><span>Frete <b id="fFre">—</b></span></div>
+            <div class="chan-fees"><span>Comissão <b id="fCom">—</b></span><span>Frete padrão <b id="fFre">—</b></span></div>
           </div>
         </div></div>
+
         <div class="card"><div class="pad">
           <p class="eyebrow"><span class="step">02</span>Itens do kit</p>
           <div class="add-row">
-            <div><label for="pick">Produto</label><select id="pick"></select></div>
+            <div class="combo">
+              <label for="pickSearch">Produto</label>
+              <input type="text" id="pickSearch" placeholder="Digite para buscar..." autocomplete="off">
+              <div class="combo-list" id="pickList"></div>
+            </div>
             <div><label for="pickqty">Qtde</label><input type="number" id="pickqty" value="1" min="1" step="1"></div>
             <button class="btn btn-primary" id="addItem" style="height:40px">Adicionar</button>
           </div>
@@ -193,16 +203,24 @@
           <div class="kit-list" id="kitList"></div>
           <div class="kit-total"><span>Custo total dos itens</span><b id="kitTotal">R$ 0,00</b></div>
         </div></div>
+
         <div class="card"><div class="pad">
           <p class="eyebrow"><span class="step">03</span>Preço &amp; ajustes de venda</p>
-          <div class="row3">
-            <div class="field" style="margin-bottom:0"><label for="price">Preço de venda</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="price" placeholder="0,00" step="0.01" min="0"></div></div>
-            <div class="field" style="margin-bottom:0"><label for="reaj">Reajuste / desconto</label><div class="inwrap"><input type="number" id="reaj" value="0" step="1" style="padding-right:26px"><span class="suf">%</span></div></div>
-            <div class="field" style="margin-bottom:0"><label for="rebate">Rebate</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="rebate" value="0" step="0.01" min="0"></div></div>
+          <div class="seg-wrap" id="priceMode">
+            <button class="seg on" data-mode="final">Preço final</button>
+            <button class="seg" data-mode="desc">Preço + desconto %</button>
           </div>
-          <p class="set-note" style="margin-top:12px">Desconto entra negativo (ex.: <b>−40</b>). Rebate abate a comissão. As taxas e custos vêm da aba <b>Ajustes</b>.</p>
+          <div class="row3">
+            <div class="field pm-final" style="margin-bottom:0"><label for="priceFinal">Preço de venda (final)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceFinal" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-desc" style="margin-bottom:0;display:none"><label for="priceBase">Preço base</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceBase" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-desc" style="margin-bottom:0;display:none"><label for="desc">Desconto</label><div class="inwrap"><input type="number" id="desc" value="0" step="1" style="padding-right:26px"><span class="suf">%</span></div></div>
+            <div class="field" style="margin-bottom:0"><label for="rebate">Rebate</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="rebate" value="0" step="0.01" min="0"></div></div>
+            <div class="field" style="margin-bottom:0"><label for="freight">Frete (R$)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="freight" step="0.5" min="0"></div></div>
+          </div>
+          <p class="set-note" style="margin-top:12px">O <b>frete</b> vem preenchido com o padrão do canal — altere se mudar. Rebate abate a comissão. Taxas e custos ficam na aba <b>Ajustes</b>.</p>
         </div></div>
       </div>
+
       <div class="results">
         <div class="card">
           <div class="verdict">
@@ -287,16 +305,12 @@
 
 <script>
 /* ============================================================
-   SINCRONIZAÇÃO EM NUVEM (Supabase)
-   Preencha as duas linhas abaixo com os dados do seu projeto Supabase.
-   A chave "anon" é pública/segura para ficar aqui.
-   Deixe em branco ("") para usar o modo local (sem sincronizar).
+   SINCRONIZAÇÃO EM NUVEM (Supabase) — chave anon é pública/segura
    ============================================================ */
-const SUPABASE_URL = "https://ugceqwceukpgnjfcicbs.supabase.co";  // seu Project URL (já preenchido)
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnY2Vxd2NldWtwZ25qZmNpY2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwOTA4MzQsImV4cCI6MjA5ODY2NjgzNH0.23Egcw_w7BvnLqSiJl1yBf-22NBPRnfaIGOwfmBg6nM";  // <<< COLE AQUI a sua chave anon/public (começa com eyJ...)
+const SUPABASE_URL = "https://ugceqwceukpgnjfcicbs.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnY2Vxd2NldWtwZ25qZmNpY2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwOTA4MzQsImV4cCI6MjA5ODY2NjgzNH0.23Egcw_w7BvnLqSiJl1yBf-22NBPRnfaIGOwfmBg6nM";
 /* ============================================================ */
 
-// ---------- Padrões (planilha Renova Be) ----------
 const DEF_CATALOG = [
   {n:"RENOVABE Verisol Cranberry",c:17.98},{n:"RENOVABE Verisol Limão",c:17.98},{n:"RENOVABE Verisol Tangerina",c:17.98},
   {n:"RENOVABE Verisol Frutas Tropicais",c:17.98},{n:"RENOVABE Verisol Pink Lemonade",c:17.98},{n:"Renova Be Colágeno Chocolate",c:17.98},
@@ -316,6 +330,7 @@ const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, irbase:70,
 
 let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP);
 let kit = [], saved = {};
+let priceMode = "final", autoName = "";
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
 const $ = s => document.querySelector(s);
@@ -323,7 +338,7 @@ const brl = v => "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,
 const pct = v => (v*100).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2000);}
 
-// ---------- Camada de dados: Supabase quando configurado, senão local ----------
+// ---------- Camada de dados ----------
 const SUPA_ON = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 const mem = {};
 const hasWS = (typeof window!=="undefined" && window.storage && typeof window.storage.get==="function");
@@ -337,80 +352,102 @@ function sHead(extra){return Object.assign({apikey:SUPABASE_ANON_KEY,Authorizati
 async function sGet(path){const r=await fetch(SUPABASE_URL+"/rest/v1/"+path,{headers:sHead()});if(!r.ok)throw new Error("GET "+r.status+": "+await r.text());return r.json();}
 async function sUpsert(table,row,conflict){const u=SUPABASE_URL+"/rest/v1/"+table+(conflict?"?on_conflict="+conflict:"");const r=await fetch(u,{method:"POST",headers:sHead({Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(row)});if(!r.ok)throw new Error("UPSERT "+r.status+": "+await r.text());}
 async function sDel(table,filter){const r=await fetch(SUPABASE_URL+"/rest/v1/"+table+"?"+filter,{method:"DELETE",headers:sHead({Prefer:"return=minimal"})});if(!r.ok)throw new Error("DEL "+r.status+": "+await r.text());}
-
 const DB = {
-  async listSkus(){
-    if(SUPA_ON){const rows=await sGet("skus?select=sku,data");const o={};rows.forEach(r=>o[r.sku]=r.data);return o;}
-    const keys=await Local.list("sku:");const o={};for(const k of keys){try{const v=await Local.get(k);if(v)o[k.slice(4)]=JSON.parse(v);}catch(e){}}return o;
-  },
+  async listSkus(){ if(SUPA_ON){const rows=await sGet("skus?select=sku,data");const o={};rows.forEach(r=>o[r.sku]=r.data);return o;}
+    const keys=await Local.list("sku:");const o={};for(const k of keys){try{const v=await Local.get(k);if(v)o[k.slice(4)]=JSON.parse(v);}catch(e){}}return o; },
   async upsertSku(rec){ if(SUPA_ON) await sUpsert("skus",{sku:rec.sku,data:rec},"sku"); else await Local.set("sku:"+rec.sku,JSON.stringify(rec)); },
   async deleteSku(sku){ if(SUPA_ON) await sDel("skus","sku=eq."+encodeURIComponent(sku)); else await Local.del("sku:"+sku); },
-  async getConfig(){
-    if(SUPA_ON){const rows=await sGet("app_config?id=eq.1&select=data");return rows[0]?rows[0].data:null;}
-    const a=await Local.get("cfg:all");return a?JSON.parse(a):null;
-  },
+  async getConfig(){ if(SUPA_ON){const rows=await sGet("app_config?id=eq.1&select=data");return rows[0]?rows[0].data:null;}
+    const a=await Local.get("cfg:all");return a?JSON.parse(a):null; },
   async setConfig(cfg){ if(SUPA_ON) await sUpsert("app_config",{id:1,data:cfg},"id"); else await Local.set("cfg:all",JSON.stringify(cfg)); }
 };
-
-function setSync(state){ // 'cloud' | 'local' | 'err'
-  const p=$("#syncPill"),t=$("#syncTxt");
-  p.className="sync"+(state==="cloud"?" cloud":state==="err"?" err":"");
-  t.textContent = state==="cloud"?"Nuvem sincronizada":state==="err"?"Erro de conexão":"Modo local";
-}
+function setSync(state){const p=$("#syncPill"),t=$("#syncTxt");p.className="sync"+(state==="cloud"?" cloud":state==="err"?" err":"");t.textContent=state==="cloud"?"Nuvem sincronizada":state==="err"?"Erro de conexão":"Modo local";}
 let cfgTimer;
-async function saveConfig(){
-  const cfg={assumptions,channels:CHANNELS,catalog:CATALOG};
-  clearTimeout(cfgTimer);
-  cfgTimer=setTimeout(async()=>{try{await DB.setConfig(cfg);if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar ajustes na nuvem");}},400);
-}
+async function saveConfig(){const cfg={assumptions,channels:CHANNELS,catalog:CATALOG};clearTimeout(cfgTimer);
+  cfgTimer=setTimeout(async()=>{try{await DB.setConfig(cfg);if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar ajustes na nuvem");}},400);}
 async function loadConfig(){
   try{const c=await DB.getConfig();
-    if(c){ if(c.assumptions)assumptions={...DEF_ASSUMP,...c.assumptions};
+    if(c){if(c.assumptions)assumptions={...DEF_ASSUMP,...c.assumptions};
       if(Array.isArray(c.channels)&&c.channels.length)CHANNELS=c.channels;
-      if(Array.isArray(c.catalog)&&c.catalog.length)CATALOG=c.catalog; }
+      if(Array.isArray(c.catalog)&&c.catalog.length)CATALOG=c.catalog;}
     if(SUPA_ON)setSync("cloud");
-  }catch(e){ if(SUPA_ON)setSync("err"); }
+  }catch(e){if(SUPA_ON)setSync("err");}
 }
 
-// ---------- Selects / display ----------
+// ---------- Canal ----------
 function buildSelects(){
   const cur=$("#channel").value;
-  $("#pick").innerHTML=CATALOG.map((it,i)=>`<option value="${i}">${it.n} — ${brl(it.c)}</option>`).join("");
   $("#channel").innerHTML=CHANNELS.map((ch,i)=>`<option value="${i}">${ch.n}</option>`).join("");
   if(cur&&+cur<CHANNELS.length)$("#channel").value=cur;
   showChannelFees();
 }
 function curChannel(){return CHANNELS[+$("#channel").value]||CHANNELS[0];}
-function showChannelFees(){const ch=curChannel();$("#fCom").textContent=pct(ch.com);$("#fFre").textContent=brl(ch.fre);}
+function showChannelFees(setFreight){const ch=curChannel();$("#fCom").textContent=pct(ch.com);$("#fFre").textContent=brl(ch.fre);
+  if(setFreight!==false)$("#freight").value=ch.fre;}
+
+// ---------- Combobox de produtos ----------
+let pickSel=null, pickHL=-1, pickFiltered=[];
+function openList(){
+  const q=($("#pickSearch").value||"").trim().toLowerCase();
+  pickFiltered=CATALOG.map((it,i)=>({it,i})).filter(o=>!q||o.it.n.toLowerCase().includes(q));
+  const list=$("#pickList");
+  if(!pickFiltered.length){list.innerHTML='<div class="combo-empty">Nenhum produto encontrado</div>';}
+  else list.innerHTML=pickFiltered.map((o,idx)=>`<div class="combo-opt${idx===pickHL?' hl':''}" data-idx="${idx}"><span>${o.it.n}</span><span class="cst">${brl(o.it.c)}</span></div>`).join("");
+  list.classList.add("on");
+}
+function closeList(){$("#pickList").classList.remove("on");pickHL=-1;}
+function selectPick(idx){const o=pickFiltered[idx];if(!o)return;pickSel=o.i;$("#pickSearch").value=o.it.n;closeList();}
+function addFromCatalog(){
+  let it=null;
+  if(pickSel!=null) it=CATALOG[pickSel];
+  else{const q=($("#pickSearch").value||"").trim().toLowerCase();
+    if(q) it=CATALOG.find(c=>c.n.toLowerCase()===q)||CATALOG.find(c=>c.n.toLowerCase().includes(q));}
+  if(!it){toast("Selecione um produto na lista");openList();return;}
+  const q=Math.max(1,parseInt($("#pickqty").value)||1);
+  const ex=kit.find(k=>k.n===it.n);if(ex){ex.q+=q;ex.c=it.c;}else kit.push({n:it.n,c:it.c,q});
+  pickSel=null;$("#pickSearch").value="";$("#pickqty").value=1;closeList();
+  renderKit();
+}
+
+// ---------- Nome automático ----------
+function shortName(n){
+  return n.replace(/renova\s*be/ig,"").replace(/renovabe/ig,"").replace(/\b30ml\b/ig,"")
+          .replace(/\s{2,}/g," ").replace(/^[\s\-–+]+|[\s\-–+]+$/g,"").trim();
+}
+function genName(){ if(!kit.length)return ""; return kit.map(it=>(it.q>1?it.q+"× ":"")+shortName(it.n)).join(" + "); }
+function updateAutoName(){
+  const f=$("#kitname"), newAuto=genName();
+  if(f.value===""||f.value===autoName) f.value=newAuto;
+  autoName=newAuto;
+}
 
 // ---------- Kit ----------
 function renderKit(){
   const el=$("#kitList");
-  if(!kit.length)el.innerHTML='<div class="kit-empty">Nenhum item adicionado. Escolha um produto acima.</div>';
+  if(!kit.length)el.innerHTML='<div class="kit-empty">Nenhum item adicionado. Busque um produto acima.</div>';
   else el.innerHTML=kit.map((it,i)=>`
     <div class="kit-item"><div><div class="nm">${it.n}</div><div class="meta">${brl(it.c)} un.</div></div>
     <div class="qtybox"><button data-dec="${i}">−</button><span>${it.q}</span><button data-inc="${i}">+</button></div>
     <div class="sub">${brl(it.c*it.q)}</div><button class="rm" data-rm="${i}" title="Remover">×</button></div>`).join("");
   $("#kitTotal").textContent=brl(kit.reduce((s,it)=>s+it.c*it.q,0));
+  updateAutoName();
   calc();
 }
-function addFromCatalog(){
-  const it=CATALOG[+$("#pick").value];if(!it)return;
-  const q=Math.max(1,parseInt($("#pickqty").value)||1);
-  const ex=kit.find(k=>k.n===it.n);if(ex){ex.q+=q;ex.c=it.c;}else kit.push({n:it.n,c:it.c,q});
-  renderKit();
-}
 
-// ---------- Motor de cálculo ----------
+// ---------- Cálculo ----------
 function compute(){
   const a=assumptions,ch=curChannel();
-  const price=+$("#price").value||0,reaj=(+$("#reaj").value||0)/100,rebate=+$("#rebate").value||0;
-  const L=price*(1+reaj), N=kit.reduce((s,it)=>s+it.c*it.q,0);
+  let L,priceBase=0,desc=0,priceFinal=0;
+  if(priceMode==="final"){priceFinal=+$("#priceFinal").value||0;L=priceFinal;}
+  else{priceBase=+$("#priceBase").value||0;desc=+$("#desc").value||0;L=priceBase*(1-desc/100);}
+  const rebate=+$("#rebate").value||0;
+  const freight=($("#freight").value===""?ch.fre:(+$("#freight").value||0));
+  const N=kit.reduce((s,it)=>s+it.c*it.q,0);
   const O=L*a.outros/100,P=L*a.ded/100, mc=L>0?(L-N-O-P)/L:0;
-  const R=L*a.roi/100,S=L*a.desp/100,T=ch.fre,U=L*ch.com-rebate,V=L*a.fin/100;
+  const R=L*a.roi/100,S=L*a.desp/100,T=freight,U=L*ch.com-rebate,V=L*a.fin/100;
   const base=(L-N-O-P-R-S-T-U-V)*a.irbase/100, X=base>0?base*a.irrate/100:0;
   const Y=L-N-O-R-S-P-V-X-T-U, Z=L>0?Y/L:0;
-  return {L,N,O,P,mc,R,S,T,U,V,X,Y,Z,price,reaj,rebate,ch};
+  return {L,N,O,P,mc,R,S,T,U,V,X,Y,Z,priceBase,desc,priceFinal,rebate,freight,ch};
 }
 function calc(){
   const r=compute(),meta=assumptions.meta/100;
@@ -441,35 +478,41 @@ function calc(){
   }).join("");
   const canSave=$("#sku").value.trim()&&kit.length&&r.L>0;
   $("#saveBtn").disabled=!canSave;
-  $("#saveHint").textContent=canSave?"Salvar guarda a composição, o canal, o preço e a margem."+(SUPA_ON?" (visível para a equipe)":""):(!$("#sku").value.trim()?"Informe um SKU para salvar.":!kit.length?"Adicione ao menos um item.":"Informe o preço de venda.");
+  $("#saveHint").textContent=canSave?"Salvar guarda a composição, o canal, o preço, o frete e a margem."+(SUPA_ON?" (visível para a equipe)":""):(!$("#sku").value.trim()?"Informe um SKU para salvar.":!kit.length?"Adicione ao menos um item.":"Informe o preço de venda.");
+}
+
+// ---------- Modo de preço ----------
+function applyPriceMode(){
+  document.querySelectorAll("#priceMode .seg").forEach(s=>s.classList.toggle("on",s.dataset.mode===priceMode));
+  document.querySelectorAll(".pm-final").forEach(el=>el.style.display=priceMode==="final"?"":"none");
+  document.querySelectorAll(".pm-desc").forEach(el=>el.style.display=priceMode==="desc"?"":"none");
 }
 
 // ---------- SKUs ----------
-async function refreshSkus(){
-  try{saved=await DB.listSkus();if(SUPA_ON)setSync("cloud");}
-  catch(e){if(SUPA_ON)setSync("err");}
-  renderSaved();
-}
+async function refreshSkus(){try{saved=await DB.listSkus();if(SUPA_ON)setSync("cloud");}catch(e){if(SUPA_ON)setSync("err");}renderSaved();}
 async function saveSku(){
   const r=compute(),sku=$("#sku").value.trim();
   if(!sku||!kit.length||r.L<=0)return;
   const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
-    price:r.price,reaj:+$("#reaj").value||0,rebate:r.rebate,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now()};
+    priceMode,priceBase:r.priceBase,desc:r.desc,priceFinal:r.L,rebate:r.rebate,freight:r.freight,
+    price:r.L,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now()};
   saved[sku]=rec;renderSaved();
   try{await DB.upsertSku(rec);toast(`SKU ${sku} salvo`+(SUPA_ON?" na nuvem":""));if(SUPA_ON)setSync("cloud");}
   catch(e){setSync("err");toast("Salvo localmente, mas falhou na nuvem");}
 }
-async function deleteSku(sku){
-  delete saved[sku];renderSaved();
-  try{await DB.deleteSku(sku);toast(`SKU ${sku} excluído`);}catch(e){setSync("err");toast("Falha ao excluir na nuvem");}
-}
+async function deleteSku(sku){delete saved[sku];renderSaved();try{await DB.deleteSku(sku);toast(`SKU ${sku} excluído`);}catch(e){setSync("err");toast("Falha ao excluir na nuvem");}}
 function loadSkuIntoCalc(sku){
   const r=saved[sku];if(!r)return;
-  $("#sku").value=r.sku;$("#kitname").value=r.nome||"";
-  const ci=CHANNELS.findIndex(c=>c.n===r.canal);$("#channel").value=ci>=0?ci:0;showChannelFees();
+  $("#sku").value=r.sku;$("#kitname").value=r.nome||"";autoName="__custom__";
+  const ci=CHANNELS.findIndex(c=>c.n===r.canal);$("#channel").value=ci>=0?ci:0;showChannelFees(false);
   kit=(r.itens||[]).map(it=>({n:it.n,c:it.c,q:it.q}));
-  $("#price").value=r.price||"";$("#reaj").value=r.reaj||0;$("#rebate").value=r.rebate||0;
-  switchView("calc");renderKit();toast(`SKU ${r.sku} carregado`);
+  // modo de preço (compatível com registros antigos)
+  priceMode=r.priceMode||"final";applyPriceMode();
+  if(priceMode==="final"){$("#priceFinal").value=(r.priceFinal!=null?r.priceFinal:r.price)||"";}
+  else{$("#priceBase").value=r.priceBase||"";$("#desc").value=(r.desc!=null?r.desc:(r.reaj!=null?-r.reaj:0));}
+  $("#rebate").value=r.rebate||0;
+  $("#freight").value=(r.freight!=null?r.freight:curChannel().fre);
+  switchView("calc");renderKit();$("#kitname").value=r.nome||genName();toast(`SKU ${r.sku} carregado`);
 }
 function renderSaved(){
   const list=Object.values(saved).sort((a,b)=>(b.ts||0)-(a.ts||0)),meta=(assumptions.meta||10)/100;
@@ -489,8 +532,8 @@ function renderSaved(){
 }
 function exportCsv(){
   const list=Object.values(saved).sort((a,b)=>(b.ts||0)-(a.ts||0));if(!list.length){toast("Nada para exportar");return;}
-  const head=["SKU","Nome","Canal","Preco","Custo itens","Resultado liquido","Lucratividade %","Itens"];
-  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,(r.price||0).toFixed(2),(r.custoItens||0).toFixed(2),(r.liquido||0).toFixed(2),((r.lucratividade||0)*100).toFixed(1),(r.itens||[]).map(i=>`${i.q}x ${i.n}`).join(" | ")]);
+  const head=["SKU","Nome","Canal","Preco","Custo itens","Frete","Resultado liquido","Lucratividade %","Itens"];
+  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,(r.price||0).toFixed(2),(r.custoItens||0).toFixed(2),(r.freight||0).toFixed(2),(r.liquido||0).toFixed(2),((r.lucratividade||0)*100).toFixed(1),(r.itens||[]).map(i=>`${i.q}x ${i.n}`).join(" | ")]);
   const csv=[head,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
@@ -513,20 +556,20 @@ function renderProdTable(){
     <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("");
 }
 function syncKitCosts(){kit.forEach(k=>{const m=CATALOG.find(c=>c.n===k.n);if(m)k.c=m.c;});}
-async function onAssumpChange(){
+function onAssumpChange(){
   assumptions={outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
     fin:+$("#a_fin").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
   saveConfig();calc();renderSaved();
 }
-async function onChanChange(e){const t=e.target;if(t.dataset.ci==null)return;const i=+t.dataset.ci,v=+t.value||0;
-  if(t.dataset.f==="com")CHANNELS[i].com=v/100;else CHANNELS[i].fre=v;saveConfig();showChannelFees();calc();}
-async function onProdChange(e){const t=e.target;if(t.dataset.pi==null)return;CATALOG[+t.dataset.pi].c=+t.value||0;
-  syncKitCosts();saveConfig();buildSelects();renderKit();}
-async function addProduct(){const n=$("#npNome").value.trim(),c=+$("#npCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}
-  CATALOG.push({n,c});$("#npNome").value="";$("#npCusto").value="";saveConfig();renderProdTable();buildSelects();toast("Produto adicionado");}
-async function delProduct(i){const it=CATALOG[i];if(!confirm(`Remover "${it.n}" do catálogo?`))return;
-  CATALOG.splice(i,1);saveConfig();renderProdTable();buildSelects();toast("Produto removido");}
-async function restoreDefaults(){
+function onChanChange(e){const t=e.target;if(t.dataset.ci==null)return;const i=+t.dataset.ci,v=+t.value||0;
+  if(t.dataset.f==="com")CHANNELS[i].com=v/100;else CHANNELS[i].fre=v;saveConfig();showChannelFees(false);calc();}
+function onProdChange(e){const t=e.target;if(t.dataset.pi==null)return;CATALOG[+t.dataset.pi].c=+t.value||0;
+  syncKitCosts();saveConfig();renderKit();}
+function addProduct(){const n=$("#npNome").value.trim(),c=+$("#npCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}
+  CATALOG.push({n,c});$("#npNome").value="";$("#npCusto").value="";saveConfig();renderProdTable();toast("Produto adicionado");}
+function delProduct(i){const it=CATALOG[i];if(!confirm(`Remover "${it.n}" do catálogo?`))return;
+  CATALOG.splice(i,1);saveConfig();renderProdTable();toast("Produto removido");}
+function restoreDefaults(){
   if(!confirm("Restaurar taxas, percentuais e custos aos valores originais da planilha? (Os SKUs salvos não são afetados.)"))return;
   CATALOG=clone(DEF_CATALOG);CHANNELS=clone(DEF_CHANNELS);assumptions=clone(DEF_ASSUMP);
   saveConfig();loadAssumpInputs();renderChanTable();renderProdTable();buildSelects();syncKitCosts();renderKit();toast("Padrões restaurados");
@@ -544,14 +587,26 @@ function switchView(v){
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.view));
 $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
 $("#refreshBtn").onclick=refreshSkus;
-$("#channel").onchange=()=>{showChannelFees();calc();};
+$("#channel").onchange=()=>{showChannelFees(true);calc();};
 $("#addItem").onclick=addFromCatalog;
+// combobox
+$("#pickSearch").addEventListener("input",()=>{pickSel=null;pickHL=-1;openList();});
+$("#pickSearch").addEventListener("focus",openList);
+$("#pickSearch").addEventListener("keydown",e=>{
+  if(e.key==="ArrowDown"){e.preventDefault();pickHL=Math.min(pickFiltered.length-1,pickHL+1);openList();}
+  else if(e.key==="ArrowUp"){e.preventDefault();pickHL=Math.max(0,pickHL-1);openList();}
+  else if(e.key==="Enter"){e.preventDefault();if(pickHL>=0)selectPick(pickHL);else if(pickFiltered.length)selectPick(0);addFromCatalog();}
+  else if(e.key==="Escape"){closeList();}
+});
+$("#pickList").addEventListener("mousedown",e=>{const o=e.target.closest(".combo-opt");if(o){e.preventDefault();selectPick(+o.dataset.idx);}});
+document.addEventListener("click",e=>{if(!e.target.closest(".combo"))closeList();});
 $("#toggleAvulso").onclick=()=>{const a=$("#avulso");a.style.display=a.style.display==="none"?"grid":"none";};
 $("#addAvulso").onclick=()=>{const n=$("#avNome").value.trim(),c=+$("#avCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}kit.push({n,c,q:1});$("#avNome").value="";$("#avCusto").value="";renderKit();};
 $("#kitList").onclick=e=>{const t=e.target;if(t.dataset.rm!=null){kit.splice(+t.dataset.rm,1);renderKit();}else if(t.dataset.inc!=null){kit[+t.dataset.inc].q++;renderKit();}else if(t.dataset.dec!=null){const i=+t.dataset.dec;kit[i].q=Math.max(1,kit[i].q-1);renderKit();}};
-["price","reaj","rebate","sku"].forEach(id=>$("#"+id).addEventListener("input",calc));
+$("#priceMode").addEventListener("click",e=>{const b=e.target.closest(".seg");if(!b)return;priceMode=b.dataset.mode;applyPriceMode();calc();});
+["priceFinal","priceBase","desc","rebate","freight","sku"].forEach(id=>$("#"+id).addEventListener("input",calc));
 $("#saveBtn").onclick=saveSku;
-$("#clearBtn").onclick=()=>{kit=[];$("#sku").value="";$("#kitname").value="";$("#price").value="";$("#reaj").value=0;$("#rebate").value=0;renderKit();};
+$("#clearBtn").onclick=()=>{kit=[];autoName="";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
 $("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
 $("#exportCsv").onclick=exportCsv;
 ["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
@@ -565,10 +620,9 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
 // ---------- Boot ----------
 (async function(){
   setSync(SUPA_ON?"cloud":"local");
-  const b=$("#cloudBanner");
-  if(!SUPA_ON){b.style.display="block";b.innerHTML="<b>Modo local ativo.</b> Os SKUs ficam salvos só neste navegador. Para sincronizar entre pessoas, preencha <b>SUPABASE_URL</b> e <b>SUPABASE_ANON_KEY</b> no topo do arquivo (instruções no chat).";}
+  if(!SUPA_ON){const b=$("#cloudBanner");b.style.display="block";b.innerHTML="<b>Modo local.</b> Para sincronizar entre pessoas, preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do arquivo.";}
   await loadConfig();
-  loadAssumpInputs();renderChanTable();renderProdTable();buildSelects();renderKit();calc();
+  loadAssumpInputs();renderChanTable();renderProdTable();buildSelects();applyPriceMode();renderKit();calc();
   await refreshSkus();
 })();
 </script>
