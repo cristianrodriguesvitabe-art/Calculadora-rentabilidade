@@ -288,6 +288,11 @@
       <div class="card"><div class="pad">
         <p class="eyebrow">Tarifas por canal</p>
         <table class="etable"><thead><tr><th>Canal</th><th class="r">Comissão %</th><th class="r">Frete R$</th></tr></thead><tbody id="chanTable"></tbody></table>
+        <div id="shopeeCfg" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line2)">
+          <div class="subh" style="margin:0 0 10px">Shopee — comissão e taxa fixa por faixa</div>
+          <table class="etable"><thead><tr><th>Faixa de preço (até R$)</th><th class="r">Comissão %</th><th class="r">Taxa fixa R$</th></tr></thead><tbody id="shBands"></tbody></table>
+          <p class="set-note" style="margin-top:8px">A última faixa vale para tudo acima da faixa anterior. O Subsídio Pix é pago pela Shopee e não sai do seu repasse, por isso não entra no cálculo.</p>
+        </div>
       </div></div>
       <div class="card"><div class="pad">
         <p class="eyebrow">Custos dos produtos</p>
@@ -328,7 +333,7 @@ const DEF_CATALOG = [
 ];
 const DEF_CHANNELS = [
   {n:"Full Clássico",com:0.12,fre:23},{n:"Full Premium",com:0.17,fre:23},{n:"Env Clássico",com:0.12,fre:23},{n:"Env Premium",com:0.17,fre:23},
-  {n:"Flex Clássico",com:0.12,fre:23},{n:"Flex Premium",com:0.17,fre:23},{n:"Shopee",com:0.20,fre:4},{n:"Amazon",com:0.145,fre:22},{n:"Magalu",com:0.18,fre:22},{n:"TikTok",com:0.06,fre:22},
+  {n:"Flex Clássico",com:0.12,fre:23},{n:"Flex Premium",com:0.17,fre:23},{n:"Shopee",com:0.14,fre:0,bands:[{max:79.99,com:0.20,fee:4},{max:99.99,com:0.14,fee:16},{max:199.99,com:0.14,fee:20},{max:499.99,com:0.14,fee:26},{max:999999,com:0.14,fee:26}]},{n:"Amazon",com:0.145,fre:22},{n:"Magalu",com:0.18,fre:22},{n:"TikTok",com:0.06,fre:22},
 ];
 const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, irbase:70, irrate:34, meta:10};
 
@@ -376,6 +381,19 @@ async function loadConfig(){
       if(Array.isArray(c.catalog)&&c.catalog.length)CATALOG=c.catalog;}
     if(SUPA_ON)setSync("cloud");
   }catch(e){if(SUPA_ON)setSync("err");}
+  migrateChannels();
+}
+// garante que a Shopee tenha teto + faixas mesmo em configs antigas salvas
+function migrateChannels(){
+  let changed=false;
+  const sh=CHANNELS.find(c=>/shopee/i.test(c.n));
+  if(sh){
+    const def=DEF_CHANNELS.find(c=>/shopee/i.test(c.n));
+    const bandsOk=Array.isArray(sh.bands)&&sh.bands.length&&sh.bands[0].com!=null;
+    if(!bandsOk){sh.bands=clone(def.bands);sh.com=def.com;changed=true;}
+    if(sh.comCap!=null){delete sh.comCap;changed=true;} // teto removido
+  }
+  if(changed) saveConfig();
 }
 
 // ---------- Canal ----------
@@ -450,11 +468,16 @@ function compute(){
   const freight=($("#freight").value===""?ch.fre:(+$("#freight").value||0));
   const N=kit.reduce((s,it)=>s+it.c*it.q,0);
   const O=L*a.outros/100,P=L*a.ded/100, mc=L>0?(L-N-O-P)/L:0;
-  const R=L*a.roi/100,S=L*a.desp/100,T=freight,U=L*ch.com-rebate,V=L*a.fin/100;
-  const base=(L-N-O-P-R-S-T-U-V)*a.irbase/100, X=base>0?base*a.irrate/100:0;
-  const Y=L-N-O-R-S-P-V-X-T-U, Z=L>0?Y/L:0;
+  const R=L*a.roi/100,S=L*a.desp/100,T=freight,V=L*a.fin/100;
+  // comissão e taxa fixa por faixa (ex.: Shopee); senão usa a comissão única do canal
+  let comRate=ch.com, F=0;
+  if(ch.bands&&ch.bands.length){const b=ch.bands.find(b=>L<=b.max)||ch.bands[ch.bands.length-1];
+    if(b){if(b.com!=null)comRate=b.com;F=b.fee||0;}}
+  const U=L*comRate-rebate;
+  const base=(L-N-O-P-R-S-T-U-V-F)*a.irbase/100, X=base>0?base*a.irrate/100:0;
+  const Y=L-N-O-R-S-P-V-X-T-U-F, Z=L>0?Y/L:0;
   const rebatePct = L>0 ? rebate/L : 0;
-  return {L,N,O,P,mc,R,S,T,U,V,X,Y,Z,priceBase,desc,priceFinal,priceDe,pricePor,descPct,rebate,rebatePct,freight,ch};
+  return {L,N,O,P,mc,R,S,T,U,V,F,comRate,X,Y,Z,priceBase,desc,priceFinal,priceDe,pricePor,descPct,rebate,rebatePct,freight,ch};
 }
 function calc(){
   const r=compute(),meta=assumptions.meta/100;
@@ -479,6 +502,7 @@ function calc(){
     {name:"Margem de contribuição",op:"=",amt:r.L-r.N-r.O-r.P,kind:"mile"},
     {name:"ROI",op:"−",amt:r.R,kind:"cost"},{name:"Despesas",op:"−",amt:r.S,kind:"cost"},
     {name:"Frete",op:"−",amt:r.T,kind:"cost"},{name:"Comissão do canal",op:"−",amt:r.U,kind:"cost"},
+    ...(r.ch.bands?[{name:"Taxa fixa do canal",op:"−",amt:r.F,kind:"cost"}]:[]),
     {name:"Despesa financeira",op:"−",amt:r.V,kind:"cost"},{name:"IR / CS",op:"−",amt:r.X,kind:"cost"},
     {name:"Resultado líquido",op:"=",amt:r.Y,kind:"final"},
   ];
@@ -561,9 +585,35 @@ function loadAssumpInputs(){
   $("#a_irbase").value=assumptions.irbase;$("#a_irrate").value=assumptions.irrate;
 }
 function renderChanTable(){
-  $("#chanTable").innerHTML=CHANNELS.map((ch,i)=>`<tr><td class="name">${ch.n}</td>
-    <td class="r"><input type="number" class="cellnum" data-ci="${i}" data-f="com" step="0.1" value="${+(ch.com*100).toFixed(2)}"></td>
-    <td class="r"><input type="number" class="cellnum" data-ci="${i}" data-f="fre" step="0.5" value="${ch.fre}"></td></tr>`).join("");
+  $("#chanTable").innerHTML=CHANNELS.map((ch,i)=>{
+    const comCell = (ch.bands&&ch.bands.length)
+      ? `<span style="color:var(--faint);font-size:12.5px">por faixa ↓</span>`
+      : `<input type="number" class="cellnum" data-ci="${i}" data-f="com" step="0.1" value="${+(ch.com*100).toFixed(2)}">`;
+    return `<tr><td class="name">${ch.n}</td>
+    <td class="r">${comCell}</td>
+    <td class="r"><input type="number" class="cellnum" data-ci="${i}" data-f="fre" step="0.5" value="${ch.fre}"></td></tr>`;
+  }).join("");
+  renderShopeeCfg();
+}
+function shopeeCh(){return CHANNELS.find(c=>/shopee/i.test(c.n));}
+function renderShopeeCfg(){
+  const sh=shopeeCh();
+  if(!sh||!sh.bands){$("#shopeeCfg").style.display="none";return;}
+  $("#shopeeCfg").style.display="";
+  $("#shBands").innerHTML=sh.bands.map((b,i)=>{
+    const last=i===sh.bands.length-1;
+    return `<tr><td>${last?'<span style="color:var(--faint)">acima da faixa anterior</span>':`<div class="inwrap money" style="max-width:150px"><span class="pre">R$</span><input type="number" class="cellnum" data-bi="${i}" data-bf="max" step="0.01" value="${b.max}"></div>`}</td>
+      <td class="r"><div class="inwrap" style="max-width:100px;margin-left:auto"><input type="number" class="cellnum" data-bi="${i}" data-bf="com" step="0.1" value="${+((b.com!=null?b.com:sh.com)*100).toFixed(2)}" style="padding-right:24px"><span class="suf">%</span></div></td>
+      <td class="r"><div class="inwrap money" style="max-width:110px;margin-left:auto"><span class="pre">R$</span><input type="number" class="cellnum" data-bi="${i}" data-bf="fee" step="0.5" value="${b.fee}"></div></td></tr>`;
+  }).join("");
+}
+function onShopeeChange(e){
+  const sh=shopeeCh();if(!sh)return;const t=e.target;
+  if(t.dataset.bi!=null){const i=+t.dataset.bi,v=+t.value||0;
+    if(t.dataset.bf==="max")sh.bands[i].max=v;
+    else if(t.dataset.bf==="com")sh.bands[i].com=v/100;
+    else sh.bands[i].fee=v;
+    saveConfig();calc();}
 }
 function renderProdTable(){
   $("#prodTable").innerHTML=CATALOG.map((it,i)=>`<tr><td class="name">${it.n}</td>
@@ -626,6 +676,7 @@ $("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dat
 $("#exportCsv").onclick=exportCsv;
 ["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
 $("#chanTable").addEventListener("input",onChanChange);
+$("#shopeeCfg").addEventListener("input",onShopeeChange);
 $("#prodTable").addEventListener("input",onProdChange);
 $("#prodTable").addEventListener("click",e=>{if(e.target.dataset.pdel!=null)delProduct(+e.target.dataset.pdel);});
 $("#npAdd").onclick=addProduct;
