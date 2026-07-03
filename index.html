@@ -126,6 +126,19 @@
   .sku-code{font-family:var(--mono);font-weight:600}.sku-name{font-size:12px;color:var(--faint);margin-top:2px}
   .chip{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--line2);color:var(--muted)}
   .marg{font-family:var(--mono);font-weight:600}.marg.ok{color:var(--pos)}.marg.no{color:var(--neg)}.marg.mid{color:var(--warn)}
+  .ugroup{margin-bottom:14px}
+  .ugroup .ghead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:2px 2px 10px}
+  .ugroup .gname{font-family:var(--display);font-size:17px;color:var(--ink);font-weight:600}
+  .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+  .pill.ok{background:#e5f0e9;color:var(--pos)}.pill.bad{background:var(--berry-soft);color:var(--berry)}.pill.neutral{background:var(--line2);color:var(--muted)}
+  .ualert{background:var(--berry-soft);border:1px solid #eccdd3;border-radius:var(--r);padding:16px 18px;margin-bottom:20px}
+  .ualert.good{background:#e9f2ec;border-color:#cfe3d6}
+  .ualert .at{font-weight:700;color:var(--berry);margin-bottom:6px}.ualert.good .at{color:var(--pos)}
+  .ualert ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:13px;line-height:1.7}
+  .comp{font-size:12.5px;color:var(--muted);line-height:1.6}
+  .comp b{color:var(--ink);font-weight:600}
+  .u-mono{font-family:var(--mono)}
+  .warn-row{background:rgba(166,57,79,.05)}
   .tacts{display:flex;gap:6px;justify-content:flex-end}
   .iact{border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--muted)}
   .iact:hover{border-color:var(--forest);color:var(--forest)}
@@ -160,6 +173,7 @@
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
       <button class="tab" role="tab" aria-selected="false" data-view="saved">SKUs <span class="n" id="navCount">0</span></button>
+      <button class="tab" role="tab" aria-selected="false" data-view="unit">Por unidade</button>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
     </nav>
   </div>
@@ -237,6 +251,7 @@
             <div class="lbl">Lucratividade</div>
             <div class="bignum" id="bigMargin">0,0%</div>
             <div class="liquid">Resultado líquido&nbsp; <b id="liqVal">R$ 0,00</b></div>
+            <div class="liquid" id="perUnitLine" style="display:none">Por unidade&nbsp; <b id="ppuVal">R$ 0,00</b> <span id="ppuUnits" style="color:var(--faint);font-weight:400"></span></div>
             <div class="badge no" id="metaBadge"><span class="dot"></span><span id="metaTxt">Abaixo da meta</span></div>
           </div>
           <div class="mc-strip"><span class="k">Margem de contribuição</span><span class="v" id="mcVal">0,0%</span></div>
@@ -268,6 +283,24 @@
       <div class="big">Nenhum SKU cadastrado ainda</div>
       <div>Monte um kit na calculadora e toque em “Salvar SKU”. Com a nuvem ativa, ele aparece para toda a equipe.</div>
       <button class="btn btn-primary" style="margin-top:18px" id="goCalc2">Ir para a calculadora</button>
+    </div>
+  </section>
+
+  <!-- POR UNIDADE -->
+  <section class="view" id="view-unit">
+    <div class="head-actions">
+      <h2>Análise por unidade</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="refreshUnit">Atualizar</button>
+        <button class="btn btn-primary" id="goCalc3">+ Novo SKU</button>
+      </div>
+    </div>
+    <p class="set-note" style="margin:-4px 0 18px;max-width:680px">Compara o <b>preço e a margem por unidade (por pote)</b> de cada kit. Kits do mesmo produto são checados na "escada de desconto": quanto maior o kit, menor deve ser o preço por unidade. Kits mistos têm o preço rateado por custo entre os itens.</p>
+    <div id="unitBody"></div>
+    <div class="empty" id="unitEmpty" style="display:none">
+      <div class="big">Nenhum SKU cadastrado ainda</div>
+      <div>Cadastre kits na calculadora para ver a análise por unidade.</div>
+      <button class="btn btn-primary" style="margin-top:18px" id="goCalc4">Ir para a calculadora</button>
     </div>
   </section>
 
@@ -534,6 +567,10 @@ function calc(){
   const bm=$("#bigMargin");bm.textContent=r.L>0?pct(r.Z):"0,0%";
   bm.className="bignum "+(r.L<=0?"":r.Z>=meta?"pos":r.Z>=0?"warn":"neg");
   $("#liqVal").textContent=brl(r.Y);
+  const units=kit.reduce((s,it)=>s+(+it.q||0),0);
+  const pu=$("#perUnitLine");
+  if(r.L>0&&units>1){pu.style.display="";$("#ppuVal").textContent=brl(r.L/units);$("#ppuUnits").textContent=`(${units} un · líq. ${brl(r.Y/units)}/un)`;}
+  else pu.style.display="none";
   const badge=$("#metaBadge"),txt=$("#metaTxt");
   if(r.L<=0){badge.className="badge no";txt.textContent="Informe o preço de venda";}
   else if(r.Z>=meta){badge.className="badge ok";txt.textContent=`Acima da meta de ${assumptions.meta}%`;}
@@ -684,6 +721,76 @@ function exportCsv(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
 }
+// ---------- Análise por unidade ----------
+function skuUnits(rec){return (rec.itens||[]).reduce((s,it)=>s+(+it.q||0),0);}
+function skuPrice(rec){return +rec.pricePor||+rec.price||0;}
+function isPure(rec){return (rec.itens||[]).length===1;}
+function renderUnitAnalysis(){
+  const list=Object.values(saved);
+  if(!list.length){$("#unitBody").innerHTML="";$("#unitEmpty").style.display="block";return;}
+  $("#unitEmpty").style.display="none";
+  const meta=(assumptions.meta||10)/100, violations=[];
+  // puros agrupados por produto
+  const groups={};
+  list.forEach(r=>{if(isPure(r)){const p=r.itens[0].n;(groups[p]=groups[p]||[]).push(r);}});
+  // referência: menor kit de cada produto (preço/un mais alto)
+  const ref={};
+  Object.keys(groups).forEach(p=>{
+    const rs=groups[p].map(r=>({u:skuUnits(r),ppu:skuUnits(r)?skuPrice(r)/skuUnits(r):0})).sort((x,y)=>x.u-y.u);
+    ref[p]={maxPpu:rs[0]?rs[0].ppu:0,minPpu:rs.length?rs[rs.length-1].ppu:0};
+  });
+  const withMulti=Object.keys(groups).filter(p=>groups[p].length>1).sort();
+  const singleOnly=Object.keys(groups).filter(p=>groups[p].length===1).sort();
+  // escada por produto
+  const ladderHtml=withMulti.map(prod=>{
+    const rows=groups[prod].map(r=>{const u=skuUnits(r);return{r,u,price:skuPrice(r),ppu:u?skuPrice(r)/u:0,lpu:u?(r.liquido||0)/u:0};}).sort((x,y)=>x.u-y.u);
+    const bySize={};rows.forEach(r=>{bySize[r.u]=Math.min(bySize[r.u]==null?Infinity:bySize[r.u],r.ppu);});
+    const sizes=Object.keys(bySize).map(Number).sort((x,y)=>x-y);
+    const prevSmaller=u=>{let best=null;sizes.forEach(s=>{if(s<u)best=s;});return best;};
+    const body=rows.map(row=>{
+      const ps=prevSmaller(row.u);
+      let status=`<span class="pill neutral">base</span>`,rowcls="";
+      if(ps!=null){const prevPpu=bySize[ps];
+        if(row.ppu>=prevPpu-1e-9){status=`<span class="pill bad">⚠ + caro/un que o de ${ps}</span>`;rowcls="warn-row";
+          violations.push(`<b>${prod}</b>: kit de ${row.u} sai a ${brl(row.ppu)}/un — não é mais barato que o de ${ps} (${brl(prevPpu)}/un)`);}
+        else status=`<span class="pill ok">✓ ${brl(prevPpu-row.ppu)}/un + barato</span>`;}
+      const mcls=row.r.lucratividade>=meta?"ok":row.r.lucratividade>=0?"mid":"no";
+      return `<tr class="${rowcls}"><td class="r u-mono">${row.u}</td><td><div class="sku-code">${row.r.sku}</div></td>
+        <td class="r u-mono">${brl(row.price)}</td><td class="r u-mono"><b>${brl(row.ppu)}</b></td>
+        <td class="r u-mono">${brl(row.lpu)}</td><td class="r"><span class="marg ${mcls}">${pct(row.r.lucratividade)}</span></td>
+        <td>${status}</td></tr>`;
+    }).join("");
+    return `<div class="card ugroup"><div class="pad" style="padding:14px 16px 8px">
+      <div class="ghead"><span class="gname">${prod}</span><span class="comp">${sizes.length} tamanhos</span></div>
+      <table><thead><tr><th class="r">Un.</th><th>SKU</th><th class="r">Preço</th><th class="r">Preço/un</th><th class="r">Líq./un</th><th class="r">Margem</th><th>Escada</th></tr></thead>
+      <tbody>${body}</tbody></table></div></div>`;
+  }).join("");
+  // mistos
+  const mixed=list.filter(r=>!isPure(r));
+  const mixedHtml=mixed.map(r=>{
+    const price=skuPrice(r),units=skuUnits(r),totalCost=(r.itens||[]).reduce((s,it)=>s+it.c*it.q,0)||1;
+    const comps=(r.itens||[]).map(it=>{
+      const ippu=price*it.c/totalCost;let flag="";
+      if(ref[it.n]&&ippu>ref[it.n].maxPpu+1e-9){flag=` <span class="pill bad">acima do menor kit (${brl(ref[it.n].maxPpu)}/un)</span>`;
+        violations.push(`<b>${r.sku}</b>: ${it.n} sai a ${brl(ippu)}/un no misto, acima do menor kit puro (${brl(ref[it.n].maxPpu)}/un)`);}
+      return `<div>${it.q}× <b>${it.n}</b> — ${brl(ippu)}/un${flag}</div>`;
+    }).join("");
+    const mcls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
+    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
+      <td class="r u-mono">${units}</td><td class="r u-mono">${brl(price)}</td><td class="r u-mono">${brl(units?price/units:0)}</td>
+      <td class="r"><span class="marg ${mcls}">${pct(r.lucratividade)}</span></td>
+      <td class="comp">${comps}</td></tr>`;
+  }).join("");
+  const alertHtml=violations.length
+    ? `<div class="ualert"><div class="at">⚠ ${violations.length} ${violations.length===1?"ponto":"pontos"} fora da faixa</div><ul>${violations.map(v=>`<li>${v}</li>`).join("")}</ul></div>`
+    : `<div class="ualert good"><div class="at">✓ Escada de preços consistente</div><div class="comp">Todos os kits do mesmo produto ficam mais baratos por unidade conforme o tamanho aumenta.</div></div>`;
+  let html=alertHtml;
+  if(ladderHtml)html+=`<div class="subh" style="margin:22px 0 12px">Escada de preço por produto</div>`+ladderHtml;
+  if(mixedHtml)html+=`<div class="subh" style="margin:24px 0 12px">Kits mistos — preço por item</div>
+    <div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>SKU</th><th class="r">Un.</th><th class="r">Preço</th><th class="r">Preço/un</th><th class="r">Margem</th><th>Preço por item (rateado por custo)</th></tr></thead><tbody>${mixedHtml}</tbody></table></div></div>`;
+  if(singleOnly.length)html+=`<p class="set-note" style="margin-top:18px">Produtos com só 1 tamanho cadastrado (sem escada para comparar): ${singleOnly.join(", ")}.</p>`;
+  $("#unitBody").innerHTML=html;
+}
 
 // ---------- Ajustes ----------
 function loadAssumpInputs(){
@@ -779,14 +886,17 @@ function restoreDefaults(){
 // ---------- Navegação ----------
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));
-  ["calc","saved","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
+  ["calc","saved","unit","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
   if(v==="saved")refreshSkus();
+  if(v==="unit")renderUnitAnalysis();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
 // ---------- Eventos ----------
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.view));
 $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
+$("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
+$("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
 $("#refreshBtn").onclick=refreshSkus;
 $("#channel").onchange=()=>{showChannelFees(true);calc();};
 $("#mlCat").onchange=()=>{selCat=+$("#mlCat").value||0;showChannelFees(false);calc();};
