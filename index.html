@@ -164,6 +164,37 @@
   .dupcard .dc-meta b{color:var(--ink);font-family:var(--mono)}
   .dup-open{background:var(--forest);color:#fff;border:0;border-radius:999px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
   .dup-sec{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:14px 0 8px}
+  .dcards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  @media(max-width:720px){.dcards{grid-template-columns:repeat(2,1fr)}}
+  .dcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
+  .dcard .k{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .dcard .v{font-family:var(--display);font-size:26px;font-weight:600;color:var(--ink);line-height:1}
+  .dcard .v.mono{font-family:var(--mono);font-size:23px}
+  .dcard .sub{font-size:11.5px;color:var(--faint);margin-top:6px}
+  .dsec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px 20px;margin-bottom:20px}
+  .dsec > .t{font-family:var(--display);font-size:16px;font-weight:600;color:var(--ink);margin:0 0 4px}
+  .dsec > .d{font-size:12.5px;color:var(--faint);margin:0 0 16px;line-height:1.5}
+  .dbar-row{display:grid;grid-template-columns:150px 1fr 74px;gap:12px;align-items:center;margin:9px 0;font-size:13px}
+  @media(max-width:560px){.dbar-row{grid-template-columns:110px 1fr 64px;gap:8px}}
+  .dbar-label{color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .dbar-label small{display:block;color:var(--faint);font-weight:400;font-size:11px}
+  .dbar-track{height:24px;background:var(--line2);border-radius:7px;overflow:hidden}
+  .dbar-fill{height:100%;border-radius:7px;min-width:2px;transition:width .3s}
+  .dbar-val{font-family:var(--mono);font-weight:600;text-align:right}
+  .callout{display:flex;gap:14px;flex-wrap:wrap;margin-top:4px}
+  .callout .c{flex:1;min-width:180px;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .callout .c.best{border-color:#cfe3d6;background:#eef5f0}.callout .c.worst{border-color:#eccdd3;background:var(--berry-soft)}
+  .callout .cl{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .callout .cn{font-weight:600;color:var(--ink);margin-top:3px}.callout .cv{font-family:var(--mono);font-weight:700;font-size:18px;margin-top:2px}
+  .callout .c.best .cv{color:var(--pos)}.callout .c.worst .cv{color:var(--berry)}
+  .stack{display:flex;height:34px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+  .stack span{display:block;height:100%}
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;margin-top:16px}
+  @media(max-width:560px){.legend{grid-template-columns:1fr}}
+  .legend .li{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink)}
+  .legend .sw{width:12px;height:12px;border-radius:3px;flex:none}
+  .legend .lp{margin-left:auto;font-family:var(--mono);color:var(--muted);font-size:12.5px}
+  .legend .lp b{color:var(--ink)}
   .head-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
   .head-actions h2{font-family:var(--disp);font-weight:600;font-size:24px;margin:0;letter-spacing:-.01em}
   .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
@@ -189,6 +220,7 @@
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
       <button class="tab" role="tab" aria-selected="false" data-view="saved">SKUs <span class="n" id="navCount">0</span></button>
       <button class="tab" role="tab" aria-selected="false" data-view="unit">Por unidade</button>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
@@ -282,6 +314,23 @@
   </section>
 
   <!-- SKUs -->
+  <!-- RESUMO -->
+  <section class="view" id="view-dash">
+    <div class="head-actions">
+      <h2>Resumo</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="refreshDash">Atualizar</button>
+        <button class="btn btn-primary" id="goCalc5">+ Novo SKU</button>
+      </div>
+    </div>
+    <div id="dashBody"></div>
+    <div class="empty" id="dashEmpty" style="display:none">
+      <div class="big">Sem dados para o resumo ainda</div>
+      <div>Cadastre kits na calculadora para ver o consolidado, os gráficos por canal e o ranking de rentabilidade.</div>
+      <button class="btn btn-primary" style="margin-top:18px" id="goCalc6">Ir para a calculadora</button>
+    </div>
+  </section>
+
   <section class="view" id="view-saved">
     <div class="head-actions">
       <h2>SKUs cadastrados</h2>
@@ -854,6 +903,79 @@ function renderUnitAnalysis(){
   if(singleOnly.length)html+=`<p class="set-note" style="margin-top:18px">Produtos com só 1 tamanho cadastrado (sem escada para comparar): ${singleOnly.join(", ")}.</p>`;
   $("#unitBody").innerHTML=html;
 }
+// ---------- Resumo (dashboard) ----------
+function breakdownOf(rec){
+  const ch=resolveChannel(rec.canal);
+  let catIdx=0;
+  if(ch.categories&&rec.mlCatName){const k=ch.categories.findIndex(c=>c.n===rec.mlCatName);if(k>=0)catIdx=k;}
+  const N=(rec.itens||[]).reduce((s,it)=>s+it.c*it.q,0);
+  const L=+rec.pricePor||+rec.price||0;
+  return financials({L,N,ch,catIdx,freight:+rec.freight||0,rebate:+rec.rebate||0});
+}
+function marginColor(z,meta){return z>=meta?"var(--pos)":z>=0?"var(--warn)":"var(--neg)";}
+function renderDashboard(){
+  const list=Object.values(saved);
+  if(!list.length){$("#dashBody").innerHTML="";$("#dashEmpty").style.display="block";return;}
+  $("#dashEmpty").style.display="none";
+  const meta=(assumptions.meta||10)/100;
+  const avg=list.reduce((s,r)=>s+(r.lucratividade||0),0)/list.length;
+  const below=list.filter(r=>(r.lucratividade||0)<meta).length;
+  const agg={L:0,N:0,O:0,P:0,R:0,S:0,T:0,U:0,V:0,F:0,X:0,Y:0},byChannel={};
+  list.forEach(r=>{
+    const b=breakdownOf(r);["L","N","O","P","R","S","T","U","V","F","X","Y"].forEach(k=>agg[k]+=b[k]||0);
+    const cn=resolveChannel(r.canal).n,g=(byChannel[cn]=byChannel[cn]||{n:cn,count:0,sumZ:0});
+    g.count++;g.sumZ+=r.lucratividade||0;
+  });
+  const portfMargin=agg.L>0?agg.Y/agg.L:0;
+  const channels=Object.values(byChannel).map(g=>({...g,avgZ:g.count?g.sumZ/g.count:0})).sort((a,b)=>b.avgZ-a.avgZ);
+  // consolidado
+  const cards=`<div class="dcards">
+    <div class="dcard"><div class="k">SKUs cadastrados</div><div class="v">${list.length}</div><div class="sub">${channels.length} ${channels.length===1?'canal usado':'canais usados'}</div></div>
+    <div class="dcard"><div class="k">Lucratividade média</div><div class="v mono" style="color:${marginColor(avg,meta)}">${pct(avg)}</div><div class="sub">meta ${assumptions.meta}%</div></div>
+    <div class="dcard"><div class="k">Margem da carteira</div><div class="v mono" style="color:${marginColor(portfMargin,meta)}">${pct(portfMargin)}</div><div class="sub">líq. sobre receita somada</div></div>
+    <div class="dcard"><div class="k">Abaixo da meta</div><div class="v" style="color:${below?'var(--neg)':'var(--pos)'}">${below}</div><div class="sub">de ${list.length} kits</div></div>
+  </div>`;
+  // por canal
+  let chanSec="";
+  if(channels.length){
+    const maxAbs=Math.max(...channels.map(c=>Math.abs(c.avgZ)),meta,0.01);
+    const rows=channels.map(c=>{const col=marginColor(c.avgZ,meta),w=Math.max(2,Math.abs(c.avgZ)/maxAbs*100);
+      return `<div class="dbar-row"><div class="dbar-label">${c.n}<small>${c.count} kit${c.count>1?'s':''}</small></div>
+        <div class="dbar-track"><div class="dbar-fill" style="width:${w}%;background:${col}"></div></div>
+        <div class="dbar-val" style="color:${col}">${pct(c.avgZ)}</div></div>`;}).join("");
+    const best=channels[0],worst=channels[channels.length-1];
+    const callout=channels.length>1?`<div class="callout">
+      <div class="c best"><div class="cl">Melhor rentabilidade</div><div class="cn">${best.n}</div><div class="cv">${pct(best.avgZ)}</div></div>
+      <div class="c worst"><div class="cl">Pior rentabilidade</div><div class="cn">${worst.n}</div><div class="cv">${pct(worst.avgZ)}</div></div></div>`:"";
+    chanSec=`<div class="dsec"><div class="t">Rentabilidade por canal</div><div class="d">Lucratividade média dos kits cadastrados em cada canal.</div>${rows}${callout}</div>`;
+  }
+  // estrutura de custos (carteira)
+  const tot=agg.L>0?agg.L:1;
+  const segs=[
+    {k:"Custo do produto",v:agg.N,c:"#234B3E"},{k:"Comissão do canal",v:agg.U,c:"#A6394F"},
+    {k:"Impostos (IR/CS)",v:agg.X,c:"#C67B30"},{k:"Deduções",v:agg.P,c:"#8A6BA6"},
+    {k:"ROI",v:agg.R,c:"#3E6B8A"},{k:"Frete",v:agg.T,c:"#5C8A72"},
+    {k:"Despesas",v:agg.S,c:"#B08968"},{k:"Desp. financeira",v:agg.V,c:"#7A8A5C"},
+    {k:"Outros custos",v:agg.O,c:"#9AA79E"},{k:"Taxa fixa",v:agg.F,c:"#C99BA3"},
+    {k:"Lucro líquido",v:agg.Y,c:"#2E7D5B"},
+  ].filter(s=>s.v>0.005);
+  const stack=segs.map(s=>`<span style="width:${Math.max(0,s.v/tot*100)}%;background:${s.c}" title="${s.k}"></span>`).join("");
+  const legend=segs.slice().sort((a,b)=>b.v-a.v).map(s=>`<div class="li"><span class="sw" style="background:${s.c}"></span>${s.k}<span class="lp"><b>${pct(s.v/tot)}</b> · ${brl(s.v)}</span></div>`).join("");
+  const costSec=`<div class="dsec"><div class="t">Para onde vai cada real</div><div class="d">Somando todos os kits da carteira: quanto de cada R$1,00 de venda vira custo, imposto e lucro.</div>
+    <div class="stack">${stack}</div><div class="legend">${legend}</div></div>`;
+  // kits mais rentáveis
+  const topZ=list.slice().sort((a,b)=>(b.lucratividade||0)-(a.lucratividade||0)).slice(0,8);
+  const maxZ=Math.max(...topZ.map(r=>Math.abs(r.lucratividade||0)),meta,0.01);
+  const topRows=topZ.map(r=>{const z=r.lucratividade||0,col=marginColor(z,meta),w=Math.max(2,Math.abs(z)/maxZ*100);
+    return `<div class="dbar-row"><div class="dbar-label">${r.sku}<small>${r.canal||""}</small></div>
+      <div class="dbar-track"><div class="dbar-fill" style="width:${w}%;background:${col}"></div></div>
+      <div class="dbar-val" style="color:${col}">${pct(z)}</div></div>`;}).join("");
+  const topY=list.slice().sort((a,b)=>(b.liquido||0)-(a.liquido||0)).slice(0,5);
+  const topYhtml=topY.map((r,i)=>`<div class="dbar-row" style="grid-template-columns:22px 1fr auto"><div class="dbar-val" style="color:var(--faint)">${i+1}</div><div class="dbar-label">${r.sku}<small>${r.canal||""}</small></div><div class="dbar-val">${brl(r.liquido||0)}</div></div>`).join("");
+  const topSec=`<div class="dsec"><div class="t">Kits mais rentáveis</div><div class="d">Ranking por lucratividade. Verde acima da meta, âmbar abaixo, vermelho no prejuízo.</div>${topRows}
+    <div class="dup-sec" style="margin-top:18px">Maior lucro por venda (R$)</div>${topYhtml}</div>`;
+  $("#dashBody").innerHTML=cards+chanSec+costSec+topSec;
+}
 
 // ---------- Ajustes ----------
 function loadAssumpInputs(){
@@ -949,9 +1071,10 @@ function restoreDefaults(){
 // ---------- Navegação ----------
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));
-  ["calc","saved","unit","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
+  ["calc","dash","saved","unit","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
   if(v==="saved")refreshSkus();
   if(v==="unit")renderUnitAnalysis();
+  if(v==="dash")renderDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -959,7 +1082,9 @@ function switchView(v){
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.view));
 $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
 $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
+$("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
+$("#refreshDash").onclick=async()=>{await refreshSkus();renderDashboard();};
 $("#refreshBtn").onclick=refreshSkus;
 $("#channel").onchange=()=>{showChannelFees(true);calc();};
 $("#mlCat").onchange=()=>{selCat=+$("#mlCat").value||0;showChannelFees(false);calc();};
