@@ -249,6 +249,10 @@
             <label for="mlCat">Categoria (Mercado Livre)</label>
             <select id="mlCat"></select>
           </div>
+          <div class="field" id="acctWrap" style="margin:12px 0 0">
+            <label for="acct">Conta / origem</label>
+            <select id="acct"></select>
+          </div>
         </div></div>
 
         <div class="card"><div class="pad">
@@ -416,6 +420,15 @@
           <button class="btn" id="npAdd">Adicionar</button>
         </div>
       </div></div>
+      <div class="card"><div class="pad">
+        <p class="eyebrow">Contas / origens</p>
+        <p class="set-note" style="margin:-6px 0 12px">Suas contas de venda (ex.: MG, GRU). Cada SKU pode ser marcado com a conta de origem — usado no Resumo para separar a rentabilidade por conta.</p>
+        <table class="etable"><thead><tr><th>Conta / origem</th><th></th></tr></thead><tbody id="acctTable"></tbody></table>
+        <div class="addprod" style="grid-template-columns:1fr auto">
+          <input type="text" id="naNome" placeholder="Nova conta (ex.: SP)">
+          <button class="btn" id="naAdd">Adicionar</button>
+        </div>
+      </div></div>
       <div class="card set-full"><div class="pad" style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
         <p class="set-note" style="margin:0;flex:1;min-width:240px">Alterações salvas automaticamente. Com a nuvem ativa, valem para toda a equipe.</p>
         <button class="btn" id="restoreBtn">Restaurar padrões da planilha</button>
@@ -460,10 +473,11 @@ const DEF_CHANNELS = [
   {n:"Amazon",com:0.145,fre:22},{n:"Magalu",com:0.18,fre:22},{n:"TikTok",com:0.06,fre:22},
 ];
 const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, irbase:70, irrate:34, meta:10};
+const DEF_ACCOUNTS = ["MG","GRU"];
 
-let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP);
+let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP), ACCOUNTS = clone(DEF_ACCOUNTS);
 let kit = [], saved = {};
-let priceMode = "final", autoName = "", selCat = 0, loadedSku = "";
+let priceMode = "final", autoName = "", selCat = 0, loadedSku = "", selAcct = "";
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
 const $ = s => document.querySelector(s);
@@ -496,13 +510,14 @@ const DB = {
 };
 function setSync(state){const p=$("#syncPill"),t=$("#syncTxt");p.className="sync"+(state==="cloud"?" cloud":state==="err"?" err":"");t.textContent=state==="cloud"?"Nuvem sincronizada":state==="err"?"Erro de conexão":"Modo local";}
 let cfgTimer;
-async function saveConfig(){const cfg={assumptions,channels:CHANNELS,catalog:CATALOG};clearTimeout(cfgTimer);
+async function saveConfig(){const cfg={assumptions,channels:CHANNELS,catalog:CATALOG,accounts:ACCOUNTS};clearTimeout(cfgTimer);
   cfgTimer=setTimeout(async()=>{try{await DB.setConfig(cfg);if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar ajustes na nuvem");}},400);}
 async function loadConfig(){
   try{const c=await DB.getConfig();
     if(c){if(c.assumptions)assumptions={...DEF_ASSUMP,...c.assumptions};
       if(Array.isArray(c.channels)&&c.channels.length)CHANNELS=c.channels;
-      if(Array.isArray(c.catalog)&&c.catalog.length)CATALOG=c.catalog;}
+      if(Array.isArray(c.catalog)&&c.catalog.length)CATALOG=c.catalog;
+      if(Array.isArray(c.accounts)&&c.accounts.length)ACCOUNTS=c.accounts;}
     if(SUPA_ON)setSync("cloud");
   }catch(e){if(SUPA_ON)setSync("err");}
   migrateChannels();
@@ -535,7 +550,20 @@ function buildSelects(){
   const cur=$("#channel").value;
   $("#channel").innerHTML=CHANNELS.map((ch,i)=>`<option value="${i}">${ch.n}</option>`).join("");
   if(cur&&+cur<CHANNELS.length)$("#channel").value=cur;
+  buildAcctSelect();
   showChannelFees();
+}
+function buildAcctSelect(){
+  const sel=$("#acct");if(!sel)return;
+  sel.innerHTML=`<option value="">—</option>`+ACCOUNTS.map(a=>`<option value="${a}">${a}</option>`).join("");
+  if(selAcct&&!ACCOUNTS.includes(selAcct))selAcct="";
+  sel.value=selAcct;
+}
+function suggestAcct(){
+  // TikTok é de Guarulhos (GRU) por padrão; senão mantém a escolha atual
+  const ch=curChannel();
+  if(/tiktok|tik tok/i.test(ch.n)){const g=ACCOUNTS.find(a=>/gru|guaru/i.test(a));if(g)selAcct=g;}
+  buildAcctSelect();
 }
 function curChannel(){return CHANNELS[+$("#channel").value]||CHANNELS[0];}
 function updateCatUI(){
@@ -696,7 +724,7 @@ async function saveSku(){
     if(!confirm(`Já existe um SKU "${exists.sku}". Deseja sobrescrever os dados dele?`))return;
   }
   if(exists&&exists.sku!==sku){delete saved[exists.sku];try{await DB.deleteSku(exists.sku);}catch(e){}}
-  const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,mlCatName:(r.ch.categories&&r.ch.categories[selCat]?r.ch.categories[selCat].n:null),itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
+  const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,origem:selAcct||"",mlCatName:(r.ch.categories&&r.ch.categories[selCat]?r.ch.categories[selCat].n:null),itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
     priceMode,priceBase:r.priceBase,desc:r.desc,priceFinal:r.L,priceDe:r.priceDe,pricePor:r.pricePor,descPct:r.descPct,rebate:r.rebate,rebatePct:r.rebatePct,freight:r.freight,
     price:r.L,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now()};
   saved[sku]=rec;loadedSku=sku;$("#skuDup").style.display="none";renderSaved();
@@ -718,6 +746,7 @@ function loadSkuIntoCalc(sku){
   const chSel=CHANNELS[ci>=0?ci:0];
   selCat=0;
   if(chSel&&chSel.categories&&r.mlCatName){const k=chSel.categories.findIndex(c=>c.n===r.mlCatName);if(k>=0)selCat=k;}
+  selAcct=(r.origem&&ACCOUNTS.includes(r.origem))?r.origem:(r.origem||"");buildAcctSelect();
   showChannelFees(false);
   kit=(r.itens||[]).map(it=>({n:it.n,c:it.c,q:it.q}));
   // modo de preço (compatível com registros antigos)
@@ -772,7 +801,7 @@ function renderSaved(){
     const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
     const por=(r.pricePor||r.price||0).toFixed(2);
     return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
-    <td><span class="chip">${r.canal}</span></td>
+    <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}</td>
     <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="de" value="${de}" placeholder="—"></td>
     <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por}"></td>
     <td class="r">${brl(r.freight||0)}</td>
@@ -827,8 +856,8 @@ function onSkuInline(e){
 }
 function exportCsv(){
   const list=Object.values(saved).sort((a,b)=>(b.ts||0)-(a.ts||0));if(!list.length){toast("Nada para exportar");return;}
-  const head=["SKU","Nome","Canal","Preco De","Preco Por","Frete","Custo itens","Resultado liquido","Lucratividade %","Itens"];
-  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,(r.priceDe||0).toFixed(2),(r.pricePor||r.price||0).toFixed(2),(r.freight||0).toFixed(2),(r.custoItens||0).toFixed(2),(r.liquido||0).toFixed(2),((r.lucratividade||0)*100).toFixed(1),(r.itens||[]).map(i=>`${i.q}x ${i.n}`).join(" | ")]);
+  const head=["SKU","Nome","Canal","Conta","Preco De","Preco Por","Frete","Custo itens","Resultado liquido","Lucratividade %","Itens"];
+  const rows=list.map(r=>[r.sku,r.nome||"",r.canal,r.origem||"",(r.priceDe||0).toFixed(2),(r.pricePor||r.price||0).toFixed(2),(r.freight||0).toFixed(2),(r.custoItens||0).toFixed(2),(r.liquido||0).toFixed(2),((r.lucratividade||0)*100).toFixed(1),(r.itens||[]).map(i=>`${i.q}x ${i.n}`).join(" | ")]);
   const csv=[head,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(";")).join("\n");
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
@@ -923,14 +952,14 @@ function renderDashboard(){
   const agg={L:0,N:0,O:0,P:0,R:0,S:0,T:0,U:0,V:0,F:0,X:0,Y:0},byChannel={};
   list.forEach(r=>{
     const b=breakdownOf(r);["L","N","O","P","R","S","T","U","V","F","X","Y"].forEach(k=>agg[k]+=b[k]||0);
-    const cn=resolveChannel(r.canal).n,g=(byChannel[cn]=byChannel[cn]||{n:cn,count:0,sumZ:0});
+    const key=resolveChannel(r.canal).n+(r.origem?" · "+r.origem:""),g=(byChannel[key]=byChannel[key]||{n:key,count:0,sumZ:0});
     g.count++;g.sumZ+=r.lucratividade||0;
   });
   const portfMargin=agg.L>0?agg.Y/agg.L:0;
   const channels=Object.values(byChannel).map(g=>({...g,avgZ:g.count?g.sumZ/g.count:0})).sort((a,b)=>b.avgZ-a.avgZ);
   // consolidado
   const cards=`<div class="dcards">
-    <div class="dcard"><div class="k">SKUs cadastrados</div><div class="v">${list.length}</div><div class="sub">${channels.length} ${channels.length===1?'canal usado':'canais usados'}</div></div>
+    <div class="dcard"><div class="k">SKUs cadastrados</div><div class="v">${list.length}</div><div class="sub">${channels.length} ${channels.length===1?'canal/conta':'canais/contas'}</div></div>
     <div class="dcard"><div class="k">Lucratividade média</div><div class="v mono" style="color:${marginColor(avg,meta)}">${pct(avg)}</div><div class="sub">meta ${assumptions.meta}%</div></div>
     <div class="dcard"><div class="k">Margem da carteira</div><div class="v mono" style="color:${marginColor(portfMargin,meta)}">${pct(portfMargin)}</div><div class="sub">líq. sobre receita somada</div></div>
     <div class="dcard"><div class="k">Abaixo da meta</div><div class="v" style="color:${below?'var(--neg)':'var(--pos)'}">${below}</div><div class="sub">de ${list.length} kits</div></div>
@@ -947,7 +976,7 @@ function renderDashboard(){
     const callout=channels.length>1?`<div class="callout">
       <div class="c best"><div class="cl">Melhor rentabilidade</div><div class="cn">${best.n}</div><div class="cv">${pct(best.avgZ)}</div></div>
       <div class="c worst"><div class="cl">Pior rentabilidade</div><div class="cn">${worst.n}</div><div class="cv">${pct(worst.avgZ)}</div></div></div>`:"";
-    chanSec=`<div class="dsec"><div class="t">Rentabilidade por canal</div><div class="d">Lucratividade média dos kits cadastrados em cada canal.</div>${rows}${callout}</div>`;
+    chanSec=`<div class="dsec"><div class="t">Rentabilidade por canal e conta</div><div class="d">Lucratividade média dos kits em cada canal/conta (ex.: Mercado Livre · MG vs · GRU).</div>${rows}${callout}</div>`;
   }
   // estrutura de custos (carteira)
   const tot=agg.L>0?agg.L:1;
@@ -967,11 +996,11 @@ function renderDashboard(){
   const topZ=list.slice().sort((a,b)=>(b.lucratividade||0)-(a.lucratividade||0)).slice(0,8);
   const maxZ=Math.max(...topZ.map(r=>Math.abs(r.lucratividade||0)),meta,0.01);
   const topRows=topZ.map(r=>{const z=r.lucratividade||0,col=marginColor(z,meta),w=Math.max(2,Math.abs(z)/maxZ*100);
-    return `<div class="dbar-row"><div class="dbar-label">${r.sku}<small>${r.canal||""}</small></div>
+    return `<div class="dbar-row"><div class="dbar-label">${r.sku}<small>${r.canal||""}${r.origem?" · "+r.origem:""}</small></div>
       <div class="dbar-track"><div class="dbar-fill" style="width:${w}%;background:${col}"></div></div>
       <div class="dbar-val" style="color:${col}">${pct(z)}</div></div>`;}).join("");
   const topY=list.slice().sort((a,b)=>(b.liquido||0)-(a.liquido||0)).slice(0,5);
-  const topYhtml=topY.map((r,i)=>`<div class="dbar-row" style="grid-template-columns:22px 1fr auto"><div class="dbar-val" style="color:var(--faint)">${i+1}</div><div class="dbar-label">${r.sku}<small>${r.canal||""}</small></div><div class="dbar-val">${brl(r.liquido||0)}</div></div>`).join("");
+  const topYhtml=topY.map((r,i)=>`<div class="dbar-row" style="grid-template-columns:22px 1fr auto"><div class="dbar-val" style="color:var(--faint)">${i+1}</div><div class="dbar-label">${r.sku}<small>${r.canal||""}${r.origem?" · "+r.origem:""}</small></div><div class="dbar-val">${brl(r.liquido||0)}</div></div>`).join("");
   const topSec=`<div class="dsec"><div class="t">Kits mais rentáveis</div><div class="d">Ranking por lucratividade. Verde acima da meta, âmbar abaixo, vermelho no prejuízo.</div>${topRows}
     <div class="dup-sec" style="margin-top:18px">Maior lucro por venda (R$)</div>${topYhtml}</div>`;
   $("#dashBody").innerHTML=cards+chanSec+costSec+topSec;
@@ -1049,6 +1078,16 @@ function renderProdTable(){
     <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("");
 }
 function syncKitCosts(){kit.forEach(k=>{const m=CATALOG.find(c=>c.n===k.n);if(m)k.c=m.c;});}
+function renderAcctTable(){
+  const t=$("#acctTable");if(!t)return;
+  t.innerHTML=ACCOUNTS.map((a,i)=>`<tr><td class="name">${a}</td>
+    <td class="r"><button class="rm" data-adel="${i}" title="Remover">×</button></td></tr>`).join("")||`<tr><td class="name" style="color:var(--faint)">Nenhuma conta cadastrada</td><td></td></tr>`;
+}
+function addAccount(){const n=$("#naNome").value.trim();if(!n){toast("Informe o nome da conta");return;}
+  if(ACCOUNTS.some(a=>a.toLowerCase()===n.toLowerCase())){toast("Essa conta já existe");return;}
+  ACCOUNTS.push(n);$("#naNome").value="";saveConfig();renderAcctTable();buildAcctSelect();toast("Conta adicionada");}
+function delAccount(i){const a=ACCOUNTS[i];if(!confirm(`Remover a conta "${a}"? Os SKUs já marcados com ela mantêm o registro.`))return;
+  ACCOUNTS.splice(i,1);if(selAcct===a)selAcct="";saveConfig();renderAcctTable();buildAcctSelect();toast("Conta removida");}
 function onAssumpChange(){
   assumptions={outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
     fin:+$("#a_fin").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
@@ -1064,8 +1103,8 @@ function delProduct(i){const it=CATALOG[i];if(!confirm(`Remover "${it.n}" do cat
   CATALOG.splice(i,1);saveConfig();renderProdTable();toast("Produto removido");}
 function restoreDefaults(){
   if(!confirm("Restaurar taxas, percentuais e custos aos valores originais da planilha? (Os SKUs salvos não são afetados.)"))return;
-  CATALOG=clone(DEF_CATALOG);CHANNELS=clone(DEF_CHANNELS);assumptions=clone(DEF_ASSUMP);
-  saveConfig();loadAssumpInputs();renderChanTable();renderProdTable();buildSelects();syncKitCosts();renderKit();toast("Padrões restaurados");
+  CATALOG=clone(DEF_CATALOG);CHANNELS=clone(DEF_CHANNELS);assumptions=clone(DEF_ASSUMP);ACCOUNTS=clone(DEF_ACCOUNTS);
+  saveConfig();loadAssumpInputs();renderChanTable();renderProdTable();renderAcctTable();buildSelects();syncKitCosts();renderKit();toast("Padrões restaurados");
 }
 
 // ---------- Navegação ----------
@@ -1086,7 +1125,8 @@ $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchVie
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
 $("#refreshDash").onclick=async()=>{await refreshSkus();renderDashboard();};
 $("#refreshBtn").onclick=refreshSkus;
-$("#channel").onchange=()=>{showChannelFees(true);calc();};
+$("#channel").onchange=()=>{showChannelFees(true);suggestAcct();calc();};
+$("#acct").onchange=()=>{selAcct=$("#acct").value;};
 $("#mlCat").onchange=()=>{selCat=+$("#mlCat").value||0;showChannelFees(false);calc();};
 $("#addItem").onclick=addFromCatalog;
 // combobox
@@ -1110,7 +1150,7 @@ $("#sku").addEventListener("input",checkDupSku);
 $("#dupClose").onclick=closeDupModal;
 $("#dupModal").addEventListener("click",e=>{if(e.target.id==="dupModal")closeDupModal();});
 $("#dupList").addEventListener("click",e=>{const b=e.target.closest("[data-open-dup]");if(b){closeDupModal();loadSkuIntoCalc(b.dataset.openDup);}});
-$("#clearBtn").onclick=()=>{kit=[];autoName="";loadedSku="";$("#skuDup").style.display="none";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
+$("#clearBtn").onclick=()=>{kit=[];autoName="";loadedSku="";selAcct="";buildAcctSelect();$("#skuDup").style.display="none";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
 $("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
 $("#tbody").addEventListener("input",onSkuInline);
 $("#exportCsv").onclick=exportCsv;
@@ -1121,6 +1161,9 @@ $("#shopeeCfg").addEventListener("input",onShopeeChange);
 $("#prodTable").addEventListener("input",onProdChange);
 $("#prodTable").addEventListener("click",e=>{if(e.target.dataset.pdel!=null)delProduct(+e.target.dataset.pdel);});
 $("#npAdd").onclick=addProduct;
+$("#acctTable").addEventListener("click",e=>{if(e.target.dataset.adel!=null)delAccount(+e.target.dataset.adel);});
+$("#naAdd").onclick=addAccount;
+$("#naNome").addEventListener("keydown",e=>{if(e.key==="Enter")addAccount();});
 $("#restoreBtn").onclick=restoreDefaults;
 window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
 
@@ -1129,7 +1172,7 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
   setSync(SUPA_ON?"cloud":"local");
   if(!SUPA_ON){const b=$("#cloudBanner");b.style.display="block";b.innerHTML="<b>Modo local.</b> Para sincronizar entre pessoas, preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do arquivo.";}
   await loadConfig();
-  loadAssumpInputs();renderChanTable();renderProdTable();buildSelects();applyPriceMode();renderKit();calc();
+  loadAssumpInputs();renderChanTable();renderProdTable();renderAcctTable();buildSelects();applyPriceMode();renderKit();calc();
   await refreshSkus();
 })();
 </script>
