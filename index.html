@@ -195,6 +195,17 @@
   .legend .sw{width:12px;height:12px;border-radius:3px;flex:none}
   .legend .lp{margin-left:auto;font-family:var(--mono);color:var(--muted);font-size:12.5px}
   .legend .lp b{color:var(--ink)}
+  .perpote{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:var(--paper)}
+  .perpote.ok{border-color:#cfe3d6;background:#eef5f0}.perpote.mid{border-color:#eed9b8;background:#fbf4e8}.perpote.no{border-color:#eccdd3;background:var(--berry-soft)}
+  .perpote .pp-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+  .perpote .pp-h>span:first-child{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .pp-pill{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--line2);color:var(--muted)}
+  .perpote.ok .pp-pill{background:#d9ebe0;color:var(--pos)}.perpote.mid .pp-pill{background:#f2e4c8;color:#9a6a1a}.perpote.no .pp-pill{background:#f2d3d9;color:var(--berry)}
+  .pp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .pp-grid>div{display:flex;flex-direction:column;gap:3px}
+  .pp-k{font-size:11.5px;color:var(--muted)}
+  .pp-v{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--ink)}
+  .pp-units{margin-top:10px;font-size:12px;color:var(--faint)}
   .head-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:12px;flex-wrap:wrap}
   .head-actions h2{font-family:var(--disp);font-weight:600;font-size:24px;margin:0;letter-spacing:-.01em}
   .set-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
@@ -305,8 +316,16 @@
             <div class="lbl">Lucratividade</div>
             <div class="bignum" id="bigMargin">0,0%</div>
             <div class="liquid">Resultado líquido&nbsp; <b id="liqVal">R$ 0,00</b></div>
-            <div class="liquid" id="perUnitLine" style="display:none">Por unidade&nbsp; <b id="ppuVal">R$ 0,00</b> <span id="ppuUnits" style="color:var(--faint);font-weight:400"></span></div>
             <div class="badge no" id="metaBadge"><span class="dot"></span><span id="metaTxt">Abaixo da meta</span></div>
+          </div>
+          <div class="perpote" id="perUnitLine" style="display:none">
+            <div class="pp-h"><span>Por pote</span><span class="pp-pill" id="ppuPill">—</span></div>
+            <div class="pp-grid">
+              <div><span class="pp-k">Preço / pote</span><span class="pp-v" id="ppuVal">R$ 0,00</span></div>
+              <div><span class="pp-k">Líquido / pote</span><span class="pp-v" id="ppuLiq">R$ 0,00</span></div>
+              <div><span class="pp-k">Margem</span><span class="pp-v" id="ppuMarg">0,0%</span></div>
+            </div>
+            <div class="pp-units" id="ppuUnits"></div>
           </div>
           <div class="mc-strip"><span class="k">Margem de contribuição</span><span class="v" id="mcVal">0,0%</span></div>
           <div class="casc"><div class="casc-h">Para onde vai cada real</div><div id="cascade"></div></div>
@@ -670,8 +689,15 @@ function calc(){
   $("#liqVal").textContent=brl(r.Y);
   const units=kit.reduce((s,it)=>s+(+it.q||0),0);
   const pu=$("#perUnitLine");
-  if(r.L>0&&units>1){pu.style.display="";$("#ppuVal").textContent=brl(r.L/units);$("#ppuUnits").textContent=`(${units} un · líq. ${brl(r.Y/units)}/un)`;}
-  else pu.style.display="none";
+  if(r.L>0&&units>1){
+    const st=r.Z>=meta?"ok":r.Z>=0?"mid":"no";
+    pu.className="perpote "+st;pu.style.display="";
+    $("#ppuVal").textContent=brl(r.L/units);
+    $("#ppuLiq").textContent=brl(r.Y/units);
+    $("#ppuMarg").textContent=pct(r.Z);
+    $("#ppuPill").textContent=r.Z>=meta?"Dentro da meta":r.Z>=0?"Abaixo da meta":"Prejuízo";
+    $("#ppuUnits").textContent=`${units} potes no kit · meta ${assumptions.meta}% por venda`;
+  } else pu.style.display="none";
   const badge=$("#metaBadge"),txt=$("#metaTxt");
   if(r.L<=0){badge.className="badge no";txt.textContent="Informe o preço de venda";}
   else if(r.Z>=meta){badge.className="badge ok";txt.textContent=`Acima da meta de ${assumptions.meta}%`;}
