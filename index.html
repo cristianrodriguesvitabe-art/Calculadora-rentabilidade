@@ -295,15 +295,10 @@
 
         <div class="card"><div class="pad">
           <p class="eyebrow"><span class="step">03</span>Preço &amp; ajustes de venda</p>
-          <div class="seg-wrap" id="priceMode">
-            <button class="seg on" data-mode="final">Preço final</button>
-            <button class="seg" data-mode="depor">De / Por</button>
-            <button class="seg" data-mode="desc">Preço + desconto %</button>
-          </div>
           <div class="row3">
-            <div class="field pm-final" style="margin-bottom:0"><label for="priceFinal">Preço de venda (final)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceFinal" placeholder="0,00" step="0.01" min="0"></div></div>
-            <div class="field pm-depor" style="margin-bottom:0;display:none"><label for="priceDe">De (preço cheio)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceDe" placeholder="0,00" step="0.01" min="0"></div></div>
-            <div class="field pm-depor" style="margin-bottom:0;display:none"><label for="pricePor">Por (preço de venda)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="pricePor" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-final" style="margin-bottom:0;display:none"><label for="priceFinal">Preço de venda (final)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceFinal" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-depor" style="margin-bottom:0"><label for="priceDe">De (preço cheio)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceDe" placeholder="0,00" step="0.01" min="0"></div></div>
+            <div class="field pm-depor" style="margin-bottom:0"><label for="pricePor">Por (preço de venda)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="pricePor" placeholder="0,00" step="0.01" min="0"></div></div>
             <div class="field pm-desc" style="margin-bottom:0;display:none"><label for="priceBase">Preço base</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="priceBase" placeholder="0,00" step="0.01" min="0"></div></div>
             <div class="field pm-desc" style="margin-bottom:0;display:none"><label for="desc">Desconto</label><div class="inwrap"><input type="number" id="desc" value="0" step="1" style="padding-right:26px"><span class="suf">%</span></div></div>
             <div class="field" style="margin-bottom:0"><label for="rebate">Rebate</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="rebate" value="0" step="0.01" min="0"></div></div>
@@ -332,8 +327,8 @@
             <div class="pp-units" id="ppuUnits"></div>
           </div>
           <div class="reco" id="recoLine" style="display:none">
-            <div class="reco-txt">Para bater a meta de <b id="recoMeta">10%</b>, venda por <b id="recoPrice">R$ 0,00</b><span id="recoPote"></span></div>
-            <button class="btn" id="recoUse" type="button">Usar</button>
+            <div class="reco-txt">Mínimo para bater a rentabilidade (<b id="recoMeta">10%</b>): <b id="recoPrice">R$ 0,00</b><span id="recoPote"></span></div>
+            <button class="btn" id="recoUse" type="button">Usar mínimo</button>
           </div>
           <div class="mc-strip"><span class="k">Margem de contribuição</span><span class="v" id="mcVal">0,0%</span></div>
           <div class="casc"><div class="casc-h">Para onde vai cada real</div><div id="cascade"></div></div>
@@ -504,7 +499,7 @@ const DEF_ACCOUNTS = ["MG","GRU"];
 
 let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP), ACCOUNTS = clone(DEF_ACCOUNTS);
 let kit = [], saved = {};
-let priceMode = "final", autoName = "", selCat = 0, loadedSku = "", selAcct = "";
+let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "";
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
 const $ = s => document.querySelector(s);
@@ -806,11 +801,10 @@ function loadSkuIntoCalc(sku){
   selAcct=(r.origem&&ACCOUNTS.includes(r.origem))?r.origem:(r.origem||"");buildAcctSelect();
   showChannelFees(false);
   kit=(r.itens||[]).map(it=>({n:it.n,c:it.c,q:it.q}));
-  // modo de preço (compatível com registros antigos)
-  priceMode=r.priceMode||"final";applyPriceMode();
-  if(priceMode==="final"){$("#priceFinal").value=(r.priceFinal!=null?r.priceFinal:r.price)||"";}
-  else if(priceMode==="depor"){$("#priceDe").value=r.priceDe||"";$("#pricePor").value=(r.pricePor!=null?r.pricePor:r.price)||"";}
-  else{$("#priceBase").value=r.priceBase||"";$("#desc").value=(r.desc!=null?r.desc:(r.reaj!=null?-r.reaj:0));}
+  // sempre em De/Por (único modo). Deriva o Por de registros antigos.
+  priceMode="depor";applyPriceMode();
+  $("#priceDe").value=r.priceDe||"";
+  $("#pricePor").value=(r.pricePor!=null&&r.pricePor!==0?r.pricePor:(r.price!=null?r.price:(r.priceFinal!=null?r.priceFinal:"")))||"";
   $("#rebate").value=r.rebate||0;
   $("#freight").value=(r.freight!=null?r.freight:curChannel().fre);
   switchView("calc");renderKit();$("#kitname").value=r.nome||genName();toast(`SKU ${r.sku} carregado`);
@@ -1200,14 +1194,11 @@ document.addEventListener("click",e=>{if(!e.target.closest(".combo"))closeList()
 $("#toggleAvulso").onclick=()=>{const a=$("#avulso");a.style.display=a.style.display==="none"?"grid":"none";};
 $("#addAvulso").onclick=()=>{const n=$("#avNome").value.trim(),c=+$("#avCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}kit.push({n,c,q:1});$("#avNome").value="";$("#avCusto").value="";renderKit();};
 $("#kitList").onclick=e=>{const t=e.target;if(t.dataset.rm!=null){kit.splice(+t.dataset.rm,1);renderKit();}else if(t.dataset.inc!=null){kit[+t.dataset.inc].q++;renderKit();}else if(t.dataset.dec!=null){const i=+t.dataset.dec;kit[i].q=Math.max(1,kit[i].q-1);renderKit();}};
-$("#priceMode").addEventListener("click",e=>{const b=e.target.closest(".seg");if(!b)return;priceMode=b.dataset.mode;applyPriceMode();calc();});
 ["priceFinal","priceDe","pricePor","priceBase","desc","rebate","freight","sku"].forEach(id=>$("#"+id).addEventListener("input",calc));
 $("#saveBtn").onclick=saveSku;
 $("#recoUse").onclick=()=>{const L=$("#recoLine")._L;if(!L)return;
-  if(priceMode==="final")$("#priceFinal").value=L.toFixed(2);
-  else if(priceMode==="depor")$("#pricePor").value=L.toFixed(2);
-  else{const d=+$("#desc").value||0;$("#priceBase").value=(L/(1-d/100)).toFixed(2);}
-  calc();toast("Preço recomendado aplicado");};
+  $("#pricePor").value=L.toFixed(2);
+  calc();toast("Preço mínimo aplicado no Por");};
 $("#sku").addEventListener("input",checkDupSku);
 $("#dupClose").onclick=closeDupModal;
 $("#dupModal").addEventListener("click",e=>{if(e.target.id==="dupModal")closeDupModal();});
