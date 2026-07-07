@@ -227,14 +227,16 @@
   .etable td{padding:8px 8px}.etable thead th{padding:0 8px 10px}
   .etable input{padding:7px 9px;font-size:13.5px}.etable .name{font-weight:500;font-size:13.5px}
   .cellnum{width:112px}
-  .pricefield{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:8px;background:var(--paper)}
+  .pricefield{display:flex;align-items:center;width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:8px;background:var(--paper)}
   .pricefield:focus-within{border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
-  .pricefield .pfx{font-size:11px;color:var(--faint);padding-left:9px;font-family:var(--mono);flex:0 0 auto}
-  .skuprice{flex:0 0 auto;width:82px;border:none;background:transparent;text-align:right;padding:8px 9px 8px 3px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink)}
+  .pricefield .pfx{font-size:11px;color:var(--faint);padding-left:8px;font-family:var(--mono);flex:0 0 auto}
+  .skuprice{flex:1 1 auto;min-width:0;width:auto;border:none;background:transparent;text-align:right;padding:8px 8px 8px 2px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink)}
   .skuprice::-webkit-outer-spin-button,.skuprice::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .skuprice{-moz-appearance:textfield}
   .skuprice:focus{outline:none}
-  #view-saved table{min-width:1000px}
+  #view-saved table{table-layout:fixed;min-width:1186px}
+  #view-saved tbody td{padding:12px 10px}
+  #view-saved .tacts{white-space:nowrap;justify-content:flex-end}
   tbody td.r,thead th.r{white-space:nowrap}
   td.sec{color:var(--faint);font-family:var(--mono);font-size:12.5px}
   .liqval{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)}
@@ -263,7 +265,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 19</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 20</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -407,7 +409,9 @@
     </div>
     <div id="skuFilterBar"></div>
     <div class="card" id="tableCard"><div class="pad" style="padding:8px 8px 4px;overflow-x:auto">
-      <table><thead><tr>
+      <table id="skuTable"><colgroup>
+        <col style="width:238px"><col style="width:112px"><col style="width:118px"><col style="width:118px"><col style="width:84px"><col style="width:84px"><col style="width:92px"><col style="width:106px"><col style="width:94px"><col style="width:140px">
+      </colgroup><thead><tr>
         <th class="sortable" data-sort="sku">SKU<span class="sarr"></span></th>
         <th class="sortable" data-sort="canal">Canal<span class="sarr"></span></th>
         <th class="r sortable" data-sort="de">De<span class="sarr"></span></th>
