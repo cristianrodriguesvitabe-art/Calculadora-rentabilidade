@@ -227,10 +227,10 @@
   .etable td{padding:8px 8px}.etable thead th{padding:0 8px 10px}
   .etable input{padding:7px 9px;font-size:13.5px}.etable .name{font-weight:500;font-size:13.5px}
   .cellnum{width:112px}
-  .pricefield{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:8px;background:var(--paper);overflow:hidden}
+  .pricefield{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:8px;background:var(--paper)}
   .pricefield:focus-within{border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
-  .pricefield .pfx{font-size:11px;color:var(--faint);padding-left:9px;font-family:var(--mono)}
-  .skuprice{width:76px;border:none;background:transparent;text-align:right;padding:8px 9px 8px 3px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink)}
+  .pricefield .pfx{font-size:11px;color:var(--faint);padding-left:9px;font-family:var(--mono);flex:0 0 auto}
+  .skuprice{flex:0 0 auto;width:82px;border:none;background:transparent;text-align:right;padding:8px 9px 8px 3px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink)}
   .skuprice::-webkit-outer-spin-button,.skuprice::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .skuprice{-moz-appearance:textfield}
   .skuprice:focus{outline:none}
@@ -239,7 +239,7 @@
   td.sec{color:var(--faint);font-family:var(--mono);font-size:12.5px}
   .liqval{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)}
   .liqval.neg{color:var(--neg)}
-  .sku-meli{font-size:11px;color:var(--faint);margin-top:2px;font-family:var(--mono,monospace)}
+  .sku-meli{font-size:11px;color:var(--faint);margin-top:2px;font-family:var(--mono,monospace);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .stat-link{margin-top:6px;background:none;border:none;padding:0;font:inherit;font-size:12px;color:var(--forest);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   .stat-link.on{font-weight:700}
   .filterbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;color:var(--ink)}
@@ -263,7 +263,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 18</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 19</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1018,13 +1018,14 @@ function renderSaved(){
   if(!list.length){$("#tbody").innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:24px">Nenhum SKU nesse filtro.</td></tr>`;return;}
   $("#tbody").innerHTML=list.map(r=>{
     const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
-    const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli">${r.skusMeli.join(", ")}</div>`:"";
+    const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli" title="${r.skusMeli.join(", ")}">${r.skusMeli.join(", ")}</div>`:"";
+    const canalTxt=(r.canal||"").replace(/^Mercado Livre\s*/i,"")||(r.canal||"");
     const inativo=(r.statusMeli==="Inativo")?' <span class="mbadge" style="background:#f3d9d9;color:#8a2a2a">inativo</span>':"";
     const reb=(r.rebate>0)?brl(r.rebate):"—";
     if(r.composicaoPendente){
       const por2=(r.pricePor||r.price||0).toFixed(2);
       return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${meli}${updHtml(r)}</td>
-      <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} <span class="mbadge upd">composição pendente</span></td>
+      <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} <span class="mbadge upd">composição pendente</span></td>
       <td class="r">—</td>
       <td class="r">${pf("por",por2)}</td>
       <td class="r sec">${reb}</td>
@@ -1035,7 +1036,7 @@ function renderSaved(){
     const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
     const por=(r.pricePor||r.price||0).toFixed(2);
     return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${meli}${updHtml(r)}</td>
-    <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}</td>
+    <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}</td>
     <td class="r">${pf("de",de,"—")}</td>
     <td class="r">${pf("por",por)}</td>
     <td class="r sec">${reb}</td>
