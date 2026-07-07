@@ -477,10 +477,11 @@
   <div class="modal" style="max-width:860px;width:100%">
     <div class="modal-h"><span>Importar planilhas do Mercado Livre</span><button class="modal-x" id="meliClose" aria-label="Fechar">×</button></div>
     <div class="modal-b">
-      <div class="set-note" style="margin-bottom:14px">Abra as <b>duas</b> planilhas exportadas do Meli. O app cruza as duas pelo <b>MLB</b> (código do anúncio): a de <b>Anúncios</b> traz preço, tipo (Clássico/Premium) e situação; a de <b>Fichas técnicas</b> traz os SKUs e títulos. Cada anúncio (MLB) vira um registro; variações do mesmo anúncio ficam agrupadas e a composição entra como <b>pendente</b>.</div>
-      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+      <div class="set-note" style="margin-bottom:14px">Abra as planilhas exportadas do Meli. O app cruza tudo pelo <b>MLB</b> (código do anúncio): <b>Anúncios</b> traz preço, tipo (Clássico/Premium) e situação; <b>Fichas técnicas</b> traz os SKUs e títulos; e <b>Dados fiscais</b> (opcional) preenche a <b>composição dos kits</b> — cada item com custo e quantidade. Sem a fiscal, a composição entra pendente.</div>
+      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
         <label class="mfield"><span>1. Fichas técnicas <small>(.xlsx)</small></span><input type="file" id="meliFichas" accept=".xlsx"></label>
         <label class="mfield"><span>2. Anúncios <small>(.xlsx)</small></span><input type="file" id="meliAnuncios" accept=".xlsx"></label>
+        <label class="mfield"><span>3. Dados fiscais <small>(opcional)</small></span><input type="file" id="meliFiscal" accept=".xlsx"></label>
       </div>
       <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-top:12px">
         <label class="mfield" style="max-width:180px"><span>Conta / origem</span><select id="meliAcct"></select></label>
@@ -495,7 +496,7 @@
         </div>
         <div class="card" style="max-height:340px;overflow:auto"><div class="pad" style="padding:4px">
           <table class="etable" id="meliPreview"><thead><tr>
-            <th style="width:34px"></th><th>MLB</th><th>Título</th><th>Canal</th><th class="r">Preço</th><th>Situação</th><th>SKU(s) Meli</th><th>No app</th>
+            <th style="width:34px"></th><th>MLB</th><th>Título</th><th>Canal</th><th class="r">Preço</th><th>Situação</th><th>SKU(s) Meli</th><th>Composição</th><th>No app</th>
           </tr></thead><tbody id="meliPreviewBody"></tbody></table>
         </div></div>
         <div style="display:flex;justify-content:flex-end;margin-top:14px">
@@ -969,7 +970,7 @@ function exportCsv(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
 }
 // ================= Importador nativo Meli (Fichas técnicas + Anúncios) =================
-const MELI={fichas:null,anuncios:null,rows:[]};
+const MELI={fichas:null,anuncios:null,fiscal:null,rows:[]};
 let meliIntSeq=0;
 
 function meliOpen(){
@@ -977,9 +978,9 @@ function meliOpen(){
   const sel=$("#meliAcct");
   sel.innerHTML=`<option value="">—</option>`+ACCOUNTS.map(a=>`<option value="${a}">${a}</option>`).join("");
   const mg=ACCOUNTS.find(a=>/^mg$/i.test(a));if(mg)sel.value=mg;
-  $("#meliFichas").value="";$("#meliAnuncios").value="";
+  $("#meliFichas").value="";$("#meliAnuncios").value="";$("#meliFiscal").value="";
   $("#meliPreviewWrap").style.display="none";$("#meliStatus").style.display="none";
-  MELI.fichas=MELI.anuncios=null;MELI.rows=[];
+  MELI.fichas=MELI.anuncios=MELI.fiscal=null;MELI.rows=[];
   $("#meliModal").style.display="flex";
 }
 function meliCloseModal(){$("#meliModal").style.display="none";}
@@ -993,6 +994,7 @@ function readWorkbook(file){
 }
 function sheetMatrix(ws){return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:false});}
 function headerIndex(row){const m={};(row||[]).forEach((c,i)=>{if(typeof c==="string"&&c.trim())m[c.trim()]=i;});return m;}
+function findHeaderRow(mtx,must){return mtx.findIndex(r=>Array.isArray(r)&&must.every(m=>r.some(c=>typeof c==="string"&&c.trim()===m)));}
 const isMLB=v=>typeof v==="string"&&/^MLB\d+/.test(v.trim());
 function toNum(v){if(typeof v==="number")return v;const n=parseFloat(String(v==null?"":v).replace(/\./g,"").replace(",","."));return isFinite(n)?n:(parseFloat(v)||null);}
 
@@ -1042,6 +1044,41 @@ function parseFichas(wb){
 }
 function internalId(seed){let h=2166136261>>>0;const s=String(seed||("row"+(++meliIntSeq)));for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return "INT-"+h.toString(36).toUpperCase();}
 
+// Dados fiscais: aba "Kits" (composição com custo+qtd por item) e "Produtos únicos" (custo do produto)
+function parseFiscal(wb){
+  const out={};
+  const kn=wb.SheetNames.find(n=>/^kits$/i.test(n));
+  if(kn){
+    const mtx=sheetMatrix(wb.Sheets[kn]);
+    const h=findHeaderRow(mtx,["Código do anúncio","Custo unitário do item do kit"]);
+    if(h>=0){
+      const idx=headerIndex(mtx[h]);
+      const cM=idx["Código do anúncio"],cVar=idx["Variedade"],cVid=idx["VARIATION_ID"],cCod=idx["Código do produto"],cDesc=idx["Descrição de cada item na NF-e"],cCost=idx["Custo unitário do item do kit"],cQty=idx["Quantidade deste item no kit"];
+      const byVar={};
+      for(let i=h+1;i<mtx.length;i++){const r=mtx[i];if(!r)continue;const mlb=r[cM];if(!isMLB(mlb))continue;
+        const cod=r[cCod],cost=r[cCost];if(cod==null&&cost==null)continue;
+        const key=mlb.trim()+"|"+(r[cVid]||"");
+        (byVar[key]=byVar[key]||{mlb:mlb.trim(),variacao:r[cVar]||"",itens:[]}).itens.push({n:String(r[cDesc]||cod||"Item").trim(),c:+cost||0,q:+r[cQty]||1});}
+      const groups={};Object.values(byVar).forEach(v=>{(groups[v.mlb]=groups[v.mlb]||[]).push(v);});
+      Object.entries(groups).forEach(([mlb,vars])=>{
+        const totals=vars.map(v=>v.itens.reduce((s,i)=>s+i.c*i.q,0).toFixed(2));
+        out[mlb]={kind:"kit",itens:vars[0].itens,variacao:vars[0].variacao,variaCusto:new Set(totals).size>1};});
+    }
+  }
+  const un=wb.SheetNames.find(n=>/[uú]nicos/i.test(n));
+  if(un){
+    const mtx=sheetMatrix(wb.Sheets[un]);
+    const h=findHeaderRow(mtx,["Código do anúncio","Custo do produto"]);
+    if(h>=0){
+      const idx=headerIndex(mtx[h]);const cM=idx["Código do anúncio"],cDesc=idx["Descrição do anúncio"],cCod=idx["Código do produto"],cCost=idx["Custo do produto"];
+      for(let i=h+1;i<mtx.length;i++){const r=mtx[i];if(!r)continue;const mlb=r[cM];if(!isMLB(mlb))continue;const m=mlb.trim();
+        if(out[m])continue;const cost=r[cCost];if(cost==null)continue;
+        out[m]={kind:"unico",itens:[{n:String(r[cDesc]||r[cCod]||"Produto").trim(),c:+cost||0,q:1}],variacao:"",variaCusto:false};}
+    }
+  }
+  return out;
+}
+
 function crossReference(){
   const an=MELI.anuncios||{},fi=MELI.fichas||{};
   const conta=$("#meliAcct").value||"";
@@ -1055,26 +1092,31 @@ function crossReference(){
     const canal=canalShort==="Premium"?"Mercado Livre Premium":"Mercado Livre Clássico";
     const id=isMLB(mlb)?mlb:internalId((f&&f.skus[0])||(a&&a.title));
     const existing=saved[id]||Object.values(saved).find(r=>r.mlb&&r.mlb===mlb);
+    const comp=(MELI.fiscal&&MELI.fiscal[mlb])||null;
     rows.push({id,mlb:isMLB(mlb)?mlb:"",title:(a&&a.title)||(f&&f.title)||"",
       canal,canalShort:canalShort||"Clássico (padrão)",price:(a&&a.price)!=null?a.price:null,status,
       skus:(f&&f.skus)||[],gtins:(f&&f.gtins)||[],domain:f&&f.domain||null,
+      itens:comp?comp.itens:[],variaCusto:comp?comp.variaCusto:false,compFonte:comp?comp.kind:null,
       conta,existing:!!existing,sel:true});
   });
   rows.sort((x,y)=>(x.title||"").localeCompare(y.title||"","pt"));
   MELI.rows=rows;return rows;
 }
 async function meliAnalyze(){
-  const ff=$("#meliFichas").files[0],af=$("#meliAnuncios").files[0];
+  const ff=$("#meliFichas").files[0],af=$("#meliAnuncios").files[0],xf=$("#meliFiscal").files[0];
   const st=$("#meliStatus");st.style.display="block";st.textContent="Lendo planilhas…";
-  if(!ff||!af){st.textContent="Selecione as duas planilhas (Fichas técnicas e Anúncios).";return;}
+  if(!ff||!af){st.textContent="Selecione ao menos Fichas técnicas e Anúncios.";return;}
   try{
-    const [wbF,wbA]=await Promise.all([readWorkbook(ff),readWorkbook(af)]);
-    MELI.fichas=parseFichas(wbF);MELI.anuncios=parseAnuncios(wbA);
+    const jobs=[readWorkbook(ff),readWorkbook(af),xf?readWorkbook(xf):Promise.resolve(null)];
+    const [wbF,wbA,wbX]=await Promise.all(jobs);
+    MELI.fichas=parseFichas(wbF);MELI.anuncios=parseAnuncios(wbA);MELI.fiscal=wbX?parseFiscal(wbX):null;
     const rows=crossReference();
     renderMeliPreview();$("#meliPreviewWrap").style.display="block";
     const nNew=rows.filter(r=>!r.existing).length;
     const semMlb=rows.filter(r=>!r.mlb).length;
-    st.textContent=`${Object.keys(MELI.anuncios).length} anúncios · ${Object.keys(MELI.fichas).length} MLBs nas fichas → ${rows.length} registros (${nNew} novos, ${rows.length-nNew} já no app${semMlb?`, ${semMlb} sem MLB com ID interno`:""}).`;
+    const comComp=rows.filter(r=>r.itens&&r.itens.length).length;
+    const compTxt=MELI.fiscal?` · ${comComp} com composição, ${rows.length-comComp} pendente(s)`:" · composição pendente (sem fiscal)";
+    st.textContent=`${Object.keys(MELI.anuncios).length} anúncios · ${Object.keys(MELI.fichas).length} MLBs nas fichas → ${rows.length} registros (${nNew} novos, ${rows.length-nNew} já no app${semMlb?`, ${semMlb} sem MLB`:""})${compTxt}.`;
   }catch(e){st.textContent="Erro: "+e.message;$("#meliPreviewWrap").style.display="none";}
 }
 function renderMeliPreview(){
@@ -1086,6 +1128,7 @@ function renderMeliPreview(){
     <td class="r">${r.price!=null?brl(r.price):"—"}</td>
     <td>${r.status}</td>
     <td>${r.skus.length?r.skus.join(", "):"—"}</td>
+    <td>${r.itens&&r.itens.length?`${r.itens.length} ${r.itens.length===1?"item":"itens"} · ${brl(r.itens.reduce((s,i)=>s+i.c*i.q,0))}${r.variaCusto?' <span class="mbadge upd" title="As variações deste anúncio têm custos diferentes; usei a 1ª — confira">varia</span>':""}`:'<span class="mbadge">pendente</span>'}</td>
     <td>${r.existing?'<span class="mbadge upd">atualiza</span>':'<span class="mbadge new">novo</span>'}</td></tr>`).join("");
   updateMeliCounts();
 }
@@ -1096,13 +1139,16 @@ async function meliImport(){
   const clas=mlClassico(),prem=mlPremium();let ok=0;
   for(const r of chosen){
     const ch=/premium/i.test(r.canal)?prem:clas;
+    const temComp=r.itens&&r.itens.length>0;
     const rec={sku:r.id,mlb:r.mlb,skusMeli:r.skus,gtins:r.gtins,
       nome:r.title,canal:(ch&&ch.n)||r.canal,origem:r.conta||"",
       mlCatName:null,categoriaMeli:r.domain,
-      itens:[],composicaoPendente:true,
+      itens:temComp?r.itens.map(it=>({n:it.n,c:it.c,q:it.q})):[],
+      composicaoPendente:!temComp, compFonte:r.compFonte||null, variaCusto:!!r.variaCusto,
       priceMode:"depor",priceDe:null,pricePor:r.price||null,price:r.price||null,
       freight:(ch&&ch.fre)||0,rebate:0,
       status:r.status,statusMeli:r.status,fonte:"meli",ts:Date.now()};
+    if(temComp)recomputeSku(rec);
     const oldKey=r.mlb&&Object.keys(saved).find(k=>k!==r.id&&saved[k].mlb===r.mlb);
     if(oldKey){delete saved[oldKey];try{await DB.deleteSku(oldKey);}catch(e){}}
     saved[r.id]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
