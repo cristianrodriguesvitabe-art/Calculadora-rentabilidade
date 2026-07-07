@@ -125,7 +125,7 @@
   td.r{text-align:right;font-family:var(--mono)}
   .sku-code{font-family:var(--mono);font-weight:600}.sku-name{font-size:12px;color:var(--faint);margin-top:2px}
   .chip{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--line2);color:var(--muted)}
-  .marg{font-family:var(--mono);font-weight:600}.marg.ok{color:var(--pos)}.marg.no{color:var(--neg)}.marg.mid{color:var(--warn)}
+  .marg{font-family:var(--mono);font-weight:700;font-size:12.5px;padding:4px 10px;border-radius:999px;display:inline-block}.marg.ok{color:var(--pos);background:var(--pos-soft)}.marg.no{color:var(--neg);background:var(--neg-soft)}.marg.mid{color:var(--warn);background:#f6ecd9}
   .ugroup{margin-bottom:14px}
   .ugroup .ghead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:2px 2px 10px}
   .ugroup .gname{font-family:var(--display);font-size:17px;color:var(--ink);font-weight:600}
@@ -227,10 +227,18 @@
   .etable td{padding:8px 8px}.etable thead th{padding:0 8px 10px}
   .etable input{padding:7px 9px;font-size:13.5px}.etable .name{font-weight:500;font-size:13.5px}
   .cellnum{width:112px}
-  .skuprice{width:104px;text-align:right;padding:6px 8px;border:1px solid var(--line2);border-radius:7px;background:var(--paper);font:inherit;font-size:13px;color:var(--ink);box-sizing:border-box}
+  .pricefield{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:8px;background:var(--paper);overflow:hidden}
+  .pricefield:focus-within{border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
+  .pricefield .pfx{font-size:11px;color:var(--faint);padding-left:9px;font-family:var(--mono)}
+  .skuprice{width:76px;border:none;background:transparent;text-align:right;padding:8px 9px 8px 3px;font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink)}
   .skuprice::-webkit-outer-spin-button,.skuprice::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .skuprice{-moz-appearance:textfield}
-  .skuprice:focus{outline:none;border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
+  .skuprice:focus{outline:none}
+  #view-saved table{min-width:1000px}
+  tbody td.r,thead th.r{white-space:nowrap}
+  td.sec{color:var(--faint);font-family:var(--mono);font-size:12.5px}
+  .liqval{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)}
+  .liqval.neg{color:var(--neg)}
   .sku-meli{font-size:11px;color:var(--faint);margin-top:2px;font-family:var(--mono,monospace)}
   .stat-link{margin-top:6px;background:none;border:none;padding:0;font:inherit;font-size:12px;color:var(--forest);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   .stat-link.on{font-weight:700}
@@ -1009,6 +1017,7 @@ function renderSaved(){
   else{fb.style.display="none";fb.innerHTML="";}
   if(!list.length){$("#tbody").innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:24px">Nenhum SKU nesse filtro.</td></tr>`;return;}
   $("#tbody").innerHTML=list.map(r=>{
+    const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
     const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli">${r.skusMeli.join(", ")}</div>`:"";
     const inativo=(r.statusMeli==="Inativo")?' <span class="mbadge" style="background:#f3d9d9;color:#8a2a2a">inativo</span>':"";
     const reb=(r.rebate>0)?brl(r.rebate):"—";
@@ -1017,9 +1026,9 @@ function renderSaved(){
       return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${meli}${updHtml(r)}</td>
       <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} <span class="mbadge upd">composição pendente</span></td>
       <td class="r">—</td>
-      <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por2}"></td>
-      <td class="r">${reb}</td>
-      <td class="r">${brl(r.freight||0)}</td><td class="r">—</td><td class="r">—</td><td class="r">—</td>
+      <td class="r">${pf("por",por2)}</td>
+      <td class="r sec">${reb}</td>
+      <td class="r sec">${brl(r.freight||0)}</td><td class="r">—</td><td class="r">—</td><td class="r">—</td>
       <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
     }
     const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
@@ -1027,12 +1036,12 @@ function renderSaved(){
     const por=(r.pricePor||r.price||0).toFixed(2);
     return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${meli}${updHtml(r)}</td>
     <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}</td>
-    <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="de" value="${de}" placeholder="—"></td>
-    <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por}"></td>
-    <td class="r">${reb}</td>
-    <td class="r">${brl(r.freight||0)}</td>
-    <td class="r">${brl(r.custoItens)}</td>
-    <td class="r" data-liq="${r.sku}">${brl(r.liquido)}</td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
+    <td class="r">${pf("de",de,"—")}</td>
+    <td class="r">${pf("por",por)}</td>
+    <td class="r sec">${reb}</td>
+    <td class="r sec">${brl(r.freight||0)}</td>
+    <td class="r sec">${brl(r.custoItens)}</td>
+    <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
     <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;}).join("");
 }
 function updateSummary(){
