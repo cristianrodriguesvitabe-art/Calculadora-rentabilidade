@@ -251,6 +251,8 @@
   td.sec{color:var(--faint);font-family:var(--mono);font-size:12.5px}
   .liqval{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)}
   .liqval.neg{color:var(--neg)}
+  .codepill{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--forest);background:#e6efe9;padding:2px 8px;border-radius:6px;display:inline-block}
+  .sku-codes{font-size:11px;color:var(--forest);margin-top:3px;font-family:var(--mono,monospace);font-weight:600;max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .sku-meli{font-size:11px;color:var(--faint);margin-top:2px;font-family:var(--mono,monospace);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .stat-link{margin-top:6px;background:none;border:none;padding:0;font:inherit;font-size:12px;color:var(--forest);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
   .stat-link.on{font-weight:700}
@@ -275,7 +277,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 22</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 23</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -505,6 +507,12 @@
         </div>
       </div></div>
       <div class="card"><div class="pad">
+        <p class="eyebrow">Códigos dos produtos</p>
+        <p class="set-note" style="margin:-6px 0 12px">Referência <b>código → descrição</b> usada para exibir os itens dos kits nas telas. É só exibição — não altera a composição salva dos kits.</p>
+        <input type="text" id="codeRefSearch" placeholder="Buscar por código ou descrição..." style="width:100%;max-width:420px;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--paper)">
+        <table class="etable"><thead><tr><th style="width:132px">Código</th><th>Descrição</th></tr></thead><tbody id="codeRefTable"></tbody></table>
+      </div></div>
+      <div class="card"><div class="pad">
         <p class="eyebrow">Contas / origens</p>
         <p class="set-note" style="margin:-6px 0 12px">Suas contas de venda (ex.: MG, GRU). Cada SKU pode ser marcado com a conta de origem — usado no Resumo para separar a rentabilidade por conta.</p>
         <table class="etable"><thead><tr><th>Conta / origem</th><th></th></tr></thead><tbody id="acctTable"></tbody></table>
@@ -622,6 +630,9 @@ const DEF_CHANNELS = [
 const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, irbase:70, irrate:34, meta:10};
 const DEF_ACCOUNTS = ["MG","GRU"];
 
+// ===== Tabelas de códigos de produto (referência; não alteram a composição salva) =====
+const PROD_COD={"BALM.0279":"HIDRATANTE LABIAL DE CEREJA","BALM.0280":"HIDRATANTE LABIAL DE BAUNILHA","BALM.0282":"HIDRATANTE LABIAL DE CAPPUCCINO","BALM.0281":"HIDRATANTE LABIAL DE UVA","BALM.0284":"ALIVIO FLEX","COL1.0118":"RENOVA BE VERISOL - FRUTAS TROPICAIS","COL1.0170":"RENOVA BE VERISOL - CHOCOLATE","COL1.0209":"RENOVA BE VERISOL - CRANBERRY","COL1.0210":"RENOVA BE VERISOL - LIMAO","COL1.0211":"RENOVA BE VERISOL - TANGERINA","COL1.0267":"RENOVA BE VERISOL - PINK LIMONADE","COL2.0221":"COLAGENO TIPO II","COL3.0215":"RENOVA BE LAC GEST - LARANJA","COL3.0266":"RENOVA BE LAC GEST - Limão","CREA.0272":"CREATINA + MORNING SHOT LARANJA","CREA.0273":"CREATINA + MORNING SHOT LIMAO C/ MORANGO","CREA.0274":"CREATINA + MORNING SHOT ABACAXI","CREM.0235":"CREME FACIAL + RESVERATROL","CREM.0236":"CREME FACIAL + RETINOL","CREM.0237":"BOOSTER PDRN","ESPU.0272":"ESPUMA DE LIMPEZA FACIAL","HIDR.0252":"HIDRATANTE FACIAL + PROTECAO SOLAR FPS","MELA.0219":"MELATONINA","MULT.0233":"MULTIVITAMINICO PREMIUM DE A A Z","OMEG.0234":"OMEGA 3 EPA/DHA + VITA E","SERU.0158":"SERUM - VITA C","SERU.0159":"SERUM - HIDRATANTE","SERU.0160":"SERUM - ANTI AGE","WHEY.0175":"WHEY - COOKIES","WHEY.0176":"WHEY - COCO","WHEY.0177":"WHEY - CHOCOLATE","WHEY.0178":"WHEY - BAUNILHA","MULT.0230":"MORO 4K CAFE VERDE","MULT.0231":"MAGNESIO","MULT.0232":"COENZIMA Q10 + VITAMINA E","ESFO.0002":"ESFOLIANTE CORPORAL COCO","ESFO.0003":"ESFOLIANTE CORPORAL MARACUJA","ESFO.0001":"ESFOLIANTE CORPORAL MELANCIA","CREM.0238":"SÉRUM FIRMADOR INSTANTÂNEO","AMOS.0007":"FIRMADOR INSTANTANEO RENOVA BE SACHE 1G"};
+const KIT_CODES={"MLB5198358902":["COL2.0221","BALM.0279","AMOS.0007","BALM.0284"],"MLB3562548295":["COL1.0211","CREM.0235","COL1.0170","COL1.0209","COL1.0210","COL1.0267","COL1.0118"],"MLB2216999687":["COL1.0211","CREM.0235","COL1.0267","COL1.0209","COL1.0210","COL1.0118"],"MLB5088391500":["COL1.0209","CREA.0274","BALM.0279","COL1.0267","COL1.0210","COL1.0211","COL1.0118"],"MLB4646769770":["COL1.0210","COL1.0211","COL1.0209","CREM.0236"],"MLB2690492304":["COL1.0210","CREM.0235","COL1.0267"],"MLB3658161881":["COL1.0211","CREM.0235","CREM.0236","COL1.0210","COL1.0209","COL1.0118"],"MLB3919952707":["COL2.0221","BALM.0279","BALM.0284","CREM.0235"],"MLB2690488914":["COL1.0211","BALM.0279","COL1.0118","COL1.0209","COL1.0210"],"MLB4006505211":["COL1.0209","CREM.0236","BALM.0279","COL1.0210","COL1.0211","COL1.0118","COL1.0267"],"MLB3361767191":["COL1.0211","AMOS.0007","COL1.0209","COL1.0210","COL1.0267","COL1.0118"],"MLB3661431720":["COL1.0209","COL2.0221","AMOS.0007","COL1.0211","COL1.0118","COL1.0210"],"MLB4646772014":["COL1.0211","COL1.0209","COL1.0118","CREM.0236"],"MLB4799872422":["CREA.0274","AMOS.0007"],"MLB3382262685":["COL1.0170","OMEG.0234","BALM.0279","COL1.0211","COL1.0210","COL1.0267"],"MLB2657095036":["WHEY.0178","BALM.0279","WHEY.0175","WHEY.0176","WHEY.0177"],"MLB5299100208":["CREA.0274","BALM.0279","CREA.0272","CREA.0273"],"MLB4646807340":["COL1.0211","COL1.0210","COL1.0118","BALM.0279"],"MLB3507728073":["COL1.0118","AMOS.0007","COL1.0209","COL1.0267"],"MLB5531870740":["COL2.0221","BALM.0279","BALM.0284"],"MLB3751987305":["COL1.0118","SERU.0158","COL1.0211","COL1.0210","COL1.0209"],"MLB5207285978":["COL1.0209","AMOS.0007","CREM.0235","CREM.0236"],"MLB4649602442":["COL3.0215","BALM.0279","COL3.0266"],"MLB2657069856":["WHEY.0176","BALM.0284","WHEY.0178","WHEY.0175","WHEY.0177"],"MLB3817413584":["OMEG.0234","COL2.0221","BALM.0279","AMOS.0007","CREM.0235"],"MLB3562869219":["COL1.0210","COL1.0211","COL1.0209","CREM.0236","COL1.0118","BALM.0279"],"MLB5457337792":["BALM.0279","MULT.0231","CREM.0236","CREM.0235","AMOS.0007"],"MLB3792912052":["COL1.0210","SERU.0159","COL1.0211","COL1.0118"],"MLB4075494778":["CREM.0237","SERU.0158","SERU.0159","SERU.0160"],"MLB3361881381":["COL1.0209","CREM.0235","CREM.0236","SERU.0158","SERU.0159","SERU.0160","COL1.0210","COL1.0211","COL1.0118","COL1.0170"],"MLB4542766369":["COL1.0209","CREM.0237","COL1.0211","COL1.0210","COL1.0118","COL1.0267","COL1.0170"],"MLB6434192652":["BALM.0281","BALM.0279","BALM.0280","BALM.0282"],"MLB4559080841":["COL1.0209","CREM.0238","COL1.0211","COL1.0210","COL1.0118","COL1.0267","COL1.0170"],"MLB6756759050":["COL1.0209","CREM.0235"],"MLB6717961444":["COL2.0221","BALM.0279"],"MLB6719860578":["COL1.0209","CREM.0235"],"MLB6940077568":["COL1.0267","OMEG.0234","BALM.0279"],"MLB6964553642":["COL1.0209","CREM.0238"],"MLB3509713439":["COL1.0209","MULT.0233","SERU.0158","SERU.0159","CREM.0236","CREM.0235","MELA.0219","SERU.0160","COL1.0211","COL1.0118","COL1.0210"],"MLB4433923828":["CREM.0235","CREM.0236","MELA.0219","MULT.0233","SERU.0158","SERU.0159","SERU.0160","COL1.0210","COL1.0211","COL1.0209","COL1.0118","COL1.0170"],"MLB4148969261":["BALM.0279","MULT.0231"],"MLB2874630917":["COL3.0215","BALM.0279"],"MLB5541160828":["MULT.0232","AMOS.0007"],"MLB4473854723":["MULT.0232","AMOS.0007"],"MLB3658840279":["SERU.0159","SERU.0160"],"MLB4473907747":["MULT.0231","AMOS.0007"],"MLB3520911251":["HIDR.0252"],"MLB3068523075":["MELA.0219","CREM.0235"],"MLB4105581435":["BALM.0279","MULT.0230"],"MLB3860689464":["COL1.0118","SERU.0159"],"MLB4104559507":["COL1.0211","AMOS.0007"],"MLB4646720406":["COL1.0209","COL1.0210","COL1.0118","AMOS.0007"],"MLB3917315713":["COL1.0209","COL1.0210","COL1.0118","CREM.0236"],"MLB5196038906":["COL1.0118","COL1.0210","COL1.0211","CREM.0236"],"MLB4134228063":["COL1.0209","CREM.0236"],"MLB3918231977":["COL1.0211","COL1.0210","CREM.0236","COL1.0209"],"MLB3918237727":["COL1.0210","CREM.0236"],"MLB3900214137":["COL1.0209","AMOS.0007"],"MLB3963775249":["COL1.0118","CREM.0236"],"MLB5276713550":["COL1.0210","CREM.0236"],"MLB3967615093":["COL1.0211","CREM.0236"],"MLB5276772526":["CREM.0236","COL1.0209"],"MLB5276758388":["COL1.0267","CREM.0236"],"MLB5423616086":["COL1.0211","CREM.0235","CREM.0236","HIDR.0252"],"MLB3938796663":["OMEG.0234","MULT.0233","COL2.0221","CREM.0235"],"MLB6483040640":["MULT.0231","AMOS.0007"],"MLB5259909344":["CREA.0274","CREM.0236"],"MLB3936508303":["CREA.0274","CREM.0236"],"MLB3562548183":["COL1.0209","AMOS.0007"],"MLB5547010078":["BALM.0279","MULT.0230"],"MLB6482044958":["CREM.0237"],"MLB5212173294":["CREA.0274","BALM.0279"],"MLB3983900307":["CREA.0273","BALM.0279"],"MLB3382394643":["BALM.0279","OMEG.0234"],"MLB3873540860":["CREM.0235","CREM.0236"],"MLB3912942621":["BALM.0279","CREA.0272","CREA.0274","CREA.0273"],"MLB2216989502":["COL1.0209","BALM.0279"],"MLB6799981716":["COL1.0209","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981722":["COL1.0118","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981718":["COL1.0210","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981720":["COL1.0211","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981724":["COL1.0267","CREA.0274","COL2.0221","BALM.0279"],"MLB3451694685":["COL1.0210","COL1.0211","COL1.0209","CREM.0236"],"MLB6251502204":["COL2.0221","AMOS.0007"],"MLB3683105059":["COL1.0211","CREM.0235","CREM.0236"],"MLB3343554600":["COL1.0210","BALM.0279"],"MLB4610596270":["COL1.0209","CREM.0235"],"MLB4051571712":["COL1.0211","BALM.0279"],"MLB5419802970":["COL1.0209","CREM.0235"],"MLB3540741863":["COL1.0118","CREM.0235","CREM.0236","SERU.0158"],"MLB3540690119":["COL1.0210","COL1.0211","SERU.0158","AMOS.0007"],"MLB3540716201":["COL1.0209","COL1.0210","SERU.0158","CREM.0235","CREM.0236"],"MLB4362221816":["COL1.0209","COL1.0118","SERU.0158","CREM.0235","CREM.0236"],"MLB4355809836":["SERU.0158","SERU.0159","SERU.0160"],"MLB3954274869":["CREA.0274","CREM.0235"],"MLB3947912537":["CREA.0274","BALM.0279"],"MLB3387383991":["COL1.0118","COL1.0209","COL1.0211","COL1.0210","SERU.0159"],"MLB5421064476":["COL1.0210","AMOS.0007"],"MLB3845867334":["COL2.0221","AMOS.0007"],"MLB4480524347":["MULT.0230","AMOS.0007"],"MLB3540755109":["COL1.0209","COL1.0211","CREM.0235","CREM.0236","SERU.0158"],"MLB3385916377":["MULT.0233","BALM.0279"],"MLB4358475742":["COL1.0210","WHEY.0175","BALM.0279"],"MLB4413244510":["COL1.0209","COL1.0210","COL1.0211","COL1.0118"],"MLB3918224591":["COL1.0211","COL1.0118","COL1.0267","AMOS.0007"],"MLB3918223551":["COL1.0209","COL1.0210","COL1.0267","CREM.0235"],"MLB3918244921":["COL1.0118","AMOS.0007"],"MLB5196052020":["COL1.0209","COL1.0211","COL1.0267","CREM.0235"],"MLB3918200179":["COL1.0210","COL1.0211","COL1.0267","CREM.0235"],"MLB5196050744":["COL1.0211","COL1.0210","COL1.0209","AMOS.0007"],"MLB3918309571":["COL1.0211","AMOS.0007"],"MLB3918272199":["COL1.0210","AMOS.0007"],"MLB4674296158":["COL1.0170","SERU.0159"],"MLB4502096129":["CREM.0238"],"MLB3564265457":["MULT.0233","BALM.0279"],"MLB3617432797":["COL2.0221","BALM.0279"],"MLB3430465239":["COL2.0221","AMOS.0007"],"MLB3983827651":["CREA.0273","CREM.0235"],"MLB3983991781":["CREA.0272","AMOS.0007"],"MLB5297121654":["CREA.0273","BALM.0279"],"MLB3982849315":["CREA.0273","CREM.0235"],"MLB6251542858":["MULT.0232","AMOS.0007"],"MLB4081085078":["OMEG.0234","BALM.0279"],"MLB3463632603":["OMEG.0234","BALM.0279"],"MLB5733600598":["COL1.0209","OMEG.0234","BALM.0279"],"MLB3943941863":["COL1.0211","CREM.0236"],"MLB5241179246":["COL1.0118","CREM.0235"],"MLB3944005539":["COL1.0209","CREM.0235"],"MLB4234376924":["HIDR.0252","ESPU.0272"],"MLB4105555215":["BALM.0279","MULT.0232"],"MLB3658762973":["SERU.0158","SERU.0159"],"MLB3523887837":["COL1.0209","COL1.0170","SERU.0158","SERU.0159","SERU.0160","MULT.0233","MELA.0219","CREM.0235","CREM.0236"],"MLB3547041159":["COL1.0209","COL1.0210","COL1.0118","SERU.0158","SERU.0159","SERU.0160","AMOS.0007"],"MLB4277678935":["ESFO.0002","ESFO.0003","ESFO.0001"],"MLB4304636601":["CREM.0235","CREM.0236"],"MLB4753220543":["BALM.0287"],"MLB4753440839":["BALM.0285"],"MLB3819854658":["SERU.0160"],"MLB2687836633":["SERU.0159"],"MLB2687908759":["SERU.0158"],"MLB6507193820":["CREM.0237"],"MLB4440792551":["CREM.0238"]};
 let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP), ACCOUNTS = clone(DEF_ACCOUNTS);
 let kit = [], saved = {};
 let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "", skuFilter = "";
@@ -1055,12 +1066,14 @@ function renderSaved(){
   $("#tbody").innerHTML=list.map(r=>{
     const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
     const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli" title="${r.skusMeli.join(", ")}">${r.skusMeli.join(", ")}</div>`:"";
+    const kc=(r.mlb&&KIT_CODES[r.mlb])?KIT_CODES[r.mlb]:[];
+    const codesHtml=kc.length?`<div class="sku-codes" title="${kc.map(c=>c+(PROD_COD[c]?" — "+PROD_COD[c]:"")).join(" · ")}">${kc.join(", ")}</div>`:"";
     const canalTxt=(r.canal||"").replace(/^Mercado Livre\s*/i,"")||(r.canal||"");
     const inativo=(r.statusMeli==="Inativo")?' <span class="mbadge" style="background:#f3d9d9;color:#8a2a2a">inativo</span>':"";
     const reb=(r.rebate>0)?brl(r.rebate):"—";
     if(r.composicaoPendente){
       const por2=(r.pricePor||r.price||0).toFixed(2);
-      return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${meli}${updHtml(r)}</td>
+      return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
       <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} <span class="mbadge upd">composição pendente</span></td>
       <td class="r">—</td>
       <td class="r">${pf("por",por2)}</td>
@@ -1071,7 +1084,7 @@ function renderSaved(){
     const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
     const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
     const por=(r.pricePor||r.price||0).toFixed(2);
-    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${meli}${updHtml(r)}</td>
+    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
     <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}</td>
     <td class="r">${pf("de",de,"—")}</td>
     <td class="r">${pf("por",por)}</td>
@@ -1640,6 +1653,15 @@ function renderProdTable(){
     <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("");
 }
 function syncKitCosts(){kit.forEach(k=>{const m=CATALOG.find(c=>c.n===k.n);if(m)k.c=m.c;});}
+function renderCodeRef(q){
+  const el=$("#codeRefTable");if(!el)return;
+  q=(q||"").trim().toLowerCase();
+  const fiscal=[...new Set(Object.values(KIT_CODES).flat())];
+  const all=[...new Set([...Object.keys(PROD_COD),...fiscal])].sort();
+  const rows=all.filter(c=>!q||c.toLowerCase().includes(q)||(PROD_COD[c]||"").toLowerCase().includes(q))
+    .map(c=>`<tr><td><span class="codepill">${c}</span></td><td>${PROD_COD[c]||'<span style="color:var(--faint)">— (sem descrição na tabela)</span>'}</td></tr>`).join("");
+  el.innerHTML=rows||`<tr><td colspan="2" style="color:var(--faint);padding:14px">Nada encontrado.</td></tr>`;
+}
 function renderAcctTable(){
   const t=$("#acctTable");if(!t)return;
   t.innerHTML=ACCOUNTS.map((a,i)=>`<tr><td class="name">${a}</td>
@@ -1762,7 +1784,8 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
   setSync(SUPA_ON?"cloud":"local");
   if(!SUPA_ON){const b=$("#cloudBanner");b.style.display="block";b.innerHTML="<b>Modo local.</b> Para sincronizar entre pessoas, preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do arquivo.";}
   await loadConfig();
-  loadAssumpInputs();renderChanTable();renderProdTable();renderAcctTable();buildSelects();applyPriceMode();renderKit();calc();
+  loadAssumpInputs();renderChanTable();renderProdTable();renderAcctTable();renderCodeRef();buildSelects();applyPriceMode();renderKit();calc();
+  {const cs=$("#codeRefSearch");if(cs)cs.addEventListener("input",e=>renderCodeRef(e.target.value));}
   await refreshSkus();
 })();
 </script>
