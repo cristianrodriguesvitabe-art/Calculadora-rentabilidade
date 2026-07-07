@@ -157,6 +157,7 @@
   #meliPreview td,#meliPreview th{font-size:12px;vertical-align:top}
   .mbadge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
   .mbadge.new{background:#e6efe9;color:var(--forest)}.mbadge.upd{background:#fde7cf;color:#8a5a12}
+  .sku-upd{font-size:11px;margin-top:2px;font-family:var(--mono,monospace)}
   .modal{background:var(--surface);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:100%;max-width:520px;max-height:82vh;overflow:auto}
   .modal-h{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 12px;font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink);position:sticky;top:0;background:var(--surface)}
   .modal-x{border:0;background:var(--line2);color:var(--muted);width:30px;height:30px;border-radius:999px;font-size:18px;cursor:pointer;line-height:1}
@@ -369,6 +370,7 @@
       <div style="display:flex;gap:8px">
         <button class="btn" id="refreshBtn">Atualizar</button>
         <button class="btn" id="importMeli">Importar Meli</button>
+        <button class="btn" id="pastePrices">Colar preços</button>
         <button class="btn" id="exportCsv">Exportar CSV</button>
         <button class="btn btn-primary" id="goCalc">+ Novo SKU</button>
       </div>
@@ -507,6 +509,34 @@
   </div>
 </div>
 
+<div class="modal-bg" id="pasteModal" style="display:none">
+  <div class="modal" style="max-width:900px;width:100%">
+    <div class="modal-h"><span>Colar preços da tela (Editor em massa)</span><button class="modal-x" id="pasteClose" aria-label="Fechar">×</button></div>
+    <div class="modal-b">
+      <div class="set-note" style="margin-bottom:12px">Abra o <b>Editor em massa</b> do Mercado Livre, selecione tudo na tela (Ctrl+A), copie e cole aqui. Pode colar as <b>3 páginas</b> de uma vez ou uma de cada vez — o app acumula e casa pelo <b>MLB</b>. Preenche <b>De</b>, <b>Por</b>, <b>frete</b> e calcula o <b>rebate</b> por engenharia reversa (comissão real da tela), recalculando a margem de quem já tem composição.</div>
+      <textarea id="pasteText" placeholder="Cole aqui o texto copiado da tela…" style="width:100%;min-height:120px;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:13px;font-family:var(--mono,monospace);resize:vertical"></textarea>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+        <button class="btn" id="pasteAnalyze">Analisar</button>
+        <button class="btn" id="pasteClear" type="button">Limpar acumulado</button>
+        <span id="pasteStatus" class="set-note" style="margin:0"></span>
+      </div>
+      <div id="pastePreviewWrap" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <label style="display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="pasteAll" checked> Selecionar todos os encontrados</label>
+          <span id="pasteCounts" class="chip"></span>
+        </div>
+        <div class="card" style="max-height:340px;overflow:auto"><div class="pad" style="padding:4px">
+          <table class="etable" id="pastePreview"><thead><tr>
+            <th style="width:34px"></th><th>MLB</th><th>No app</th><th>Canal</th><th class="r">De</th><th class="r">Por</th><th class="r">Frete</th><th class="r">Rebate</th><th class="r">Você recebe</th>
+          </tr></thead><tbody id="pastePreviewBody"></tbody></table>
+        </div></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px">
+          <button class="btn btn-primary" id="pasteApply">Aplicar aos selecionados</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ============================================================
@@ -546,6 +576,14 @@ let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = ""
 function clone(o){return JSON.parse(JSON.stringify(o));}
 const $ = s => document.querySelector(s);
 const brl = v => "R$ " + (v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const VIA_LABEL={planilha:"Planilha",tela:"Tela",manual:"Manual"};
+function fmtUpd(rec){
+  const t=rec.atualizadoEm||rec.telaTs||rec.ts;if(!t)return "";
+  const d=new Date(t), dd=String(d.getDate()).padStart(2,"0"), mm=String(d.getMonth()+1).padStart(2,"0"), yy=String(d.getFullYear()).slice(2);
+  const via=VIA_LABEL[rec.atualizadoVia]||(rec.fonte==="meli"?"Planilha":"");
+  return (via?via+" · ":"")+`${dd}/${mm}/${yy}`;
+}
+function updHtml(r){const s=fmtUpd(r);if(!s)return "";const v=r.atualizadoVia||(r.fonte==="meli"?"planilha":"");const col=v==="tela"?"var(--forest)":v==="manual"?"#8a5a12":"var(--faint)";return `<div class="sku-upd" style="color:${col}">↻ ${s}</div>`;}
 const pct = v => (v*100).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"%";
 function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2000);}
 
@@ -820,7 +858,7 @@ async function saveSku(){
   if(exists&&exists.sku!==sku){delete saved[exists.sku];try{await DB.deleteSku(exists.sku);}catch(e){}}
   const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,origem:selAcct||"",mlCatName:(r.ch.categories&&r.ch.categories[selCat]?r.ch.categories[selCat].n:null),itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
     priceMode,priceBase:r.priceBase,desc:r.desc,priceFinal:r.L,priceDe:r.priceDe,pricePor:r.pricePor,descPct:r.descPct,rebate:r.rebate,rebatePct:r.rebatePct,freight:r.freight,
-    price:r.L,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now()};
+    price:r.L,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now(),atualizadoEm:Date.now(),atualizadoVia:"manual"};
   saved[sku]=rec;loadedSku=sku;$("#skuDup").style.display="none";renderSaved();
   try{await DB.upsertSku(rec);toast(`SKU ${sku} salvo`+(SUPA_ON?" na nuvem":""));if(SUPA_ON)setSync("cloud");}
   catch(e){setSync("err");toast("Salvo localmente, mas falhou na nuvem");}
@@ -893,7 +931,7 @@ function renderSaved(){
   $("#tbody").innerHTML=list.map(r=>{
     if(r.composicaoPendente){
       const por2=(r.pricePor||r.price||0).toFixed(2);
-      return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}</td>
+      return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${updHtml(r)}</td>
       <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""} <span class="mbadge upd">composição pendente</span></td>
       <td class="r">—</td>
       <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por2}"></td>
@@ -903,7 +941,7 @@ function renderSaved(){
     const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
     const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
     const por=(r.pricePor||r.price||0).toFixed(2);
-    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
+    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${updHtml(r)}</td>
     <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}</td>
     <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="de" value="${de}" placeholder="—"></td>
     <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por}"></td>
@@ -948,6 +986,7 @@ function onSkuInline(e){
   const v=+t.value||0;
   if(t.dataset.pf==="de")rec.priceDe=v; else if(t.dataset.pf==="por")rec.pricePor=v; else return;
   rec.priceMode="depor";
+  rec.atualizadoEm=Date.now();rec.atualizadoVia="manual";
   if(!rec.composicaoPendente){
     recomputeSku(rec);saved[sku]=rec;
     const row=t.closest("tr"),meta=(assumptions.meta||10)/100;
@@ -1147,7 +1186,7 @@ async function meliImport(){
       composicaoPendente:!temComp, compFonte:r.compFonte||null, variaCusto:!!r.variaCusto,
       priceMode:"depor",priceDe:null,pricePor:r.price||null,price:r.price||null,
       freight:(ch&&ch.fre)||0,rebate:0,
-      status:r.status,statusMeli:r.status,fonte:"meli",ts:Date.now()};
+      status:r.status,statusMeli:r.status,fonte:"meli",ts:Date.now(),atualizadoEm:Date.now(),atualizadoVia:"planilha"};
     if(temComp)recomputeSku(rec);
     const oldKey=r.mlb&&Object.keys(saved).find(k=>k!==r.id&&saved[k].mlb===r.mlb);
     if(oldKey){delete saved[oldKey];try{await DB.deleteSku(oldKey);}catch(e){}}
@@ -1155,6 +1194,99 @@ async function meliImport(){
   }
   renderSaved();if(SUPA_ON)setSync("cloud");meliCloseModal();
   toast(`${ok} registro(s) importado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");
+}
+// ================= Colar preços da tela (Editor em massa) =================
+const PASTE={rows:[]};
+function pasteOpen(){$("#pasteText").value="";$("#pasteStatus").textContent="";$("#pastePreviewWrap").style.display="none";$("#pasteModal").style.display="flex";}
+function pasteCloseModal(){$("#pasteModal").style.display="none";}
+function parseScreen(text){
+  const lines=text.split(/\r?\n/);
+  const anchors=[];
+  lines.forEach((ln,i)=>{const m=ln.trim().match(/^#(\d{6,})$/);if(m)anchors.push({i,mlb:"MLB"+m[1]});});
+  const out=[];
+  for(let a=0;a<anchors.length;a++){
+    const end=a+1<anchors.length?anchors[a+1].i:lines.length;
+    const block=lines.slice(anchors[a].i,end).join("\n");
+    const mlb=anchors[a].mlb;
+    const canalM=block.match(/Tarifa de venda\**\s*\n\s*(Clássico|Premium)\s*\n\s*-\s*R\$\s*([\d.,]+)/);
+    if(!canalM)continue; // sem bloco de custo → ignora
+    const canal=canalM[1], comissao=toNum(canalM[2]);
+    const freteM=block.match(/Custo de envio[^\n]*\n(?:[^\n]*\n)?\s*-\s*R\$\s*([\d.,]+)/);
+    const frete=freteM?toNum(freteM[1]):0;
+    const recebeM=block.match(/Você recebe\s*\n\s*R\$\s*([\d.,]+)/);
+    const recebe=recebeM?toNum(recebeM[1]):null;
+    const redM=block.match(/redução de R\$\s*([\d.,]+)/);
+    const reducao=redM?toNum(redM[1]):0;
+    const pre=block.split(/Tarifa de venda/)[0];
+    const pm=[...pre.matchAll(/R\$\s*([\d.,]+)/g)];
+    const por=pm.length?toNum(pm[pm.length-1][1]):null;
+    const deM=block.match(/Preço original R\$\s*([\d.,]+)/);
+    const de=deM?toNum(deM[1]):por;
+    out.push({mlb,canal,de,por,comissao,frete,recebe,reducao});
+  }
+  return out;
+}
+function findRecByMlb(mlb){
+  if(saved[mlb])return saved[mlb];
+  return Object.values(saved).find(r=>r.mlb&&r.mlb===mlb)||null;
+}
+function pasteAnalyze(){
+  const txt=$("#pasteText").value||"";
+  const st=$("#pasteStatus");
+  const parsed=parseScreen(txt);
+  if(!parsed.length){st.textContent="Não encontrei anúncios nesse texto. Copie a tela inteira do Editor em massa.";return;}
+  // acumula por MLB (novo sobrescreve)
+  const byMlb={};PASTE.rows.forEach(r=>byMlb[r.mlb]=r);parsed.forEach(r=>byMlb[r.mlb]=r);
+  PASTE.rows=Object.values(byMlb).map(r=>{
+    const rec=findRecByMlb(r.mlb);
+    return {...r, achado:!!rec, nome:rec?rec.nome:null, sel:!!rec};
+  }).sort((a,b)=>(a.achado===b.achado)?0:(a.achado?-1:1));
+  renderPastePreview();$("#pastePreviewWrap").style.display="block";
+  const ach=PASTE.rows.filter(r=>r.achado).length;
+  st.textContent=`${PASTE.rows.length} anúncios lidos no total · ${ach} casaram com registros do app, ${PASTE.rows.length-ach} não encontrados.`;
+  $("#pasteText").value="";
+}
+function rebateFor(canalShort,por,comissao){
+  const ch=resolveChannel(canalShort==="Premium"?"Mercado Livre Premium":"Mercado Livre Clássico");
+  const rate=(ch.categories&&ch.categories[0]?ch.categories[0].com:ch.com)||0;
+  return Math.max(0, +(rate*por - comissao).toFixed(2));
+}
+function renderPastePreview(){
+  $("#pastePreviewBody").innerHTML=PASTE.rows.map((r,i)=>{
+    const reb=r.por!=null?rebateFor(r.canal,r.por,r.comissao):0;
+    return `<tr style="${r.achado?"":"opacity:.5"}">
+      <td>${r.achado?`<input type="checkbox" data-psel="${i}" ${r.sel?"checked":""}>`:""}</td>
+      <td>${r.mlb}</td>
+      <td>${r.achado?(r.nome||"").slice(0,40):'<span class="mbadge">não encontrado</span>'}</td>
+      <td>${r.canal}</td>
+      <td class="r">${r.de!=null?brl(r.de):"—"}</td>
+      <td class="r">${r.por!=null?brl(r.por):"—"}</td>
+      <td class="r">${brl(r.frete)}</td>
+      <td class="r">${reb>0?brl(reb):"—"}</td>
+      <td class="r">${r.recebe!=null?brl(r.recebe):"—"}</td></tr>`;}).join("");
+  updatePasteCounts();
+}
+function updatePasteCounts(){const sel=PASTE.rows.filter(r=>r.achado&&r.sel).length,ach=PASTE.rows.filter(r=>r.achado).length;$("#pasteCounts").textContent=`${sel} de ${ach} selecionados`;}
+async function pasteApply(){
+  const chosen=PASTE.rows.filter(r=>r.achado&&r.sel);
+  if(!chosen.length){toast("Nada selecionado");return;}
+  let ok=0;
+  for(const r of chosen){
+    const rec=findRecByMlb(r.mlb);if(!rec)continue;
+    const canalName=r.canal==="Premium"?"Mercado Livre Premium":"Mercado Livre Clássico";
+    rec.canal=canalName;
+    rec.priceDe=(r.de!=null&&r.de!==r.por)?r.de:null;
+    rec.pricePor=r.por;rec.price=r.por;rec.priceMode="depor";
+    rec.freight=r.frete;
+    rec.rebate=r.por!=null?rebateFor(r.canal,r.por,r.comissao):0;
+    rec.telaComissao=r.comissao;rec.telaFrete=r.frete;rec.telaRecebe=r.recebe;rec.telaReducao=r.reducao;rec.telaTs=Date.now();
+    rec.atualizadoEm=Date.now();rec.atualizadoVia="tela";
+    if(!rec.composicaoPendente)recomputeSku(rec); else {rec.rebatePct=r.por>0?rec.rebate/r.por:0;}
+    saved[rec.sku]=rec;
+    try{await DB.upsertSku(rec);ok++;}catch(e){}
+  }
+  renderSaved();if(SUPA_ON)setSync("cloud");pasteCloseModal();
+  toast(`${ok} preço(s) atualizado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");
 }
 // ---------- Análise por unidade ----------
 function skuUnits(rec){return (rec.itens||[]).reduce((s,it)=>s+(+it.q||0),0);}
@@ -1459,6 +1591,14 @@ $("#meliActiveOnly").addEventListener("change",()=>{if(MELI.anuncios){crossRefer
 $("#meliAcct").addEventListener("change",()=>{const c=$("#meliAcct").value||"";MELI.rows.forEach(r=>r.conta=c);});
 $("#meliAll").addEventListener("change",e=>{MELI.rows.forEach(r=>r.sel=e.target.checked);renderMeliPreview();$("#meliAll").checked=e.target.checked;});
 $("#meliPreviewBody").addEventListener("change",e=>{const cb=e.target.closest("[data-msel]");if(cb){MELI.rows[+cb.dataset.msel].sel=cb.checked;updateMeliCounts();}});
+$("#pastePrices").onclick=pasteOpen;
+$("#pasteClose").onclick=pasteCloseModal;
+$("#pasteModal").addEventListener("click",e=>{if(e.target.id==="pasteModal")pasteCloseModal();});
+$("#pasteAnalyze").onclick=pasteAnalyze;
+$("#pasteApply").onclick=pasteApply;
+$("#pasteClear").onclick=()=>{PASTE.rows=[];$("#pastePreviewWrap").style.display="none";$("#pasteStatus").textContent="Acumulado limpo.";};
+$("#pasteAll").addEventListener("change",e=>{PASTE.rows.forEach(r=>{if(r.achado)r.sel=e.target.checked;});renderPastePreview();$("#pasteAll").checked=e.target.checked;});
+$("#pastePreviewBody").addEventListener("change",e=>{const cb=e.target.closest("[data-psel]");if(cb){PASTE.rows[+cb.dataset.psel].sel=cb.checked;updatePasteCounts();}});
 ["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
 $("#chanTable").addEventListener("input",onChanChange);
 $("#mlCfg").addEventListener("input",onMLChange);
