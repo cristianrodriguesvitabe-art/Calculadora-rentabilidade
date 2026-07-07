@@ -151,6 +151,12 @@
   .skudup b{color:var(--ink)}
   .skudup .lk{background:var(--berry);color:#fff;border:0;border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
   .modal-bg{position:fixed;inset:0;background:rgba(20,32,28,.5);backdrop-filter:blur(3px);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}
+  .mfield{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--ink)}
+  .mfield>span{font-weight:600}.mfield small{font-weight:400;color:var(--faint)}
+  .mfield input[type=file],.mfield select{border:1px solid var(--line);border-radius:9px;padding:8px;background:#fff;font-size:13px}
+  #meliPreview td,#meliPreview th{font-size:12px;vertical-align:top}
+  .mbadge{display:inline-block;padding:1px 7px;border-radius:20px;font-size:11px;font-weight:600}
+  .mbadge.new{background:#e6efe9;color:var(--forest)}.mbadge.upd{background:#fde7cf;color:#8a5a12}
   .modal{background:var(--surface);border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:100%;max-width:520px;max-height:82vh;overflow:auto}
   .modal-h{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 12px;font-family:var(--display);font-size:18px;font-weight:600;color:var(--ink);position:sticky;top:0;background:var(--surface)}
   .modal-x{border:0;background:var(--line2);color:var(--muted);width:30px;height:30px;border-radius:999px;font-size:18px;cursor:pointer;line-height:1}
@@ -362,6 +368,7 @@
       <h2>SKUs cadastrados</h2>
       <div style="display:flex;gap:8px">
         <button class="btn" id="refreshBtn">Atualizar</button>
+        <button class="btn" id="importMeli">Importar Meli</button>
         <button class="btn" id="exportCsv">Exportar CSV</button>
         <button class="btn btn-primary" id="goCalc">+ Novo SKU</button>
       </div>
@@ -466,6 +473,40 @@
   </div>
 </div>
 
+<div class="modal-bg" id="meliModal" style="display:none">
+  <div class="modal" style="max-width:860px;width:100%">
+    <div class="modal-h"><span>Importar planilhas do Mercado Livre</span><button class="modal-x" id="meliClose" aria-label="Fechar">×</button></div>
+    <div class="modal-b">
+      <div class="set-note" style="margin-bottom:14px">Abra as <b>duas</b> planilhas exportadas do Meli. O app cruza as duas pelo <b>MLB</b> (código do anúncio): a de <b>Anúncios</b> traz preço, tipo (Clássico/Premium) e situação; a de <b>Fichas técnicas</b> traz os SKUs e títulos. Cada anúncio (MLB) vira um registro; variações do mesmo anúncio ficam agrupadas e a composição entra como <b>pendente</b>.</div>
+      <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr">
+        <label class="mfield"><span>1. Fichas técnicas <small>(.xlsx)</small></span><input type="file" id="meliFichas" accept=".xlsx"></label>
+        <label class="mfield"><span>2. Anúncios <small>(.xlsx)</small></span><input type="file" id="meliAnuncios" accept=".xlsx"></label>
+      </div>
+      <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-top:12px">
+        <label class="mfield" style="max-width:180px"><span>Conta / origem</span><select id="meliAcct"></select></label>
+        <label style="display:flex;gap:7px;align-items:center;font-size:13px;color:var(--ink)"><input type="checkbox" id="meliActiveOnly"> Só anúncios ativos</label>
+        <button class="btn btn-primary" id="meliAnalyze" style="margin-left:auto">Analisar</button>
+      </div>
+      <div id="meliStatus" class="set-note" style="margin-top:10px;display:none"></div>
+      <div id="meliPreviewWrap" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+          <label style="display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="meliAll" checked> Selecionar todos</label>
+          <span id="meliCounts" class="chip"></span>
+        </div>
+        <div class="card" style="max-height:340px;overflow:auto"><div class="pad" style="padding:4px">
+          <table class="etable" id="meliPreview"><thead><tr>
+            <th style="width:34px"></th><th>MLB</th><th>Título</th><th>Canal</th><th class="r">Preço</th><th>Situação</th><th>SKU(s) Meli</th><th>No app</th>
+          </tr></thead><tbody id="meliPreviewBody"></tbody></table>
+        </div></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px">
+          <button class="btn btn-primary" id="meliImport">Importar selecionados</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ============================================================
    SINCRONIZAÇÃO EM NUVEM (Supabase) — chave anon é pública/segura
@@ -848,7 +889,17 @@ function renderSaved(){
   if(!list.length){$("#tableCard").style.display="none";$("#summary").style.display="none";$("#emptyState").style.display="block";return;}
   $("#tableCard").style.display="";$("#summary").style.display="";$("#emptyState").style.display="none";
   updateSummary();
-  $("#tbody").innerHTML=list.map(r=>{const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
+  $("#tbody").innerHTML=list.map(r=>{
+    if(r.composicaoPendente){
+      const por2=(r.pricePor||r.price||0).toFixed(2);
+      return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}</td>
+      <td><span class="chip">${r.canal}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""} <span class="mbadge upd">composição pendente</span></td>
+      <td class="r">—</td>
+      <td class="r"><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="por" value="${por2}"></td>
+      <td class="r">—</td><td class="r">—</td><td class="r">—</td><td class="r">—</td>
+      <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
+    }
+    const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
     const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
     const por=(r.pricePor||r.price||0).toFixed(2);
     return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
@@ -861,11 +912,13 @@ function renderSaved(){
     <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;}).join("");
 }
 function updateSummary(){
-  const list=Object.values(saved),meta=(assumptions.meta||10)/100;
-  if(!list.length)return;
-  const avg=list.reduce((s,r)=>s+(r.lucratividade||0),0)/list.length,below=list.filter(r=>(r.lucratividade||0)<meta).length;
+  const all=Object.values(saved),meta=(assumptions.meta||10)/100;
+  if(!all.length)return;
+  const pend=all.filter(r=>r.composicaoPendente).length;
+  const list=all.filter(r=>!r.composicaoPendente);
+  const avg=list.length?list.reduce((s,r)=>s+(r.lucratividade||0),0)/list.length:0,below=list.filter(r=>(r.lucratividade||0)<meta).length;
   $("#summary").innerHTML=`
-    <div class="stat"><div class="k">SKUs cadastrados</div><div class="v">${list.length}</div></div>
+    <div class="stat"><div class="k">SKUs cadastrados</div><div class="v">${all.length}</div>${pend?`<div class="sub">${pend} com composição pendente</div>`:""}</div>
     <div class="stat"><div class="k">Lucratividade média</div><div class="v" style="color:${avg>=meta?'var(--pos)':'var(--warn)'}">${pct(avg)}</div></div>
     <div class="stat"><div class="k">Abaixo da meta (${(meta*100).toFixed(0)}%)</div><div class="v" style="color:${below?'var(--neg)':'var(--pos)'}">${below}</div></div>`;
 }
@@ -894,13 +947,15 @@ function onSkuInline(e){
   const v=+t.value||0;
   if(t.dataset.pf==="de")rec.priceDe=v; else if(t.dataset.pf==="por")rec.pricePor=v; else return;
   rec.priceMode="depor";
-  recomputeSku(rec);saved[sku]=rec;
-  const row=t.closest("tr"),meta=(assumptions.meta||10)/100;
-  if(row){
-    const liqCell=row.querySelector("[data-liq]"),margCell=row.querySelector("[data-marg]");
-    if(liqCell)liqCell.textContent=brl(rec.liquido);
-    if(margCell){margCell.className="marg "+(rec.lucratividade>=meta?"ok":rec.lucratividade>=0?"mid":"no");margCell.textContent=pct(rec.lucratividade);}
-  }
+  if(!rec.composicaoPendente){
+    recomputeSku(rec);saved[sku]=rec;
+    const row=t.closest("tr"),meta=(assumptions.meta||10)/100;
+    if(row){
+      const liqCell=row.querySelector("[data-liq]"),margCell=row.querySelector("[data-marg]");
+      if(liqCell)liqCell.textContent=brl(rec.liquido);
+      if(margCell){margCell.className="marg "+(rec.lucratividade>=meta?"ok":rec.lucratividade>=0?"mid":"no");margCell.textContent=pct(rec.lucratividade);}
+    }
+  } else { rec.price=v; saved[sku]=rec; }
   updateSummary();
   clearTimeout(skuSaveTimer);
   skuSaveTimer=setTimeout(async()=>{try{await DB.upsertSku(rec);if(SUPA_ON)setSync("cloud");}catch(err){setSync("err");}},600);
@@ -913,12 +968,154 @@ function exportCsv(){
   const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus.csv";a.click();
 }
+// ================= Importador nativo Meli (Fichas técnicas + Anúncios) =================
+const MELI={fichas:null,anuncios:null,rows:[]};
+let meliIntSeq=0;
+
+function meliOpen(){
+  if(typeof XLSX==="undefined"){toast("A leitura de planilha não carregou (precisa de internet)");return;}
+  const sel=$("#meliAcct");
+  sel.innerHTML=`<option value="">—</option>`+ACCOUNTS.map(a=>`<option value="${a}">${a}</option>`).join("");
+  const mg=ACCOUNTS.find(a=>/^mg$/i.test(a));if(mg)sel.value=mg;
+  $("#meliFichas").value="";$("#meliAnuncios").value="";
+  $("#meliPreviewWrap").style.display="none";$("#meliStatus").style.display="none";
+  MELI.fichas=MELI.anuncios=null;MELI.rows=[];
+  $("#meliModal").style.display="flex";
+}
+function meliCloseModal(){$("#meliModal").style.display="none";}
+function readWorkbook(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=()=>{try{res(XLSX.read(new Uint8Array(fr.result),{type:"array"}));}catch(e){rej(e);}};
+    fr.onerror=()=>rej(new Error("Falha ao ler "+file.name));
+    fr.readAsArrayBuffer(file);
+  });
+}
+function sheetMatrix(ws){return XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:false});}
+function headerIndex(row){const m={};(row||[]).forEach((c,i)=>{if(typeof c==="string"&&c.trim())m[c.trim()]=i;});return m;}
+const isMLB=v=>typeof v==="string"&&/^MLB\d+/.test(v.trim());
+function toNum(v){if(typeof v==="number")return v;const n=parseFloat(String(v==null?"":v).replace(/\./g,"").replace(",","."));return isFinite(n)?n:(parseFloat(v)||null);}
+
+// Anúncios: agrupa por ITEM_ID (MLB) e usa a linha "pai" (com Tipo de anúncio literal)
+function parseAnuncios(wb){
+  const nm=wb.SheetNames.find(n=>/an[uú]ncio/i.test(n))||"Anúncios";
+  const ws=wb.Sheets[nm];if(!ws)throw new Error("Aba de Anúncios não encontrada");
+  const mtx=sheetMatrix(ws);
+  const hIdx=mtx.findIndex(r=>Array.isArray(r)&&r.includes("ITEM_ID"));
+  if(hIdx<0)throw new Error("Cabeçalho ITEM_ID não encontrado (é a planilha de Anúncios?)");
+  const idx=headerIndex(mtx[hIdx]);
+  const cItem=idx.ITEM_ID,cTitle=idx.TITLE,cPrice=idx.PRICE,cLT=idx.LISTING_TYPE,cStatus=idx.STATUS;
+  const out={};
+  for(let i=hIdx+1;i<mtx.length;i++){
+    const r=mtx[i];if(!r)continue;const raw=r[cItem];if(!isMLB(raw))continue;const mlb=raw.trim();
+    const lt=r[cLT];const canal=/premium/i.test(lt||"")?"Premium":/cl[aá]ssico/i.test(lt||"")?"Clássico":null;
+    const price=(typeof r[cPrice]==="number")?r[cPrice]:(canal?toNum(r[cPrice]):null);
+    const status=(r[cStatus]==="Ativo"||r[cStatus]==="Inativo")?r[cStatus]:null;
+    const g=out[mlb]||(out[mlb]={mlb,title:null,canal:null,price:null,status:null});
+    if(canal&&!g.canal){g.canal=canal;g.price=price;g.status=status;}
+    if(!g.title&&typeof r[cTitle]==="string")g.title=r[cTitle];
+    if(g.price==null&&typeof r[cPrice]==="number")g.price=r[cPrice];
+    if(!g.status&&status)g.status=status;
+  }
+  return out;
+}
+// Fichas técnicas: percorre todas as abas de produto e reúne SKUs por MLB (ID)
+function parseFichas(wb){
+  const out={};
+  wb.SheetNames.forEach(name=>{
+    if(/^(ajuda|hidden|list-data)$/i.test(name))return;
+    const mtx=sheetMatrix(wb.Sheets[name]);
+    const hIdx=mtx.findIndex(r=>Array.isArray(r)&&r.includes("ID")&&r.includes("SKU"));
+    if(hIdx<0)return;
+    const idx=headerIndex(mtx[hIdx]);
+    const cId=idx.ID,cSku=idx.SKU,cTitle=idx.TITLE,cGtin=idx.GTIN,cDom=idx.DOMAIN_ID;
+    for(let i=hIdx+1;i<mtx.length;i++){
+      const r=mtx[i];if(!r)continue;const raw=r[cId];if(!isMLB(raw))continue;const mlb=raw.trim();
+      const g=out[mlb]||(out[mlb]={mlb,skus:[],title:null,gtins:[],domain:null,sheet:name});
+      const sku=r[cSku];if(typeof sku==="string"&&sku.trim()&&!/^=/.test(sku)&&!g.skus.includes(sku.trim()))g.skus.push(sku.trim());
+      if(!g.title&&typeof r[cTitle]==="string")g.title=r[cTitle];
+      const gt=r[cGtin];if(typeof gt==="string"&&!/^=/.test(gt))gt.split(",").forEach(x=>{x=x.trim();if(x&&!g.gtins.includes(x))g.gtins.push(x);});
+      if(!g.domain&&r[cDom])g.domain=r[cDom];
+    }
+  });
+  return out;
+}
+function internalId(seed){let h=2166136261>>>0;const s=String(seed||("row"+(++meliIntSeq)));for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)>>>0;}return "INT-"+h.toString(36).toUpperCase();}
+
+function crossReference(){
+  const an=MELI.anuncios||{},fi=MELI.fichas||{};
+  const conta=$("#meliAcct").value||"";
+  const activeOnly=$("#meliActiveOnly").checked;
+  const rows=[];
+  new Set([...Object.keys(an),...Object.keys(fi)]).forEach(mlb=>{
+    const a=an[mlb],f=fi[mlb];
+    const status=(a&&a.status)||"Ativo";
+    if(activeOnly&&status==="Inativo")return;
+    const canalShort=a&&a.canal?a.canal:null;
+    const canal=canalShort==="Premium"?"Mercado Livre Premium":"Mercado Livre Clássico";
+    const id=isMLB(mlb)?mlb:internalId((f&&f.skus[0])||(a&&a.title));
+    const existing=saved[id]||Object.values(saved).find(r=>r.mlb&&r.mlb===mlb);
+    rows.push({id,mlb:isMLB(mlb)?mlb:"",title:(a&&a.title)||(f&&f.title)||"",
+      canal,canalShort:canalShort||"Clássico (padrão)",price:(a&&a.price)!=null?a.price:null,status,
+      skus:(f&&f.skus)||[],gtins:(f&&f.gtins)||[],domain:f&&f.domain||null,
+      conta,existing:!!existing,sel:true});
+  });
+  rows.sort((x,y)=>(x.title||"").localeCompare(y.title||"","pt"));
+  MELI.rows=rows;return rows;
+}
+async function meliAnalyze(){
+  const ff=$("#meliFichas").files[0],af=$("#meliAnuncios").files[0];
+  const st=$("#meliStatus");st.style.display="block";st.textContent="Lendo planilhas…";
+  if(!ff||!af){st.textContent="Selecione as duas planilhas (Fichas técnicas e Anúncios).";return;}
+  try{
+    const [wbF,wbA]=await Promise.all([readWorkbook(ff),readWorkbook(af)]);
+    MELI.fichas=parseFichas(wbF);MELI.anuncios=parseAnuncios(wbA);
+    const rows=crossReference();
+    renderMeliPreview();$("#meliPreviewWrap").style.display="block";
+    const nNew=rows.filter(r=>!r.existing).length;
+    const semMlb=rows.filter(r=>!r.mlb).length;
+    st.textContent=`${Object.keys(MELI.anuncios).length} anúncios · ${Object.keys(MELI.fichas).length} MLBs nas fichas → ${rows.length} registros (${nNew} novos, ${rows.length-nNew} já no app${semMlb?`, ${semMlb} sem MLB com ID interno`:""}).`;
+  }catch(e){st.textContent="Erro: "+e.message;$("#meliPreviewWrap").style.display="none";}
+}
+function renderMeliPreview(){
+  $("#meliPreviewBody").innerHTML=MELI.rows.map((r,i)=>`<tr>
+    <td><input type="checkbox" data-msel="${i}" ${r.sel?"checked":""}></td>
+    <td>${r.mlb?r.mlb:`<span class="mbadge">${r.id}</span>`}</td>
+    <td>${(r.title||"—").slice(0,64)}</td>
+    <td>${r.canalShort}</td>
+    <td class="r">${r.price!=null?brl(r.price):"—"}</td>
+    <td>${r.status}</td>
+    <td>${r.skus.length?r.skus.join(", "):"—"}</td>
+    <td>${r.existing?'<span class="mbadge upd">atualiza</span>':'<span class="mbadge new">novo</span>'}</td></tr>`).join("");
+  updateMeliCounts();
+}
+function updateMeliCounts(){const sel=MELI.rows.filter(r=>r.sel).length;$("#meliCounts").textContent=`${sel} de ${MELI.rows.length} selecionados`;}
+async function meliImport(){
+  const chosen=MELI.rows.filter(r=>r.sel);
+  if(!chosen.length){toast("Nada selecionado");return;}
+  const clas=mlClassico(),prem=mlPremium();let ok=0;
+  for(const r of chosen){
+    const ch=/premium/i.test(r.canal)?prem:clas;
+    const rec={sku:r.id,mlb:r.mlb,skusMeli:r.skus,gtins:r.gtins,
+      nome:r.title,canal:(ch&&ch.n)||r.canal,origem:r.conta||"",
+      mlCatName:null,categoriaMeli:r.domain,
+      itens:[],composicaoPendente:true,
+      priceMode:"depor",priceDe:null,pricePor:r.price||null,price:r.price||null,
+      freight:(ch&&ch.fre)||0,rebate:0,
+      status:r.status,statusMeli:r.status,fonte:"meli",ts:Date.now()};
+    const oldKey=r.mlb&&Object.keys(saved).find(k=>k!==r.id&&saved[k].mlb===r.mlb);
+    if(oldKey){delete saved[oldKey];try{await DB.deleteSku(oldKey);}catch(e){}}
+    saved[r.id]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
+  }
+  renderSaved();if(SUPA_ON)setSync("cloud");meliCloseModal();
+  toast(`${ok} registro(s) importado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");
+}
 // ---------- Análise por unidade ----------
 function skuUnits(rec){return (rec.itens||[]).reduce((s,it)=>s+(+it.q||0),0);}
 function skuPrice(rec){return +rec.pricePor||+rec.price||0;}
 function isPure(rec){return (rec.itens||[]).length===1;}
 function renderUnitAnalysis(){
-  const list=Object.values(saved);
+  const list=Object.values(saved).filter(r=>!r.composicaoPendente);
   if(!list.length){$("#unitBody").innerHTML="";$("#unitEmpty").style.display="block";return;}
   $("#unitEmpty").style.display="none";
   const meta=(assumptions.meta||10)/100, violations=[];
@@ -994,7 +1191,7 @@ function breakdownOf(rec){
 }
 function marginColor(z,meta){return z>=meta?"var(--pos)":z>=0?"var(--warn)":"var(--neg)";}
 function renderDashboard(){
-  const list=Object.values(saved);
+  const list=Object.values(saved).filter(r=>!r.composicaoPendente);
   if(!list.length){$("#dashBody").innerHTML="";$("#dashEmpty").style.display="block";return;}
   $("#dashEmpty").style.display="none";
   const meta=(assumptions.meta||10)/100;
@@ -1207,6 +1404,15 @@ $("#clearBtn").onclick=()=>{kit=[];autoName="";loadedSku="";selAcct="";buildAcct
 $("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
 $("#tbody").addEventListener("input",onSkuInline);
 $("#exportCsv").onclick=exportCsv;
+$("#importMeli").onclick=meliOpen;
+$("#meliClose").onclick=meliCloseModal;
+$("#meliModal").addEventListener("click",e=>{if(e.target.id==="meliModal")meliCloseModal();});
+$("#meliAnalyze").onclick=meliAnalyze;
+$("#meliImport").onclick=meliImport;
+$("#meliActiveOnly").addEventListener("change",()=>{if(MELI.anuncios){crossReference();renderMeliPreview();}});
+$("#meliAcct").addEventListener("change",()=>{const c=$("#meliAcct").value||"";MELI.rows.forEach(r=>r.conta=c);});
+$("#meliAll").addEventListener("change",e=>{MELI.rows.forEach(r=>r.sel=e.target.checked);renderMeliPreview();$("#meliAll").checked=e.target.checked;});
+$("#meliPreviewBody").addEventListener("change",e=>{const cb=e.target.closest("[data-msel]");if(cb){MELI.rows[+cb.dataset.msel].sel=cb.checked;updateMeliCounts();}});
 ["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
 $("#chanTable").addEventListener("input",onChanChange);
 $("#mlCfg").addEventListener("input",onMLChange);
