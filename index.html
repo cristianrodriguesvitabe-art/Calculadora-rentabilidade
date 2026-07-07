@@ -234,9 +234,19 @@
   .skuprice::-webkit-outer-spin-button,.skuprice::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
   .skuprice{-moz-appearance:textfield}
   .skuprice:focus{outline:none}
-  #view-saved table{table-layout:fixed;min-width:1186px}
+  #view-saved table{table-layout:fixed;min-width:1184px}
   #view-saved tbody td{padding:12px 10px}
   #view-saved .tacts{white-space:nowrap;justify-content:flex-end}
+  #view-saved tbody tr.bkrow{border-top:none}#view-saved tbody tr.bkrow:hover{background:transparent}
+  .bkrow td{padding:0 10px 15px!important}
+  .bkbar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line2);max-width:680px}
+  .bkseg{height:100%}
+  .bkseg.com{background:#C99BA3}.bkseg.fre{background:#E4C08A}.bkseg.out{background:#9AA79E}.bkseg.liq{background:var(--forest)}
+  .bkleg{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:7px;font-size:11.5px;color:var(--muted)}
+  .bkleg>span{display:inline-flex;align-items:center;gap:5px}
+  .bkleg i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:0 0 auto}
+  .bkleg i.com{background:#C99BA3}.bkleg i.fre{background:#E4C08A}.bkleg i.out{background:#9AA79E}.bkleg i.liq{background:var(--forest)}
+  .bkleg b{font-family:var(--mono);color:var(--ink);font-weight:600}.bkleg em{font-style:normal;color:var(--faint)}
   tbody td.r,thead th.r{white-space:nowrap}
   td.sec{color:var(--faint);font-family:var(--mono);font-size:12.5px}
   .liqval{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)}
@@ -265,7 +275,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 21</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 22</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -410,7 +420,7 @@
     <div id="skuFilterBar"></div>
     <div class="card" id="tableCard"><div class="pad" style="padding:8px 8px 4px;overflow-x:auto">
       <table id="skuTable"><colgroup>
-        <col style="width:238px"><col style="width:112px"><col style="width:118px"><col style="width:118px"><col style="width:84px"><col style="width:84px"><col style="width:92px"><col style="width:106px"><col style="width:94px"><col style="width:140px">
+        <col style="width:226px"><col style="width:106px"><col style="width:114px"><col style="width:114px"><col style="width:102px"><col style="width:102px"><col style="width:90px"><col style="width:102px"><col style="width:90px"><col style="width:138px">
       </colgroup><thead><tr>
         <th class="sortable" data-sort="sku">SKU<span class="sarr"></span></th>
         <th class="sortable" data-sort="canal">Canal<span class="sarr"></span></th>
@@ -967,6 +977,28 @@ function openDupModal(q){
 }
 function closeDupModal(){$("#dupModal").style.display="none";}
 function setSkuFilter(f){skuFilter=(skuFilter===f?"":f);renderSaved();}
+function skuSplit(rec){
+  const ch=resolveChannel(rec.canal);let catIdx=0;
+  if(ch.categories&&rec.mlCatName){const k=ch.categories.findIndex(c=>c.n===rec.mlCatName);if(k>=0)catIdx=k;}
+  const N=(rec.itens||[]).reduce((s,it)=>s+it.c*it.q,0);
+  const L=+rec.pricePor||+rec.price||0;
+  const f=financials({L,N,ch,catIdx,freight:+rec.freight||0,rebate:+rec.rebate||0});
+  return {L,com:f.U+f.F,fre:f.T,out:f.N+f.O+f.P+f.R+f.S+f.V+f.X,liq:f.Y};
+}
+function bkInner(rec){
+  const s=skuSplit(rec),L=s.L||1;
+  const liqPos=Math.max(0,s.liq), total=s.liq>=0?L:(s.com+s.fre+s.out)||1;
+  const w=v=>Math.max(0,v/total*100), p=v=>(v/L*100).toFixed(0)+"%";
+  const seg=(c,v)=>w(v)>0.4?`<span class="bkseg ${c}" style="width:${w(v)}%"></span>`:"";
+  const liqTxt=s.liq<0?`<b style="color:var(--neg)">${brl(s.liq)}</b>`:`<b>${brl(s.liq)}</b>`;
+  return `<div class="bkbar">${seg("com",s.com)}${seg("fre",s.fre)}${seg("out",s.out)}${seg("liq",liqPos)}</div>
+  <div class="bkleg">
+    <span><i class="com"></i>Comissão <b>${brl(s.com)}</b> <em>${p(s.com)}</em></span>
+    <span><i class="fre"></i>Frete <b>${brl(s.fre)}</b> <em>${p(s.fre)}</em></span>
+    <span><i class="out"></i>Outros custos <b>${brl(s.out)}</b> <em>${p(s.out)}</em></span>
+    <span><i class="liq"></i>Líquido ${liqTxt} <em>${p(s.liq)}</em></span>
+  </div>`;
+}
 function clearSkuFilters(){skuFilter="";skuConta="";skuCanal="";skuStatus="";skuSearch="";const s=$("#skuSearch");if(s)s.value="";renderSaved();}
 function anySkuFilter(){return !!(skuFilter||skuConta||skuCanal||skuStatus||(skuSearch&&skuSearch.trim()));}
 function visibleSkus(){
@@ -1032,8 +1064,8 @@ function renderSaved(){
       <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} <span class="mbadge upd">composição pendente</span></td>
       <td class="r">—</td>
       <td class="r">${pf("por",por2)}</td>
-      <td class="r sec">${reb}</td>
-      <td class="r sec">${brl(r.freight||0)}</td><td class="r">—</td><td class="r">—</td><td class="r">—</td>
+      <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
+      <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td><td class="r">—</td><td class="r">—</td><td class="r">—</td>
       <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
     }
     const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
@@ -1043,11 +1075,12 @@ function renderSaved(){
     <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}</td>
     <td class="r">${pf("de",de,"—")}</td>
     <td class="r">${pf("por",por)}</td>
-    <td class="r sec">${reb}</td>
-    <td class="r sec">${brl(r.freight||0)}</td>
+    <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
+    <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td>
     <td class="r sec">${brl(r.custoItens)}</td>
     <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
-    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;}).join("");
+    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
+    <tr class="bkrow"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;}).join("");
 }
 function updateSummary(){
   const all=Object.values(saved),meta=(assumptions.meta||10)/100;
@@ -1083,18 +1116,22 @@ function onSkuInline(e){
   const t=e.target,sku=t.dataset.skuedit;if(sku==null)return;
   const rec=saved[sku];if(!rec)return;
   const v=+t.value||0;
-  if(t.dataset.pf==="de")rec.priceDe=v; else if(t.dataset.pf==="por")rec.pricePor=v; else return;
-  rec.priceMode="depor";
+  const pfld=t.dataset.pf;
+  if(pfld==="de")rec.priceDe=v; else if(pfld==="por")rec.pricePor=v;
+  else if(pfld==="rebate")rec.rebate=v; else if(pfld==="frete")rec.freight=v; else return;
+  if(pfld==="de"||pfld==="por")rec.priceMode="depor";
   rec.atualizadoEm=Date.now();rec.atualizadoVia="manual";
   if(!rec.composicaoPendente){
     recomputeSku(rec);saved[sku]=rec;
     const row=t.closest("tr"),meta=(assumptions.meta||10)/100;
     if(row){
       const liqCell=row.querySelector("[data-liq]"),margCell=row.querySelector("[data-marg]");
-      if(liqCell)liqCell.textContent=brl(rec.liquido);
+      if(liqCell){liqCell.textContent=brl(rec.liquido);liqCell.className="liqval"+(rec.liquido<0?" neg":"");}
       if(margCell){margCell.className="marg "+(rec.lucratividade>=meta?"ok":rec.lucratividade>=0?"mid":"no");margCell.textContent=pct(rec.lucratividade);}
+      const bk=row.nextElementSibling;
+      if(bk&&bk.classList.contains("bkrow")){const cell=bk.querySelector("[data-bk]");if(cell)cell.innerHTML=bkInner(rec);}
     }
-  } else { rec.price=v; saved[sku]=rec; }
+  } else { if(pfld==="por")rec.price=v; saved[sku]=rec; }
   updateSummary();
   clearTimeout(skuSaveTimer);
   skuSaveTimer=setTimeout(async()=>{try{await DB.upsertSku(rec);if(SUPA_ON)setSync("cloud");}catch(err){setSync("err");}},600);
