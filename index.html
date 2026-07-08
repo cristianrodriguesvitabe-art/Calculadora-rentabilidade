@@ -279,7 +279,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 24</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 25</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -579,8 +579,9 @@
     <div class="modal-b">
       <div class="set-note" style="margin-bottom:14px">Abra o arquivo <b>"mass update sales info"</b> exportado da Shopee. Como a Shopee não traz a composição, o app <b>deduz os itens (códigos)</b> a partir do título e do nome da variação, com um <b>selo de confiança</b> em cada linha — você valida e ajusta o que precisar. Nada aqui altera os kits do Mercado Livre já cadastrados.</div>
       <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
-        <label class="mfield" style="flex:1;min-width:240px"><span>Planilha da Shopee <small>(.xlsx)</small></span><input type="file" id="shopeeFile" accept=".xlsx"></label>
-        <label class="mfield" style="max-width:180px"><span>Conta / origem</span><select id="shopeeAcct"></select></label>
+        <label class="mfield" style="flex:1;min-width:220px"><span>1. Anúncios <small>(mass update, .xlsx)</small></span><input type="file" id="shopeeFile" accept=".xlsx"></label>
+        <label class="mfield" style="flex:1;min-width:220px"><span>2. Preços <small>(discount, opcional)</small></span><input type="file" id="shopeePriceFile" accept=".xlsx"></label>
+        <label class="mfield" style="max-width:160px"><span>Conta / origem</span><select id="shopeeAcct"></select></label>
         <button class="btn btn-primary" id="shopeeAnalyze">Analisar</button>
       </div>
       <div id="shopeeStatus" class="set-note" style="margin-top:10px;display:none"></div>
@@ -592,7 +593,7 @@
         </div>
         <div class="card" style="max-height:360px;overflow:auto"><div class="pad" style="padding:4px">
           <table class="etable" id="meliPreview"><thead><tr>
-            <th style="width:34px"></th><th>Produto</th><th>Variação</th><th>SKU Shopee</th><th class="r">Preço</th><th>Composição (deduzida)</th><th>Confiança</th><th>No app</th>
+            <th style="width:34px"></th><th>Produto</th><th>Variação</th><th>SKU Shopee</th><th class="r">De</th><th class="r">Por</th><th>Composição (deduzida)</th><th>Confiança</th><th>No app</th>
           </tr></thead><tbody id="shopeePreviewBody"></tbody></table>
         </div></div>
         <div style="display:flex;justify-content:flex-end;margin-top:14px">
@@ -1353,7 +1354,7 @@ function shopeeOpen(){
   const sel=$("#shopeeAcct");
   sel.innerHTML=`<option value="">—</option>`+ACCOUNTS.map(a=>`<option value="${a}">${a}</option>`).join("");
   const mg=ACCOUNTS.find(a=>/^mg$/i.test(a));if(mg)sel.value=mg;
-  $("#shopeeFile").value="";$("#shopeePreviewWrap").style.display="none";$("#shopeeStatus").style.display="none";
+  $("#shopeeFile").value="";$("#shopeePriceFile").value="";$("#shopeePreviewWrap").style.display="none";$("#shopeeStatus").style.display="none";
   SHOPEE.rows=[];$("#shopeeModal").style.display="flex";
 }
 function shopeeCloseModal(){$("#shopeeModal").style.display="none";}
@@ -1400,17 +1401,35 @@ function shopeeGuess(title,varName){
   const arr=Object.keys(codes).map(c=>({c,q:codes[c]}));
   return {codigos:arr,conf:arr.length>=2?"v":arr.length===1?"a":"r"};
 }
+function parseShopeeDiscount(wb){
+  const ws=wb.Sheets[wb.SheetNames[0]];if(!ws)throw new Error("Planilha de preços vazia");
+  const mtx=sheetMatrix(ws);const byVid={},bySku={};
+  for(const r of mtx){
+    if(!Array.isArray(r))continue;const pid=r[0];
+    const isData=(typeof pid==="number"&&pid>100000)||(typeof pid==="string"&&/^\d{6,}$/.test(pid.trim()));
+    if(!isData)continue;
+    const vid=r[3]!=null?String(r[3]).trim():"",sku=(r[5]||"").toString().trim();
+    const de=toNum(r[6]),por=toNum(r[7]);
+    const o={de,por};if(vid)byVid[vid]=o;if(sku)bySku[sku]=o;
+  }
+  return {byVid,bySku};
+}
 async function shopeeAnalyze(){
-  const f=$("#shopeeFile").files[0],st=$("#shopeeStatus");st.style.display="block";st.textContent="Lendo planilha…";
-  if(!f){st.textContent="Selecione a planilha da Shopee.";return;}
+  const f=$("#shopeeFile").files[0],pf=$("#shopeePriceFile").files[0],st=$("#shopeeStatus");st.style.display="block";st.textContent="Lendo planilha…";
+  if(!f){st.textContent="Selecione ao menos a planilha de anúncios (mass update).";return;}
   try{
-    const wb=await readWorkbook(f);const raw=parseShopeeWB(wb);const conta=$("#shopeeAcct").value||"";
+    const [wb,wbP]=await Promise.all([readWorkbook(f),pf?readWorkbook(pf):Promise.resolve(null)]);
+    const raw=parseShopeeWB(wb);const conta=$("#shopeeAcct").value||"";
+    const prices=wbP?parseShopeeDiscount(wbP):null;let matched=0;
     SHOPEE.rows=raw.map(r=>{const g=shopeeGuess(r.title,r.varName);const key="SHP-"+r.pid+(r.vid?"-"+r.vid:"");
-      return {...r,key,codigos:g.codigos,conf:g.conf,conta,existing:!!saved[key],sel:true};});
+      let de=null,por=null;
+      if(prices){const p=prices.byVid[r.vid]||(r.sku&&prices.bySku[r.sku]);if(p){de=p.de;por=p.por;matched++;}}
+      return {...r,key,codigos:g.codigos,conf:g.conf,conta,existing:!!saved[key],
+        priceDe:de,pricePor:(por!=null?por:r.price),sel:true};});
     renderShopeePreview();$("#shopeePreviewWrap").style.display="block";
     const v=SHOPEE.rows.filter(r=>r.conf==="v").length,a=SHOPEE.rows.filter(r=>r.conf==="a").length,rr=SHOPEE.rows.filter(r=>r.conf==="r").length;
     const nNew=SHOPEE.rows.filter(r=>!r.existing).length;
-    st.textContent=`${SHOPEE.rows.length} variações (${nNew} novas) · composição deduzida: ${v} alta, ${a} parcial, ${rr} a preencher.`;
+    st.textContent=`${SHOPEE.rows.length} variações (${nNew} novas) · composição: ${v} alta, ${a} parcial, ${rr} a preencher`+(prices?` · ${matched} com preço De/Por da planilha de desconto.`:" · sem planilha de preços (só preço atual).");
   }catch(e){st.textContent="Erro: "+e.message;$("#shopeePreviewWrap").style.display="none";}
 }
 function renderShopeePreview(){
@@ -1420,7 +1439,8 @@ function renderShopeePreview(){
     <td>${(r.title||"—").slice(0,44)}</td>
     <td>${(r.varName||"—").slice(0,26)}</td>
     <td>${r.sku||"—"}</td>
-    <td class="r">${r.price!=null?brl(r.price):"—"}</td>
+    <td class="r">${r.priceDe!=null?brl(r.priceDe):"—"}</td>
+    <td class="r">${r.pricePor!=null?brl(r.pricePor):"—"}</td>
     <td>${r.codigos.length?r.codigos.map(x=>x.c+(x.q>1?"×"+x.q:"")).join(", "):'<span class="mbadge">—</span>'}</td>
     <td>${cb(r.conf)}</td>
     <td>${r.existing?'<span class="mbadge upd">atualiza</span>':'<span class="mbadge new">novo</span>'}</td></tr>`).join("");
@@ -1436,7 +1456,7 @@ async function shopeeImport(){
       nome:r.title+(r.varName?" · "+r.varName:""),canal:"Shopee",origem:r.conta||"",
       codigos:r.codigos,confianca:r.conf,codigosAuto:true,
       itens:[],composicaoPendente:true,custoItens:0,
-      priceMode:"depor",priceDe:null,pricePor:r.price||null,price:r.price||null,
+      priceMode:"depor",priceDe:(r.priceDe!=null?r.priceDe:null),pricePor:(r.pricePor!=null?r.pricePor:(r.price||null)),price:(r.pricePor!=null?r.pricePor:(r.price||null)),
       freight:(sh&&sh.fre)||0,rebate:0,
       status:"Ativo",statusMeli:"Ativo",fonte:"shopee",ts:Date.now(),atualizadoEm:Date.now(),atualizadoVia:"planilha"};
     saved[r.key]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
