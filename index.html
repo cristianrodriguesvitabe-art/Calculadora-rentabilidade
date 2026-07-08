@@ -279,7 +279,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 26</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 27</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -672,6 +672,7 @@ let kit = [], saved = {};
 let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "", skuFilter = "";
 let skuSearch = "", skuConta = "", skuCanal = "", skuStatus = "", skuPlat = "", skuSort = {key:"upd",dir:-1};
 const platOf=r=>(/shopee/i.test(r.canal||"")||r.plataforma==="Shopee")?"Shopee":"Mercado Livre";
+const dispSku=r=>(r.plataforma==="Shopee")?(r.shopeePid||String(r.sku||"").replace(/^SHP-/,"").split("-")[0]):r.sku;
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
 const $ = s => document.querySelector(s);
@@ -1057,7 +1058,7 @@ function visibleSkus(){
   if(skuCanal)list=list.filter(r=>(r.canal||"").includes(skuCanal));
   if(skuStatus)list=list.filter(r=>(r.statusMeli||"Ativo")===skuStatus);
   const q=(skuSearch||"").trim().toLowerCase();
-  if(q)list=list.filter(r=>(r.sku||"").toLowerCase().includes(q)||(r.nome||"").toLowerCase().includes(q)||(r.skusMeli||[]).some(s=>String(s).toLowerCase().includes(q)));
+  if(q)list=list.filter(r=>(r.sku||"").toLowerCase().includes(q)||(r.nome||"").toLowerCase().includes(q)||(r.skusMeli||[]).some(s=>String(s).toLowerCase().includes(q))||(r.skusShopee||[]).some(s=>String(s).toLowerCase().includes(q)));
   const key=skuSort.key,dir=skuSort.dir;
   const val=r=>{switch(key){
     case "sku":return r.sku||"";case "canal":return r.canal||"";
@@ -1113,7 +1114,7 @@ function renderSaved(){
     const reb=(r.rebate>0)?brl(r.rebate):"—";
     if(r.composicaoPendente){
       const por2=(r.pricePor||r.price||0).toFixed(2);
-      return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
+      return `<tr><td><div class="sku-code">${dispSku(r)}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
       <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composição pendente</span>'}</td>
       <td class="r">—</td>
       <td class="r">${pf("por",por2)}</td>
@@ -1124,7 +1125,7 @@ function renderSaved(){
     const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
     const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
     const por=(r.pricePor||r.price||0).toFixed(2);
-    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
+    return `<tr><td><div class="sku-code">${dispSku(r)}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
     <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}${confHtml}</td>
     <td class="r">${pf("de",de,"—")}</td>
     <td class="r">${pf("por",por)}</td>
@@ -1650,7 +1651,7 @@ function renderUnitAnalysis(){
       return `<div>${it.q}× <b>${it.n}</b> — ${brl(ippu)}/un${flag}</div>`;
     }).join("");
     const mcls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
-    return `<tr><td><div class="sku-code">${r.sku}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
+    return `<tr><td><div class="sku-code">${dispSku(r)}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
       <td class="r u-mono">${units}</td><td class="r u-mono">${brl(price)}</td><td class="r u-mono">${brl(units?price/units:0)}</td>
       <td class="r"><span class="marg ${mcls}">${pct(r.lucratividade)}</span></td>
       <td class="comp">${comps}</td></tr>`;
