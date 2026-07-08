@@ -248,6 +248,14 @@
   #view-saved tbody tr.childrow .childcell{padding-left:24px;box-shadow:inset 3px 0 0 var(--line2)}
   .sku-code.sub{font-family:var(--ui,inherit);font-weight:600;font-size:13px;color:var(--ink);text-transform:none}
   .grouprow.meliblock td{padding:8px 12px}
+  .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
+  .blktoggle:hover{background:var(--paper);color:var(--forest)}
+  .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
+  .legwrap{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+  .leglab{font-size:12px;color:var(--muted);font-weight:700}
+  .legchip{font-size:12px;background:var(--paper);border:1px solid var(--line2);border-radius:20px;padding:2px 9px;display:inline-flex;gap:5px;align-items:center}
+  .legsku{font-family:var(--mono);color:var(--muted);font-weight:600}
+  .legcode{font-family:var(--mono);color:var(--forest);font-weight:700}
   .ghead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .ghead .gtitle{flex:1;min-width:240px}
   .bulkset{display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line2);border-radius:9px;padding:4px 8px}
@@ -305,7 +313,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 33</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 34</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1227,12 +1235,15 @@ function varFin(r,v){
 }
 function meliBlockHtml(r,meta){
   const vars=getVars(r);
+  const open=openBlocks.has(r.sku);
   const nome=(r.nome||"").replace(/"/g,"&quot;");
   const de=(+r.priceDe>0)?(+r.priceDe).toFixed(2):"";
   const porV=+r.pricePor||+r.price||0,por=porV>0?porV.toFixed(2):"";
   const pors=vars.map(v=>+v.pricePor||0).filter(x=>x>0);
   const faixa=pors.length?(Math.min(...pors)===Math.max(...pors)?brl(Math.min(...pors)):brl(Math.min(...pors))+"\u2013"+brl(Math.max(...pors))):"\u2014";
+  const codeOf=v=>(r.varCodes&&r.varCodes[v.sku]!=null)?r.varCodes[v.sku]:siglaCodes(v.sku,r.nome).map(x=>x.c).join("+");
   let h=`<tr class="grouprow meliblock"><td colspan="10"><div class="ghead">
+    <button class="blktoggle" data-toggleblk="${r.sku}" title="Mostrar/ocultar varia\u00e7\u00f5es">${open?"\u25be":"\u25b8"}</button>
     <div class="gtitle"><span class="gcode">${dispSku(r)}</span> <b>${nome}</b> <span class="gmeta">${vars.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></div>
     <div class="bulkset"><span class="bulklab">pre\u00e7o de todas:</span>
       <span class="pricefield sm"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" data-bulk="de" data-bsku="${r.sku}" value="${de}" placeholder="De"></span>
@@ -1240,14 +1251,16 @@ function meliBlockHtml(r,meta){
       <button class="iact bulkbtn" data-bulkapply="${r.sku}">aplicar a todas</button></div>
     <div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div>
   </div></td></tr>`;
+  const legend=vars.map(v=>{const cc=codeOf(v);return `<span class="legchip"><span class="legsku">${v.sku}</span>${cc?` <span class="legcode">${cc}</span>`:'<span class="legcode" style="color:var(--faint)">\u2014</span>'}</span>`;}).join("");
+  h+=`<tr class="legendrow" data-blk="${r.sku}"${open?' style="display:none"':""}><td colspan="10"><div class="legwrap"><span class="leglab">SKUs deste kit:</span> ${legend}</div></td></tr>`;
   h+=vars.map((v,i)=>{
     const fin=varFin(r,v),cls=fin.marg>=meta?"ok":fin.marg>=0?"mid":"no";
-    const ov=(r.varCodes&&r.varCodes[v.sku]!=null)?r.varCodes[v.sku]:siglaCodes(v.sku,r.nome).map(x=>x.c).join(", ");
-    const codeHtml=ov?`<span class="ch-code">${ov}</span>`:'<span class="ch-code" style="color:var(--faint)">\u2014 (definir)</span>';
+    const cc=codeOf(v);
+    const codeHtml=cc?`<span class="ch-code">${cc}</span>`:'<span class="ch-code" style="color:var(--faint)">\u2014 (definir)</span>';
     const key=r.sku+"||"+v.sku;
     const vde=(+v.priceDe>0)?(+v.priceDe).toFixed(2):"";
     const vpor=(+v.pricePor||0)?(+v.pricePor).toFixed(2):"";
-    return `<tr class="childrow varrow">
+    return `<tr class="childrow varrow" data-blk="${r.sku}"${open?"":' style="display:none"'}>
       <td class="childcell"><span class="ch-arrow">\u21b3</span> <span class="ch-sku">${v.sku}</span> <span class="ch-codewrap" data-vwrap="${key}">${codeHtml}</span> <button class="ch-edit" data-editvar="${key}" title="Editar c\u00f3digo desta varia\u00e7\u00e3o">\u270e</button></td>
       <td></td>
       <td class="r">${vpf(r.sku,i,"de",vde,"\u2014")}</td>
@@ -1325,6 +1338,14 @@ function onVarInline(e){
   }
   rec.atualizadoEm=Date.now();rec.atualizadoVia="manual";saved[sku]=rec;
   clearTimeout(skuSaveTimer);skuSaveTimer=setTimeout(async()=>{try{await DB.upsertSku(rec);if(SUPA_ON)setSync("cloud");}catch(err){setSync("err");}},600);
+}
+const openBlocks=new Set();
+function toggleBlock(sku){
+  const open=openBlocks.has(sku);if(open)openBlocks.delete(sku);else openBlocks.add(sku);
+  const now=!open;
+  document.querySelectorAll('.varrow[data-blk="'+sku+'"]').forEach(el=>{el.style.display=now?"":"none";});
+  const leg=document.querySelector('.legendrow[data-blk="'+sku+'"]');if(leg)leg.style.display=now?"none":"";
+  const btn=document.querySelector('[data-toggleblk="'+sku+'"]');if(btn)btn.textContent=now?"\u25be":"\u25b8";
 }
 async function applyBulk(sku){
   const rec=saved[sku];if(!rec)return;
@@ -2080,7 +2101,7 @@ $("#dupClose").onclick=closeDupModal;
 $("#dupModal").addEventListener("click",e=>{if(e.target.id==="dupModal")closeDupModal();});
 $("#dupList").addEventListener("click",e=>{const b=e.target.closest("[data-open-dup]");if(b){closeDupModal();loadSkuIntoCalc(b.dataset.openDup);}});
 $("#clearBtn").onclick=()=>{kit=[];autoName="";loadedSku="";selAcct="";buildAcctSelect();$("#skuDup").style.display="none";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
-$("#tbody").onclick=e=>{const t=e.target;const ba=t.closest&&t.closest("[data-bulkapply]");if(ba){applyBulk(ba.dataset.bulkapply);return;}const ev=t.closest&&t.closest("[data-editvar]");if(ev){editVarCode(ev.dataset.editvar);return;}if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
+$("#tbody").onclick=e=>{const t=e.target;const tg=t.closest&&t.closest("[data-toggleblk]");if(tg){toggleBlock(tg.dataset.toggleblk);return;}const ba=t.closest&&t.closest("[data-bulkapply]");if(ba){applyBulk(ba.dataset.bulkapply);return;}const ev=t.closest&&t.closest("[data-editvar]");if(ev){editVarCode(ev.dataset.editvar);return;}if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
 $("#tbody").addEventListener("keydown",e=>{if(e.key==="Enter"){const inp=e.target.closest&&e.target.closest("[data-savevar]");if(inp){e.preventDefault();saveVarCode(inp);}}});
 $("#tbody").addEventListener("blur",e=>{const inp=e.target.closest&&e.target.closest("[data-savevar]");if(inp)saveVarCode(inp);},true);
 $("#tbody").addEventListener("input",onSkuInline);
