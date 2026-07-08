@@ -227,6 +227,9 @@
   .etable td{padding:8px 8px}.etable thead th{padding:0 8px 10px}
   .etable input{padding:7px 9px;font-size:13.5px}.etable .name{font-weight:500;font-size:13.5px}
   .cellnum{width:112px}
+  .celltext{width:100%;border:1px solid var(--line2);border-radius:7px;background:var(--paper);color:var(--ink)}
+  .celltext:focus{outline:none;border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
+  .celltext.code{font-family:var(--mono);text-transform:uppercase;font-weight:600;color:var(--forest)}
   .pricefield{display:flex;align-items:center;width:100%;box-sizing:border-box;border:1px solid var(--line2);border-radius:8px;background:var(--paper)}
   .pricefield:focus-within{border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
   .pricefield .pfx{font-size:11px;color:var(--faint);padding-left:8px;font-family:var(--mono);flex:0 0 auto}
@@ -279,7 +282,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 28</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 29</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -323,7 +326,7 @@
           <div class="add-row">
             <div class="combo">
               <label for="pickSearch">Produto</label>
-              <input type="text" id="pickSearch" placeholder="Digite para buscar..." autocomplete="off">
+              <input type="text" id="pickSearch" placeholder="Buscar por nome ou código (ex.: COL1.0211)..." autocomplete="off">
               <div class="combo-list" id="pickList"></div>
             </div>
             <div><label for="pickqty">Qtde</label><input type="number" id="pickqty" value="1" min="1" step="1"></div>
@@ -502,7 +505,9 @@
       </div></div>
       <div class="card"><div class="pad">
         <p class="eyebrow">Custos dos produtos</p>
-        <table class="etable"><thead><tr><th>Produto</th><th class="r">Custo R$</th><th></th></tr></thead><tbody id="prodTable"></tbody></table>
+        <p class="set-note" style="margin:-6px 0 12px">Editar o <b>nome</b> ou o <b>código (Protheus)</b> aqui é seguro: os kits já cadastrados guardam a própria composição e <b>não são alterados</b>. O código também serve pra buscar o item na calculadora.</p>
+        <table class="etable"><thead><tr><th>Produto</th><th style="width:170px">Código (Protheus)</th><th class="r" style="width:120px">Custo R$</th><th style="width:34px"></th></tr></thead><tbody id="prodTable"></tbody></table>
+        <datalist id="codeList"></datalist>
         <div class="addprod">
           <input type="text" id="npNome" placeholder="Novo produto">
           <div class="inwrap money"><span class="pre">R$</span><input type="number" id="npCusto" placeholder="custo" step="0.01" min="0"></div>
@@ -792,10 +797,10 @@ function showChannelFees(setFreight){
 let pickSel=null, pickHL=-1, pickFiltered=[];
 function openList(){
   const q=($("#pickSearch").value||"").trim().toLowerCase();
-  pickFiltered=CATALOG.map((it,i)=>({it,i})).filter(o=>!q||o.it.n.toLowerCase().includes(q));
+  pickFiltered=CATALOG.map((it,i)=>({it,i})).filter(o=>!q||o.it.n.toLowerCase().includes(q)||(o.it.cod||"").toLowerCase().includes(q));
   const list=$("#pickList");
   if(!pickFiltered.length){list.innerHTML='<div class="combo-empty">Nenhum produto encontrado</div>';}
-  else list.innerHTML=pickFiltered.map((o,idx)=>`<div class="combo-opt${idx===pickHL?' hl':''}" data-idx="${idx}"><span>${o.it.n}</span><span class="cst">${brl(o.it.c)}</span></div>`).join("");
+  else list.innerHTML=pickFiltered.map((o,idx)=>`<div class="combo-opt${idx===pickHL?' hl':''}" data-idx="${idx}"><span>${o.it.n}${o.it.cod?` <span class="codepill" style="font-size:10px;padding:1px 6px">${o.it.cod}</span>`:""}</span><span class="cst">${brl(o.it.c)}</span></div>`).join("");
   list.classList.add("on");
 }
 function closeList(){$("#pickList").classList.remove("on");pickHL=-1;}
@@ -804,7 +809,7 @@ function addFromCatalog(){
   let it=null;
   if(pickSel!=null) it=CATALOG[pickSel];
   else{const q=($("#pickSearch").value||"").trim().toLowerCase();
-    if(q) it=CATALOG.find(c=>c.n.toLowerCase()===q)||CATALOG.find(c=>c.n.toLowerCase().includes(q));}
+    if(q) it=CATALOG.find(c=>c.n.toLowerCase()===q)||CATALOG.find(c=>(c.cod||"").toLowerCase()===q)||CATALOG.find(c=>c.n.toLowerCase().includes(q))||CATALOG.find(c=>(c.cod||"").toLowerCase().includes(q));}
   if(!it){toast("Selecione um produto na lista");openList();return;}
   const q=Math.max(1,parseInt($("#pickqty").value)||1);
   const ex=kit.find(k=>k.n===it.n);if(ex){ex.q+=q;ex.c=it.c;}else kit.push({n:it.n,c:it.c,q});
@@ -1807,10 +1812,15 @@ function onShopeeChange(e){
     saveConfig();calc();}
 }
 function renderProdTable(){
-  $("#prodTable").innerHTML=CATALOG.map((it,i)=>`<tr><td class="name">${it.n}</td>
+  const esc=s=>String(s==null?"":s).replace(/"/g,"&quot;");
+  $("#prodTable").innerHTML=CATALOG.map((it,i)=>`<tr>
+    <td><input type="text" class="celltext" data-pn="${i}" value="${esc(it.n)}"></td>
+    <td><input type="text" class="celltext code" data-pc="${i}" list="codeList" value="${esc(it.cod)}" placeholder="—"></td>
     <td class="r"><input type="number" class="cellnum" data-pi="${i}" step="0.01" value="${it.c}"></td>
     <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("");
 }
+function fillCodeDatalist(){const el=$("#codeList");if(el)el.innerHTML=Object.keys(PROD_COD).sort().map(c=>`<option value="${c}">${PROD_COD[c]}</option>`).join("");}
+function ensureCatalogCodes(){let ch=false;CATALOG.forEach(it=>{if(!it.cod&&!it.codManual&&it.n){const g=shopeeGuess(it.n,"");if(g.codigos.length===1){it.cod=g.codigos[0].c;ch=true;}}});return ch;}
 function syncKitCosts(){kit.forEach(k=>{const m=CATALOG.find(c=>c.n===k.n);if(m)k.c=m.c;});}
 function renderCodeRef(q){
   const el=$("#codeRefTable");if(!el)return;
@@ -1838,8 +1848,11 @@ function onAssumpChange(){
 }
 function onChanChange(e){const t=e.target;if(t.dataset.ci==null)return;const i=+t.dataset.ci,v=+t.value||0;
   if(t.dataset.f==="com")CHANNELS[i].com=v/100;else CHANNELS[i].fre=v;saveConfig();showChannelFees(false);calc();}
-function onProdChange(e){const t=e.target;if(t.dataset.pi==null)return;CATALOG[+t.dataset.pi].c=+t.value||0;
-  syncKitCosts();saveConfig();renderKit();}
+function onProdChange(e){const t=e.target;
+  if(t.dataset.pi!=null){CATALOG[+t.dataset.pi].c=+t.value||0;syncKitCosts();saveConfig();renderKit();}
+  else if(t.dataset.pn!=null){CATALOG[+t.dataset.pn].n=t.value;saveConfig();}
+  else if(t.dataset.pc!=null){const i=+t.dataset.pc;CATALOG[i].cod=(t.value||"").trim().toUpperCase();CATALOG[i].codManual=true;saveConfig();}
+}
 function addProduct(){const n=$("#npNome").value.trim(),c=+$("#npCusto").value||0;if(!n||c<=0){toast("Informe nome e custo");return;}
   CATALOG.push({n,c});$("#npNome").value="";$("#npCusto").value="";saveConfig();renderProdTable();toast("Produto adicionado");}
 function delProduct(i){const it=CATALOG[i];if(!confirm(`Remover "${it.n}" do catálogo?`))return;
@@ -1952,7 +1965,7 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
   setSync(SUPA_ON?"cloud":"local");
   if(!SUPA_ON){const b=$("#cloudBanner");b.style.display="block";b.innerHTML="<b>Modo local.</b> Para sincronizar entre pessoas, preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do arquivo.";}
   await loadConfig();
-  loadAssumpInputs();renderChanTable();renderProdTable();renderAcctTable();renderCodeRef();buildSelects();applyPriceMode();renderKit();calc();
+  loadAssumpInputs();renderChanTable();ensureCatalogCodes();fillCodeDatalist();renderProdTable();renderAcctTable();renderCodeRef();buildSelects();applyPriceMode();renderKit();calc();
   {const cs=$("#codeRefSearch");if(cs)cs.addEventListener("input",e=>renderCodeRef(e.target.value));}
   await refreshSkus();
 })();
