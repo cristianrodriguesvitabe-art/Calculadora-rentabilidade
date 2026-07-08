@@ -279,7 +279,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 27</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 28</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -672,7 +672,7 @@ let kit = [], saved = {};
 let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "", skuFilter = "";
 let skuSearch = "", skuConta = "", skuCanal = "", skuStatus = "", skuPlat = "", skuSort = {key:"upd",dir:-1};
 const platOf=r=>(/shopee/i.test(r.canal||"")||r.plataforma==="Shopee")?"Shopee":"Mercado Livre";
-const dispSku=r=>(r.plataforma==="Shopee")?(r.shopeePid||String(r.sku||"").replace(/^SHP-/,"").split("-")[0]):r.sku;
+const dispSku=r=>(r.plataforma==="Shopee")?("SHP-"+(r.shopeePid||String(r.sku||"").replace(/^SHP-/,"").split("-")[0])):r.sku;
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
 const $ = s => document.querySelector(s);
