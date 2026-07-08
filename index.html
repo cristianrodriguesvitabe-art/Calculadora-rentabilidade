@@ -241,6 +241,16 @@
   #view-saved tbody td{padding:12px 10px}
   #view-saved .tacts{white-space:nowrap;justify-content:flex-end}
   #view-saved tbody tr.bkrow{border-top:none}#view-saved tbody tr.bkrow:hover{background:transparent}
+  #view-saved tbody tr.grouprow td{background:#eef3ef;border-top:2px solid var(--line2);padding:9px 12px;font-size:12.5px}
+  #view-saved tbody tr.grouprow:hover td{background:#eef3ef}
+  .grouprow .gcode{font-family:var(--mono);color:var(--forest);font-weight:700}
+  .grouprow .gmeta{color:var(--faint);margin-left:8px;font-weight:500}
+  #view-saved tbody tr.childrow .childcell{padding-left:24px;box-shadow:inset 3px 0 0 var(--line2)}
+  .sku-code.sub{font-family:var(--ui,inherit);font-weight:600;font-size:13px;color:var(--ink);text-transform:none}
+  #view-saved tbody tr.meli-child td{padding:5px 10px 5px 24px;border-top:none;box-shadow:inset 3px 0 0 var(--line2);font-size:12px}
+  #view-saved tbody tr.meli-child:hover td{background:var(--paper)}
+  .meli-child .ch-arrow{color:var(--faint)}.meli-child .ch-sku{font-family:var(--mono);color:var(--muted);font-weight:600}
+  .meli-child .ch-code{font-family:var(--mono);color:var(--forest);font-weight:700;margin-left:6px}
   .bkrow td{padding:0 10px 15px!important}
   .bkbar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line2);max-width:680px}
   .bkseg{height:100%}
@@ -282,7 +292,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 29</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 31</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1095,6 +1105,75 @@ function setSort(key){
   else skuSort={key,dir:(key==="sku"||key==="canal")?1:-1};
   renderSaved();
 }
+function expandSigla(s){
+  let t=" "+String(s||"").toLowerCase()+" ";
+  const add=[["cranberry","cranberry"],["cran","cranberry"],["tangerina","tangerina"],["tang","tangerina"],
+    ["tropicais","tropicais"],["tropical","tropicais"],["tropi","tropicais"],["trop","tropicais"],
+    ["chocolate","chocolate"],["choco","chocolate"],["choc","chocolate"],
+    ["firmador","firmador sache"],["firma","firmador sache"],["pdrn","pdrn"],["booster","booster"],
+    ["esfoliante","esfoliante"],["esfo","esfoliante"],["maracuja","maracuja"],["melancia","melancia"],["coco","coco"],
+    ["labial","balm labial"],["balm","balm labial"],["cappuccino","cappuccino"],["baunilha","baunilha"],["cereja","cereja"],["uva","uva"],
+    ["creatina","creatina"],["crea","creatina"],["omega","omega"],["melatonina","melatonina"],
+    ["magnesio","magnesio"],["coenzima","coenzima"],["q10","coenzima"],["whey","whey"],["cookies","cookies"],["laranja","laranja"],["abacaxi","abacaxi"],["morango","morango"]];
+  add.forEach(([k,v])=>{if(t.includes(k))t+=" "+v;});
+  const pink=t.includes("pink")||t.includes("lemon")||t.includes("limonad");
+  if(pink)t+=" pink ";
+  else if(t.includes("limao")||/lim\d|lim /.test(t)||/\dlim/.test(t))t+=" limao ";
+  return t;
+}
+function siglaCodes(sigla,parentName){return shopeeGuess((parentName||"")+" "+expandSigla(sigla),"").codigos;}
+function meliChildrenHtml(r){
+  const kids=(r.skusMeli||[]);
+  return kids.map(sk=>{
+    const cc=siglaCodes(sk,r.nome);
+    const codeTxt=cc.length?cc.map(x=>x.c).join(", "):'<span style="color:var(--faint)">—</span>';
+    return `<tr class="childrow meli-child"><td colspan="10" class="childcell"><span class="ch-arrow">\u21b3</span> <span class="ch-sku">${sk}</span> <span class="ch-code">${codeTxt}</span></td></tr>`;
+  }).join("");
+}
+function shopeeParentHtml(pid,kids){
+  const nome=(kids[0].nome||"").split(" \u00b7 ")[0];
+  const pors=kids.map(k=>+k.pricePor||+k.price||0).filter(v=>v>0);
+  const faixa=pors.length?(Math.min(...pors)===Math.max(...pors)?brl(Math.min(...pors)):brl(Math.min(...pors))+"\u2013"+brl(Math.max(...pors))):"\u2014";
+  return `<tr class="grouprow"><td colspan="10"><span class="gcode">SHP-${pid}</span> <b>${nome}</b> <span class="gmeta">${kids.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></td></tr>`;
+}
+function skuRowHtml(r,meta,child){
+  const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
+  const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli" title="${r.skusMeli.join(", ")}">${r.skusMeli.join(", ")}</div>`:"";
+  let kcRaw=[],kcDisp=[];
+  if(r.codigos&&r.codigos.length){kcRaw=r.codigos.map(x=>x.c);kcDisp=r.codigos.map(x=>x.q+"\u00d7 "+x.c);}
+  else if(r.mlb&&KIT_CODES[r.mlb]){kcRaw=KIT_CODES[r.mlb];kcDisp=kcRaw;}
+  const codesHtml=kcRaw.length?`<div class="sku-codes" title="${kcRaw.map(c=>c+(PROD_COD[c]?" \u2014 "+PROD_COD[c]:"")).join(" \u00b7 ")}">${kcDisp.join(", ")}</div>`:"";
+  const confHtml=(r.plataforma==="Shopee")?(r.confianca==="v"?'<span class="conf v">comp. alta</span>':r.confianca==="a"?'<span class="conf a">comp. parcial</span>':'<span class="conf r">preencher comp.</span>'):"";
+  const canalTxt=(r.canal||"").replace(/^Mercado Livre\s*/i,"")||(r.canal||"");
+  const inativo=(r.statusMeli==="Inativo")?' <span class="mbadge" style="background:#f3d9d9;color:#8a2a2a">inativo</span>':"";
+  const nmTitle=(r.nome||"").replace(/"/g,"&quot;");
+  const varLabel=(child&&r.nome&&r.nome.includes(" \u00b7 "))?r.nome.split(" \u00b7 ").slice(1).join(" \u00b7 "):"";
+  const codeLine=child?`<div class="sku-code sub" title="${nmTitle}">${varLabel||dispSku(r)}</div>`:`<div class="sku-code" title="${nmTitle}">${dispSku(r)}</div>`;
+  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${codesHtml}${meli}${updHtml(r)}</td>`;
+  if(r.composicaoPendente){
+    const por2=(r.pricePor||r.price||0).toFixed(2);
+    return `<tr class="${child?"childrow":""}">${cellHead}
+      <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composi\u00e7\u00e3o pendente</span>'}</td>
+      <td class="r">\u2014</td>
+      <td class="r">${pf("por",por2)}</td>
+      <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
+      <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td><td class="r">\u2014</td><td class="r">\u2014</td><td class="r">\u2014</td>
+      <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
+  }
+  const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
+  const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
+  const por=(r.pricePor||r.price||0).toFixed(2);
+  return `<tr class="${child?"childrow":""}">${cellHead}
+    <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}${confHtml}</td>
+    <td class="r">${pf("de",de,"\u2014")}</td>
+    <td class="r">${pf("por",por)}</td>
+    <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
+    <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td>
+    <td class="r sec">${brl(r.custoItens)}</td>
+    <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
+    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
+    <tr class="bkrow"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;
+}
 function renderSaved(){
   const all=Object.values(saved),meta=(assumptions.meta||10)/100;
   $("#navCount").textContent=all.length;
@@ -1106,40 +1185,13 @@ function renderSaved(){
   if(anySkuFilter()){fb.style.display="";fb.className="filterbar";fb.innerHTML=`<span><b>${list.length}</b> de ${all.length} SKUs (filtro ativo)</span><button class="clear" id="clearFilter">✕ limpar filtros</button>`;}
   else{fb.style.display="none";fb.innerHTML="";}
   if(!list.length){$("#tbody").innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:24px">Nenhum SKU nesse filtro.</td></tr>`;return;}
-  $("#tbody").innerHTML=list.map(r=>{
-    const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
-    const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli" title="${r.skusMeli.join(", ")}">${r.skusMeli.join(", ")}</div>`:"";
-    let kcRaw=[],kcDisp=[];
-    if(r.codigos&&r.codigos.length){kcRaw=r.codigos.map(x=>x.c);kcDisp=r.codigos.map(x=>x.c+(x.q>1?"×"+x.q:""));}
-    else if(r.mlb&&KIT_CODES[r.mlb]){kcRaw=KIT_CODES[r.mlb];kcDisp=kcRaw;}
-    const codesHtml=kcRaw.length?`<div class="sku-codes" title="${kcRaw.map(c=>c+(PROD_COD[c]?" — "+PROD_COD[c]:"")).join(" · ")}">${kcDisp.join(", ")}</div>`:"";
-    const confHtml=(r.plataforma==="Shopee")?(r.confianca==="v"?'<span class="conf v">comp. alta</span>':r.confianca==="a"?'<span class="conf a">comp. parcial</span>':'<span class="conf r">preencher comp.</span>'):"";
-    const canalTxt=(r.canal||"").replace(/^Mercado Livre\s*/i,"")||(r.canal||"");
-    const inativo=(r.statusMeli==="Inativo")?' <span class="mbadge" style="background:#f3d9d9;color:#8a2a2a">inativo</span>':"";
-    const reb=(r.rebate>0)?brl(r.rebate):"—";
-    if(r.composicaoPendente){
-      const por2=(r.pricePor||r.price||0).toFixed(2);
-      return `<tr><td><div class="sku-code">${dispSku(r)}</div>${r.nome?`<div class="sku-name">${(r.nome||"").slice(0,64)}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
-      <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composição pendente</span>'}</td>
-      <td class="r">—</td>
-      <td class="r">${pf("por",por2)}</td>
-      <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
-      <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td><td class="r">—</td><td class="r">—</td><td class="r">—</td>
-      <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
-    }
-    const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
-    const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
-    const por=(r.pricePor||r.price||0).toFixed(2);
-    return `<tr><td><div class="sku-code">${dispSku(r)}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}${codesHtml}${meli}${updHtml(r)}</td>
-    <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}${confHtml}</td>
-    <td class="r">${pf("de",de,"—")}</td>
-    <td class="r">${pf("por",por)}</td>
-    <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
-    <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td>
-    <td class="r sec">${brl(r.custoItens)}</td>
-    <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
-    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
-    <tr class="bkrow"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;}).join("");
+  const meliList=list.filter(r=>platOf(r)!=="Shopee");
+  const shopList=list.filter(r=>platOf(r)==="Shopee");
+  const groups=new Map();
+  shopList.forEach(r=>{const pid=r.shopeePid||"?";if(!groups.has(pid))groups.set(pid,[]);groups.get(pid).push(r);});
+  let out=meliList.map(r=>skuRowHtml(r,meta)+(((r.skusMeli||[]).length>=2)?meliChildrenHtml(r):"")).join("");
+  groups.forEach((kids,pid)=>{out+=shopeeParentHtml(pid,kids)+kids.map(r=>skuRowHtml(r,meta,true)).join("");});
+  $("#tbody").innerHTML=out;
 }
 function updateSummary(){
   const all=Object.values(saved),meta=(assumptions.meta||10)/100;
