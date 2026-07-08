@@ -247,10 +247,23 @@
   .grouprow .gmeta{color:var(--faint);margin-left:8px;font-weight:500}
   #view-saved tbody tr.childrow .childcell{padding-left:24px;box-shadow:inset 3px 0 0 var(--line2)}
   .sku-code.sub{font-family:var(--ui,inherit);font-weight:600;font-size:13px;color:var(--ink);text-transform:none}
-  #view-saved tbody tr.meli-child td{padding:5px 10px 5px 24px;border-top:none;box-shadow:inset 3px 0 0 var(--line2);font-size:12px}
-  #view-saved tbody tr.meli-child:hover td{background:var(--paper)}
-  .meli-child .ch-arrow{color:var(--faint)}.meli-child .ch-sku{font-family:var(--mono);color:var(--muted);font-weight:600}
-  .meli-child .ch-code{font-family:var(--mono);color:var(--forest);font-weight:700;margin-left:6px}
+  .grouprow.meliblock td{padding:8px 12px}
+  .ghead{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .ghead .gtitle{flex:1;min-width:240px}
+  .bulkset{display:flex;align-items:center;gap:6px;background:var(--paper);border:1px solid var(--line2);border-radius:9px;padding:4px 8px}
+  .bulklab{font-size:12px;color:var(--muted);font-weight:700;white-space:nowrap}
+  .pricefield.sm{width:98px}.pricefield.sm .skuprice{font-size:13px}
+  .bulkbtn{background:var(--forest);color:#fff;border-color:var(--forest);font-weight:700}
+  #view-saved tbody tr.varrow td{border-top:1px solid var(--line2)}
+  #view-saved tbody tr.varrow:hover td{background:var(--paper)}
+  .varrow .childcell{padding-left:24px;box-shadow:inset 3px 0 0 var(--line2)}
+  .varrow .ch-arrow{color:var(--faint)}
+  .varrow .ch-sku{font-family:var(--mono);color:var(--muted);font-weight:600}
+  .varrow .ch-code{font-family:var(--mono);color:var(--forest);font-weight:700;margin:0 4px}
+  .varrow .ch-edit{border:1px solid var(--line2);background:#fff;border-radius:6px;font-size:11px;padding:1px 5px;cursor:pointer;color:var(--muted)}
+  .meli-child .ch-edit{margin-left:10px;border:1px solid var(--line2);background:var(--paper);color:var(--muted);font-size:10.5px;padding:2px 8px;border-radius:6px;cursor:pointer}
+  .meli-child .ch-edit:hover{border-color:var(--forest);color:var(--forest)}
+  .meli-child .ch-input{font-family:var(--mono);font-size:12px;padding:3px 7px;border:1px solid var(--forest);border-radius:6px;background:var(--paper);min-width:220px;text-transform:uppercase}
   .bkrow td{padding:0 10px 15px!important}
   .bkbar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line2);max-width:680px}
   .bkseg{height:100%}
@@ -292,7 +305,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 31</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 33</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1125,10 +1138,29 @@ function siglaCodes(sigla,parentName){return shopeeGuess((parentName||"")+" "+ex
 function meliChildrenHtml(r){
   const kids=(r.skusMeli||[]);
   return kids.map(sk=>{
-    const cc=siglaCodes(sk,r.nome);
-    const codeTxt=cc.length?cc.map(x=>x.c).join(", "):'<span style="color:var(--faint)">—</span>';
-    return `<tr class="childrow meli-child"><td colspan="10" class="childcell"><span class="ch-arrow">\u21b3</span> <span class="ch-sku">${sk}</span> <span class="ch-code">${codeTxt}</span></td></tr>`;
+    const ov=(r.varCodes&&r.varCodes[sk]!=null)?r.varCodes[sk]:null;
+    const cc=(ov!=null)?ov:siglaCodes(sk,r.nome).map(x=>x.c).join(", ");
+    const codeHtml=cc?`<span class="ch-code">${cc}</span>`:'<span class="ch-code" style="color:var(--faint)">— (definir)</span>';
+    const key=r.sku+"||"+sk;
+    return `<tr class="childrow meli-child"><td colspan="10" class="childcell">
+      <span class="ch-arrow">\u21b3</span> <span class="ch-sku">${sk}</span>
+      <span class="ch-codewrap" data-vwrap="${key}">${codeHtml}</span>
+      <button class="ch-edit" data-editvar="${key}" title="Editar c\u00f3digo desta varia\u00e7\u00e3o">\u270e editar</button></td></tr>`;
   }).join("");
+}
+function editVarCode(key){
+  const parts=key.split("||"),mlb=parts[0],sku=parts.slice(1).join("||"),r=saved[mlb];if(!r)return;
+  const wrap=document.querySelector('[data-vwrap="'+key.replace(/"/g,'\\"')+'"]');if(!wrap)return;
+  const cur=(r.varCodes&&r.varCodes[sku]!=null)?r.varCodes[sku]:siglaCodes(sku,r.nome).map(x=>x.c).join(", ");
+  wrap.innerHTML='<input class="ch-input" list="codeList" value="'+String(cur).replace(/"/g,"&quot;")+'" data-savevar="'+key+'" placeholder="c\u00f3digo(s), v\u00edrgula">';
+  const inp=wrap.querySelector("input");inp.focus();inp.select();
+}
+async function saveVarCode(inp){
+  const key=inp.dataset.savevar,parts=key.split("||"),mlb=parts[0],sku=parts.slice(1).join("||"),r=saved[mlb];if(!r)return;
+  r.varCodes=r.varCodes||{};r.varCodes[sku]=(inp.value||"").trim().toUpperCase();
+  r.atualizadoEm=Date.now();saved[mlb]=r;
+  try{await DB.upsertSku(r);if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");}
+  renderSaved();
 }
 function shopeeParentHtml(pid,kids){
   const nome=(kids[0].nome||"").split(" \u00b7 ")[0];
@@ -1136,7 +1168,7 @@ function shopeeParentHtml(pid,kids){
   const faixa=pors.length?(Math.min(...pors)===Math.max(...pors)?brl(Math.min(...pors)):brl(Math.min(...pors))+"\u2013"+brl(Math.max(...pors))):"\u2014";
   return `<tr class="grouprow"><td colspan="10"><span class="gcode">SHP-${pid}</span> <b>${nome}</b> <span class="gmeta">${kids.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></td></tr>`;
 }
-function skuRowHtml(r,meta,child){
+function skuRowHtml(r,meta,child,hideCodes){
   const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
   const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli" title="${r.skusMeli.join(", ")}">${r.skusMeli.join(", ")}</div>`:"";
   let kcRaw=[],kcDisp=[];
@@ -1149,7 +1181,7 @@ function skuRowHtml(r,meta,child){
   const nmTitle=(r.nome||"").replace(/"/g,"&quot;");
   const varLabel=(child&&r.nome&&r.nome.includes(" \u00b7 "))?r.nome.split(" \u00b7 ").slice(1).join(" \u00b7 "):"";
   const codeLine=child?`<div class="sku-code sub" title="${nmTitle}">${varLabel||dispSku(r)}</div>`:`<div class="sku-code" title="${nmTitle}">${dispSku(r)}</div>`;
-  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${codesHtml}${meli}${updHtml(r)}</td>`;
+  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${updHtml(r)}</td>`;
   if(r.composicaoPendente){
     const por2=(r.pricePor||r.price||0).toFixed(2);
     return `<tr class="${child?"childrow":""}">${cellHead}
@@ -1174,6 +1206,61 @@ function skuRowHtml(r,meta,child){
     <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
     <tr class="bkrow"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;
 }
+function vpf(sku,i,which,val,ph){return `<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-vedit="${sku}" data-vidx="${i}" data-vf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;}
+function getVars(r){
+  const skus=(r.skusMeli||[]);
+  const de=+r.priceDe||0,por=+r.pricePor||+r.price||0,rb=+r.rebate||0,fr=+r.freight||0;
+  const base=skus.map(sk=>({sku:sk,priceDe:de,pricePor:por,rebate:rb,frete:fr}));
+  if(Array.isArray(r.variacoes)&&r.variacoes.length){
+    const bySku={};r.variacoes.forEach(v=>{if(v&&v.sku)bySku[v.sku]=v;});
+    return base.map(b=>bySku[b.sku]?Object.assign({},b,bySku[b.sku]):b);
+  }
+  return base;
+}
+function ensureVars(rec){rec.variacoes=getVars(rec);return rec.variacoes;}
+function varFin(r,v){
+  const ch=resolveChannel(r.canal);let catIdx=0;
+  if(ch.categories&&r.mlCatName){const k=ch.categories.findIndex(c=>c.n===r.mlCatName);if(k>=0)catIdx=k;}
+  const N=+r.custoItens||(r.itens||[]).reduce((s,it)=>s+it.c*it.q,0);
+  const f=financials({L:+v.pricePor||0,N,ch,catIdx,freight:+v.frete||0,rebate:+v.rebate||0});
+  return {liq:f.Y,marg:f.Z,custo:N};
+}
+function meliBlockHtml(r,meta){
+  const vars=getVars(r);
+  const nome=(r.nome||"").replace(/"/g,"&quot;");
+  const de=(+r.priceDe>0)?(+r.priceDe).toFixed(2):"";
+  const porV=+r.pricePor||+r.price||0,por=porV>0?porV.toFixed(2):"";
+  const pors=vars.map(v=>+v.pricePor||0).filter(x=>x>0);
+  const faixa=pors.length?(Math.min(...pors)===Math.max(...pors)?brl(Math.min(...pors)):brl(Math.min(...pors))+"\u2013"+brl(Math.max(...pors))):"\u2014";
+  let h=`<tr class="grouprow meliblock"><td colspan="10"><div class="ghead">
+    <div class="gtitle"><span class="gcode">${dispSku(r)}</span> <b>${nome}</b> <span class="gmeta">${vars.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></div>
+    <div class="bulkset"><span class="bulklab">pre\u00e7o de todas:</span>
+      <span class="pricefield sm"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" data-bulk="de" data-bsku="${r.sku}" value="${de}" placeholder="De"></span>
+      <span class="pricefield sm"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" data-bulk="por" data-bsku="${r.sku}" value="${por}" placeholder="Por"></span>
+      <button class="iact bulkbtn" data-bulkapply="${r.sku}">aplicar a todas</button></div>
+    <div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div>
+  </div></td></tr>`;
+  h+=vars.map((v,i)=>{
+    const fin=varFin(r,v),cls=fin.marg>=meta?"ok":fin.marg>=0?"mid":"no";
+    const ov=(r.varCodes&&r.varCodes[v.sku]!=null)?r.varCodes[v.sku]:siglaCodes(v.sku,r.nome).map(x=>x.c).join(", ");
+    const codeHtml=ov?`<span class="ch-code">${ov}</span>`:'<span class="ch-code" style="color:var(--faint)">\u2014 (definir)</span>';
+    const key=r.sku+"||"+v.sku;
+    const vde=(+v.priceDe>0)?(+v.priceDe).toFixed(2):"";
+    const vpor=(+v.pricePor||0)?(+v.pricePor).toFixed(2):"";
+    return `<tr class="childrow varrow">
+      <td class="childcell"><span class="ch-arrow">\u21b3</span> <span class="ch-sku">${v.sku}</span> <span class="ch-codewrap" data-vwrap="${key}">${codeHtml}</span> <button class="ch-edit" data-editvar="${key}" title="Editar c\u00f3digo desta varia\u00e7\u00e3o">\u270e</button></td>
+      <td></td>
+      <td class="r">${vpf(r.sku,i,"de",vde,"\u2014")}</td>
+      <td class="r">${vpf(r.sku,i,"por",vpor)}</td>
+      <td class="r">${vpf(r.sku,i,"rebate",(+v.rebate||0).toFixed(2))}</td>
+      <td class="r">${vpf(r.sku,i,"frete",(+v.frete||0).toFixed(2))}</td>
+      <td class="r sec">${brl(fin.custo)}</td>
+      <td class="r"><b class="liqval${fin.liq<0?" neg":""}" data-vliq>${brl(fin.liq)}</b></td>
+      <td class="r"><span class="marg ${cls}" data-vmarg>${pct(fin.marg)}</span></td>
+      <td></td></tr>`;
+  }).join("");
+  return h;
+}
 function renderSaved(){
   const all=Object.values(saved),meta=(assumptions.meta||10)/100;
   $("#navCount").textContent=all.length;
@@ -1189,7 +1276,7 @@ function renderSaved(){
   const shopList=list.filter(r=>platOf(r)==="Shopee");
   const groups=new Map();
   shopList.forEach(r=>{const pid=r.shopeePid||"?";if(!groups.has(pid))groups.set(pid,[]);groups.get(pid).push(r);});
-  let out=meliList.map(r=>skuRowHtml(r,meta)+(((r.skusMeli||[]).length>=2)?meliChildrenHtml(r):"")).join("");
+  let out=meliList.map(r=>((r.skusMeli||[]).length>=2)?meliBlockHtml(r,meta):skuRowHtml(r,meta)).join("");
   groups.forEach((kids,pid)=>{out+=shopeeParentHtml(pid,kids)+kids.map(r=>skuRowHtml(r,meta,true)).join("");});
   $("#tbody").innerHTML=out;
 }
@@ -1223,7 +1310,39 @@ function recomputeSku(rec){
   rec.liquido=f.Y;rec.lucratividade=f.Z;
 }
 let skuSaveTimer=null;
+function onVarInline(e){
+  const t=e.target,sku=t.dataset.vedit,idx=+t.dataset.vidx,vf=t.dataset.vf;
+  const rec=saved[sku];if(!rec)return;
+  const vars=ensureVars(rec),v=vars[idx];if(!v)return;
+  const val=+t.value||0;
+  if(vf==="de")v.priceDe=val;else if(vf==="por")v.pricePor=val;else if(vf==="rebate")v.rebate=val;else if(vf==="frete")v.frete=val;else return;
+  rec.variacoes=vars;
+  const fin=varFin(rec,v),meta=(assumptions.meta||10)/100,row=t.closest("tr");
+  if(row){
+    const lc=row.querySelector("[data-vliq]"),mc=row.querySelector("[data-vmarg]");
+    if(lc){lc.textContent=brl(fin.liq);lc.className="liqval"+(fin.liq<0?" neg":"");}
+    if(mc){mc.className="marg "+(fin.marg>=meta?"ok":fin.marg>=0?"mid":"no");mc.textContent=pct(fin.marg);}
+  }
+  rec.atualizadoEm=Date.now();rec.atualizadoVia="manual";saved[sku]=rec;
+  clearTimeout(skuSaveTimer);skuSaveTimer=setTimeout(async()=>{try{await DB.upsertSku(rec);if(SUPA_ON)setSync("cloud");}catch(err){setSync("err");}},600);
+}
+async function applyBulk(sku){
+  const rec=saved[sku];if(!rec)return;
+  const btn=document.querySelector('[data-bulkapply="'+sku+'"]');if(!btn)return;
+  const wrap=btn.closest(".bulkset");
+  const de=+wrap.querySelector('[data-bulk="de"]').value||0,por=+wrap.querySelector('[data-bulk="por"]').value||0;
+  if(de<=0&&por<=0){toast("Digite De e/ou Por para aplicar");return;}
+  const vars=ensureVars(rec);
+  vars.forEach(v=>{if(de>0)v.priceDe=de;if(por>0)v.pricePor=por;});
+  rec.variacoes=vars;
+  if(de>0)rec.priceDe=de;
+  if(por>0){rec.pricePor=por;rec.priceMode="depor";}
+  recomputeSku(rec);rec.atualizadoEm=Date.now();rec.atualizadoVia="manual";saved[sku]=rec;
+  try{await DB.upsertSku(rec);if(SUPA_ON)setSync("cloud");}catch(err){setSync("err");}
+  renderSaved();toast("Pre\u00e7o aplicado a "+vars.length+" varia\u00e7\u00f5es");
+}
 function onSkuInline(e){
+  if(e.target.dataset&&e.target.dataset.vedit!=null){return onVarInline(e);}
   const t=e.target,sku=t.dataset.skuedit;if(sku==null)return;
   const rec=saved[sku];if(!rec)return;
   const v=+t.value||0;
@@ -1961,7 +2080,9 @@ $("#dupClose").onclick=closeDupModal;
 $("#dupModal").addEventListener("click",e=>{if(e.target.id==="dupModal")closeDupModal();});
 $("#dupList").addEventListener("click",e=>{const b=e.target.closest("[data-open-dup]");if(b){closeDupModal();loadSkuIntoCalc(b.dataset.openDup);}});
 $("#clearBtn").onclick=()=>{kit=[];autoName="";loadedSku="";selAcct="";buildAcctSelect();$("#skuDup").style.display="none";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
-$("#tbody").onclick=e=>{const t=e.target;if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
+$("#tbody").onclick=e=>{const t=e.target;const ba=t.closest&&t.closest("[data-bulkapply]");if(ba){applyBulk(ba.dataset.bulkapply);return;}const ev=t.closest&&t.closest("[data-editvar]");if(ev){editVarCode(ev.dataset.editvar);return;}if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
+$("#tbody").addEventListener("keydown",e=>{if(e.key==="Enter"){const inp=e.target.closest&&e.target.closest("[data-savevar]");if(inp){e.preventDefault();saveVarCode(inp);}}});
+$("#tbody").addEventListener("blur",e=>{const inp=e.target.closest&&e.target.closest("[data-savevar]");if(inp)saveVarCode(inp);},true);
 $("#tbody").addEventListener("input",onSkuInline);
 $("#summary").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(b)setSkuFilter(b.dataset.filter);});
 $("#skuFilterBar").addEventListener("click",e=>{if(e.target.id==="clearFilter")clearSkuFilters();});
