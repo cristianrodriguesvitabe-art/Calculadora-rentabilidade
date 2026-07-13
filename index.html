@@ -298,6 +298,19 @@
   .mchip .msub{font-size:11px;color:var(--muted)}
   .mchip .mdel{position:absolute;top:6px;right:8px;font-size:14px;color:var(--faint);line-height:1;padding:2px 4px;border-radius:6px}
   .mchip .mdel:hover{color:var(--red,#b23b3b);background:#FBF1F1}
+  .custoscard .crow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--paper)}
+  .custoscard .clbl{color:var(--ink);font-weight:600}
+  .custoscard .cval{font-weight:800;font-variant-numeric:tabular-nums}
+  .custoscard .cval.neg{color:var(--red,#b23b3b)}.custoscard .cval.pos{color:var(--forest)}
+  .custoscard .crow.total{border-bottom:none;border-top:2px solid var(--line2);margin-top:4px;padding-top:12px}
+  .custoscard .crow.total .clbl{font-size:15px;font-weight:800}
+  .custoscard .crow.total .cval{font-size:19px}
+  .custoscard .cinput{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .costlist{margin:8px 0}
+  .costrow{display:flex;align-items:center;gap:8px;padding:4px 0}
+  .costname{flex:1;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--ink);background:#fff}
+  .costadd{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .adinput{min-width:120px}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -363,7 +376,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 40</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 41</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2351,6 +2364,27 @@ function adsPanelHtml(ads,lucroVendas,adc){
       <div><div class="sk-l">Lucro p\u00f3s-Ads (m\u00eas)</div><div class="dedv ${posAds!=null&&posAds<0?"neg":""}">${posAds!=null?brl(posAds):"\u2014"}</div><div class="sec">${posAds!=null?"lucro das vendas \u2212 investimento":"suba o relat\u00f3rio de vendas do m\u00eas"}</div></div>
     </div>${allocNote}</div>`;
 }
+function monthExtras(m){if(!m.extras||typeof m.extras!=="object")m.extras={adManual:null,custos:[]};if(!Array.isArray(m.extras.custos))m.extras.custos=[];if(!("adManual"in m.extras))m.extras.adManual=null;return m.extras;}
+function effAdSpend(m){const ex=monthExtras(m);if(ex.adManual!=null&&ex.adManual!=="")return +ex.adManual||0;return m.ads?m.ads.investTot:0;}
+let salesSaveTimer=null;
+function persistSalesDebounced(){clearTimeout(salesSaveTimer);salesSaveTimer=setTimeout(()=>{persistSalesMonths();},700);}
+function custosCardHtml(mkey,mrec,lucroVendas,receita,adsData){
+  const ex=monthExtras(mrec);
+  const adShown=(ex.adManual!=null&&ex.adManual!=="")?(+ex.adManual):(mrec.ads?(+mrec.ads.investTot).toFixed(2):"");
+  const adEff=effAdSpend(mrec);
+  const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);
+  const resultado=lucroVendas-adEff-outros, margem=receita>0?resultado/receita:0;
+  const acosNote=adsData?`<span class="sec">relat\u00f3rio: ${brl(adsData.investTot)} \u00b7 ACOS ${pct(adsData.receitaAds>0?adsData.investTot/adsData.receitaAds:0)} \u00b7 ROAS ${(adsData.investTot>0?adsData.receitaAds/adsData.investTot:0).toFixed(2)}x`:`<span class="sec">digite o valor (do Faturamento) ou suba o relat\u00f3rio de Ads</span>`;
+  const costRows=ex.custos.map((c,i)=>`<div class="costrow"><input class="costname" data-costidx="${i}" data-cf="nome" value="${(c.nome||"").replace(/"/g,"&quot;")}" placeholder="Nome do custo"><span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" data-costidx="${i}" data-cf="valor" value="${c.valor!=null&&c.valor!==""?c.valor:""}" placeholder="0,00"></span><button class="iact del" data-costdel="${i}" title="Remover">\u00d7</button></div>`).join("");
+  return `<div class="scard custoscard" data-mkey="${mkey}"><h4>Custos do m\u00eas &amp; resultado final</h4>
+    <div class="sec" style="margin:-4px 0 12px">Some aqui o que <b>n\u00e3o</b> est\u00e1 nas vendas: investimento em Ads e custos operacionais. Comiss\u00e3o e frete do ML j\u00e1 est\u00e3o descontados nas vendas \u2014 n\u00e3o repita.</div>
+    <div class="crow"><div class="clbl">Lucro das vendas <span class="sec">(receita l\u00edq. \u2212 custo dos produtos)</span></div><div class="cval">${brl(lucroVendas)}</div></div>
+    <div class="crow"><div class="clbl">\u2212 Investimento em Ads</div><div class="cinput"><span class="pricefield"><span class="pfx">R$</span><input class="skuprice adinput" type="number" step="0.01" data-extra="ad" value="${adShown}" placeholder="0,00"></span> ${acosNote}</div></div>
+    ${ex.custos.length?`<div class="costlist">${costRows}</div>`:""}
+    <div class="costadd"><button class="iact" data-costadd="Despesas fixas">+ Despesas fixas</button><button class="iact" data-costadd="Embalagem">+ Embalagem</button><button class="iact" data-costadd="Pr\u00f3-labore">+ Pr\u00f3-labore</button><button class="iact" data-costadd="Marketing externo">+ Marketing</button><button class="iact" data-costadd="">+ Outro</button></div>
+    <div class="crow total"><div class="clbl">Resultado final do m\u00eas</div><div class="cval ${resultado<0?"neg":"pos"}" data-resfinal>${brl(resultado)} <span class="marg ${margem>=(assumptions.meta||10)/100?"ok":margem>=0?"mid":"no"}">${pct(margem)}</span></div></div>
+  </div>`;
+}
 function renderSales(){
   const body=$("#salesBody"),empty=$("#salesEmpty");
   const monthKeys=Object.keys(SALES.months).sort();
@@ -2419,9 +2453,20 @@ function renderSales(){
   const adsCols=adCostByMlb?`<th class="r">Ads (est.)</th><th class="r">Lucro p\u00f3s-Ads</th>`:"";
   const main=`<div class="scard"><h4>${mainTitle}</h4>${adCostByMlb?'<div class="sec" style="margin:-4px 0 10px">Ads por an\u00fancio \u00e9 <b>estimado</b>: o investimento de cada campanha foi rateado entre os an\u00fancios dela pela receita atribu\u00edda.</div>':""}<div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${adsCols}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
   const adsHtml=adsData?adsPanelHtml(adsData,K.lucro,adcObj):"";
-  body.innerHTML=hist+filters+kpis+ded+adsHtml+boxes+chart+segs+prej+preco+devol+main;
+  const mkeyEdit=isHist?SALES.view:SALES.currentMonth;
+  const mrec=SALES.months[mkeyEdit];
+  const custosHtml=mrec?custosCardHtml(mkeyEdit,mrec,K.lucro,K.receita,adsData):"";
+  body.innerHTML=hist+filters+kpis+custosHtml+ded+boxes+chart+segs+prej+preco+devol+main;
   body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
   body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
+  if(mrec){
+    const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=K.lucro-effAdSpend(mrec)-outros;const mg=K.receita>0?res/K.receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
+    const adInp=body.querySelector('[data-extra="ad"]');
+    if(adInp)adInp.oninput=()=>{const ex=monthExtras(mrec);ex.adManual=adInp.value===""?null:(+adInp.value||0);recalc();persistSalesDebounced();};
+    body.querySelectorAll("[data-costidx]").forEach(inp=>inp.oninput=()=>{const ex=monthExtras(mrec);const i=+inp.dataset.costidx;if(!ex.custos[i])return;if(inp.dataset.cf==="valor")ex.custos[i].valor=inp.value===""?null:(+inp.value||0);else ex.custos[i].nome=inp.value;recalc();persistSalesDebounced();});
+    body.querySelectorAll("[data-costadd]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.push({nome:b.dataset.costadd||"",valor:null});persistSalesMonths();renderSales();});
+    body.querySelectorAll("[data-costdel]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.splice(+b.dataset.costdel,1);persistSalesMonths();renderSales();});
+  }
   if(!isHist){
     body.querySelectorAll(".sfilter").forEach(s=>s.onchange=()=>{salesFilters[s.dataset.sf]=s.value;renderSales();});
     body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
