@@ -311,6 +311,15 @@
   .costname{flex:1;border:1px solid var(--line2);border-radius:8px;padding:7px 10px;font-size:13px;color:var(--ink);background:#fff}
   .costadd{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
   .adinput{min-width:120px}
+  .chseg{display:inline-flex;gap:2px;background:var(--paper);border:1px solid var(--line2);border-radius:10px;padding:3px;margin-top:4px}
+  .chbtn{border:none;background:transparent;color:var(--muted);font-weight:700;font-size:13px;padding:7px 16px;border-radius:8px;cursor:pointer}
+  .chbtn.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .sgrid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.sgrid2{grid-template-columns:1fr}}
+  .bignum{font-size:30px;font-weight:800;color:var(--ink)}
+  .sortsh{cursor:pointer;user-select:none}.sortsh.on{color:var(--ink)}
+  .mc-l{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
+  tr.rowtot td{border-top:2px solid var(--line2);font-weight:700}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -376,7 +385,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 41</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 42</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -567,16 +576,21 @@
     <div class="head-actions">
       <h2>Fechamento &mdash; rentabilidade real</h2>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="file" id="salesFile" accept=".xlsx,.xls" style="display:none">
-        <button class="btn btn-primary" id="salesPick">Subir relatório de vendas</button>
+        <input type="file" id="salesFile" accept=".xlsx,.xls" multiple style="display:none">
+        <button class="btn btn-primary" id="salesPick">Subir relatório</button>
       </div>
     </div>
-    <p class="set-note" style="margin:-4px 0 18px;max-width:760px">Suba o relatório <b>Vendas</b> do Mercado Livre (.xlsx). Para cada venda eu cruzo o anúncio (MLB) com o seu kit cadastrado, puxo o <b>custo da composição</b> e calculo o <b>lucro real = Total depositado − custo</b>. Cancelados e devolvidos ficam num quadro à parte. <b>Obs.:</b> o custo de <b>publicidade (Ads)</b> não vem neste relatório — o lucro das vendas com Ads é <b>antes</b> desse custo.</p>
+    <div class="chseg" id="chseg">
+      <button class="chbtn on" data-ch="ml">Mercado Livre</button>
+      <button class="chbtn" data-ch="shp">Shopee</button>
+      <button class="chbtn" data-ch="both">Juntos</button>
+    </div>
+    <p class="set-note" id="salesNote" style="margin:8px 0 18px;max-width:760px"></p>
     <div id="salesBody"></div>
     <div class="empty" id="salesEmpty">
       <div class="big">Nenhum relatório carregado</div>
       <div>Suba o arquivo de <b>Vendas</b> do Mercado Livre para ver a rentabilidade de cada venda.</div>
-      <button class="btn btn-primary" style="margin-top:18px" id="salesPick2">Subir relatório de vendas</button>
+      <button class="btn btn-primary" style="margin-top:18px" id="salesPick2">Subir relatório</button>
     </div>
   </section>
 
@@ -2141,7 +2155,8 @@ function restoreDefaults(){
 }
 
 // ---------- Vendas (rentabilidade real) ----------
-const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual"};
+const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual",channel:"ml",shp:{months:{},view:""}};
+const shpSort={key:"lucro",dir:-1};
 const salesFilters={conta:"",tipo:"",pub:""};
 const salesSort={key:"lucro",dir:-1};
 const MESES={janeiro:0,fevereiro:1,"mar\u00e7o":2,marco:2,abril:3,maio:4,junho:5,julho:6,agosto:7,setembro:8,outubro:9,novembro:10,dezembro:11};
@@ -2151,6 +2166,7 @@ const MESES_ABR={jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov
 function parseAdDate(s){const t=String(s||"").match(/(\d{1,2})[-\/ ]([a-z\u00e7]{3,})[-\/ ](\d{4})/i);if(!t)return null;const mo=MESES_ABR[t[2].slice(0,3).toLowerCase()];if(mo==null)return null;return new Date(+t[3],mo,+t[1]);}
 function detectReport(wb){
   for(const sn of wb.SheetNames){const M=sheetMatrix(wb.Sheets[sn]);const flat=M.slice(0,4).map(r=>Array.isArray(r)?r:[]).reduce((a,r)=>a.concat(r),[]).map(x=>String(x||""));
+    if(flat.some(x=>/id do pedido/i.test(x))&&flat.some(x=>/taxa de comiss|n[u\u00fa]mero de refer[e\u00ea]ncia sku/i.test(x)))return {kind:"shopee",sheet:sn};
     if(flat.some(x=>/investimento/i.test(x)))return {kind:"adscampaign",sheet:sn};
     if(flat.some(x=>/n\.?[\u00bao] de venda/i.test(x)))return {kind:"sales",sheet:sn};
     if(flat.some(x=>/an[u\u00fa]ncio patrocinado/i.test(x)))return {kind:"adssales",sheet:sn};
@@ -2302,6 +2318,120 @@ function salesAgg(){
   return {K,mlbs:mlbsSorted,porTipo:seg("tipo"),porPub:seg("pub"),porConta:seg("conta"),semCusto,prejuizo,precoGap,devol,daily,
     periodo:(()=>{const ds=valid.map(r=>r.date).filter(Boolean).sort((a,b)=>a-b);const fmt=d=>d?d.toLocaleDateString("pt-BR"):"?";return ds.length?fmt(ds[0])+" \u2013 "+fmt(ds[ds.length-1]):"\u2014";})()};
 }
+function shpNum(v){return parseFloat(String(v==null?"":v).replace(/[^0-9.\-]/g,""))||0;}
+function shpNorm(s){return String(s==null?"":s).trim().toUpperCase().replace(/\s+/g,"");}
+function costByCodeMap(){const m={};(typeof CATALOG!=="undefined"?CATALOG:[]).forEach(p=>{if(p&&p.cod)m[String(p.cod).trim().toUpperCase()]=+p.c||0;});return m;}
+function shopeeSkuIndex(){
+  const idx={};
+  Object.values(saved||{}).forEach(rec=>{
+    const isShp=/^SHP/i.test(rec.sku||"")||/shopee/i.test(rec.plataforma||"")||/shopee/i.test(rec.canal||"")||(Array.isArray(rec.skusShopee)&&rec.skusShopee.length);
+    if(!isShp)return;
+    const keys=[].concat(rec.skusShopee||[],rec.varCodes?Object.keys(rec.varCodes):[],rec.dispSku?[rec.dispSku]:[]);
+    keys.forEach(k=>{const n=shpNorm(k);if(n&&!idx[n])idx[n]=rec;});
+  });
+  return idx;
+}
+function shopeeKitCost(rec,cbc){
+  if(!rec)return 0;
+  if(+rec.custoItens>0)return +rec.custoItens;
+  if(Array.isArray(rec.codigos)&&rec.codigos.length)return rec.codigos.reduce((s,c)=>s+(+(c.q||1))*(cbc[String(c.c||"").trim().toUpperCase()]||0),0);
+  return 0;
+}
+function shopeeDate(s){
+  if(s==null||s==="")return null;
+  if(s instanceof Date)return s;
+  const t=String(s).trim();
+  let m=t.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);
+  m=t.match(/(\d{1,2})[\/](\d{1,2})[\/](\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);
+  const d=new Date(t);return isNaN(d)?null:d;
+}
+function parseShopeeWB(wbList){
+  const cbc=costByCodeMap(), sidx=shopeeSkuIndex();
+  const byOrder={}; let sheetName="";
+  const list=Array.isArray(wbList)?wbList:[wbList];
+  list.forEach(wb=>{
+    const sn=wb.SheetNames.find(n=>/order|pedido/i.test(n))||wb.SheetNames[0];sheetName=sn;
+    const M=sheetMatrix(wb.Sheets[sn]);
+    let hr=M.findIndex(r=>Array.isArray(r)&&r.some(c=>/id do pedido/i.test(String(c||""))));if(hr<0)hr=0;
+    const H=headerIndex(M[hr]);
+    const col=(name,alt)=>{const k=Object.keys(H).find(h=>h.toLowerCase()===name.toLowerCase())||Object.keys(H).find(h=>h.toLowerCase().includes(name.toLowerCase()));return k!=null?H[k]:(alt==null?-1:alt);};
+    const c={id:col("ID do pedido",0),st:col("Status do pedido",1),dev:col("Status da Devolu",4),
+      sku:col("N\u00famero de refer\u00eancia SKU",18),skuP:col("N\u00ba de refer\u00eancia do SKU principal",16),prod:col("Nome do Produto",17),varn:col("Nome da varia\u00e7\u00e3o",19),
+      qt:col("Quantidade",23),sub:col("Subtotal do produto",24),vt:col("Valor Total",43),
+      com:col("Taxa de comiss\u00e3o l\u00edquida",48),serv:col("Taxa de servi\u00e7o l\u00edquida",50),trans:col("Taxa de transa\u00e7\u00e3o",46),frete:col("Valor estimado do frete",52),data:col("Data de cria\u00e7\u00e3o do pedido",8)};
+    for(let i=hr+1;i<M.length;i++){const r=M[i];if(!r)continue;const id=String(r[c.id]==null?"":r[c.id]).trim();if(!id)continue;
+      const line={sku:String(r[c.sku]||"").trim(),skuP:String(r[c.skuP]||"").trim(),prod:String(r[c.prod]||"").trim(),varn:String(r[c.varn]||"").trim(),qt:shpNum(r[c.qt])||1,sub:shpNum(r[c.sub])};
+      let o=byOrder[id];
+      if(!o)o=byOrder[id]={id,status:String(r[c.st]||"").trim(),dev:String(r[c.dev]||"").trim(),
+        vt:shpNum(r[c.vt]),com:shpNum(r[c.com]),serv:shpNum(r[c.serv]),trans:shpNum(r[c.trans]),frete:shpNum(r[c.frete]),
+        date:shopeeDate(r[c.data]),lines:[]};
+      else{o.vt=Math.max(o.vt,shpNum(r[c.vt]));o.com=Math.max(o.com,shpNum(r[c.com]));o.serv=Math.max(o.serv,shpNum(r[c.serv]));o.trans=Math.max(o.trans,shpNum(r[c.trans]));}
+      o.lines.push(line);
+    }
+  });
+  // classifica e casa custo
+  const rows=[];
+  Object.values(byOrder).forEach(o=>{
+    const net=o.vt-o.com-o.serv-o.trans;
+    const cancel=/cancel/i.test(o.status)||/reembols|devolu/i.test(o.dev);
+    const valid=!cancel&&/conclu|entregue|enviado/i.test(o.status)&&o.vt>0;
+    const subSum=o.lines.reduce((s,l)=>s+l.sub,0);
+    o.lines.forEach((l,li)=>{
+      const rec=sidx[shpNorm(l.sku)]||sidx[shpNorm(l.skuP)]||null;
+      const kitCost=shopeeKitCost(rec,cbc);
+      const matched=!!(rec&&kitCost>0);
+      const lineNet=subSum>0?net*(l.sub/subSum):(net/o.lines.length);
+      const lineCost=matched?kitCost*l.qt:0;
+      rows.push({orderId:o.id,first:li===0,status:o.status,cancel,valid,date:o.date,
+        sku:l.sku,skuP:l.skuP,produto:l.prod||(rec&&rec.nome)||"",variacao:l.varn,qt:l.qt,subtotal:l.sub,
+        orderBruto:o.vt,orderNet:net,comissao:o.com,servico:o.serv,transacao:o.trans,frete:o.frete,
+        rec,matched,kitCost,lineCost,lineNet,lineProfit:matched?(lineNet-lineCost):null});
+    });
+  });
+  return {rows,sheet:sheetName};
+}
+function shopeeAgg(rows){
+  const S=(a,g)=>a.reduce((s,x)=>s+g(x),0);
+  const validLines=rows.filter(r=>r.valid), cancelLines=rows.filter(r=>r.cancel);
+  const matched=validLines.filter(r=>r.matched), unmatched=validLines.filter(r=>!r.matched);
+  const firstValid=validLines.filter(r=>r.first), firstCancel=cancelLines.filter(r=>r.first);
+  const receita=S(validLines,x=>x.lineNet), custo=S(matched,x=>x.lineCost), lucro=S(matched,x=>x.lineProfit);
+  const recMatched=S(matched,x=>x.lineNet);
+  const bruto=S(firstValid,x=>x.orderBruto), comissaoTot=S(firstValid,x=>x.comissao), servicoTot=S(firstValid,x=>x.servico), transacaoTot=S(firstValid,x=>x.transacao);
+  const K={nVend:firstValid.length,unid:S(validLines,x=>x.qt),receita,custo,lucro,
+    margem:recMatched>0?lucro/recMatched:0,ticket:firstValid.length?receita/firstValid.length:0,
+    nCancel:firstCancel.length,recCancel:S(firstCancel,x=>x.orderBruto),
+    nUnmatched:unmatched.length,recUnmatched:S(unmatched,x=>x.lineNet),
+    bruto,comissaoTot,servicoTot,transacaoTot,takeRate:bruto>0?receita/bruto:0,
+    comissaoPct:bruto>0?comissaoTot/bruto:0,servicoPct:bruto>0?servicoTot/bruto:0};
+  // por SKU/produto
+  const bm={};
+  validLines.forEach(r=>{const key=r.sku||r.produto;let g=bm[key];if(!g)g=bm[key]={sku:r.sku,produto:r.produto,variacao:r.variacao,n:0,un:0,receita:0,custo:0,lucro:0,matched:true};
+    g.n++;g.un+=r.qt;g.receita+=r.lineNet;if(r.matched){g.custo+=r.lineCost;g.lucro+=r.lineProfit;}else g.matched=false;});
+  const prods=Object.values(bm).map(g=>({...g,margem:g.matched&&g.receita?g.lucro/g.receita:null}));
+  const sk=shpSort.key,dir=shpSort.dir;const val=g=>{const v=g[sk];return v==null?-Infinity:v;};
+  const prodsSorted=[...prods].sort((a,b)=>dir<0?(val(b)-val(a)):(val(a)-val(b)));
+  const um={};unmatched.forEach(r=>{const k=r.sku||r.produto;let g=um[k];if(!g)g=um[k]={sku:r.sku,produto:r.produto,n:0,receita:0};g.n++;g.receita+=r.lineNet;});
+  const semCusto=Object.values(um).sort((a,b)=>b.receita-a.receita);
+  const prejuizo=prods.filter(g=>g.matched&&g.lucro<0).sort((a,b)=>a.lucro-b.lucro);
+  const dm={};firstValid.forEach(r=>{if(!r.date)return;const t=new Date(r.date.getFullYear(),r.date.getMonth(),r.date.getDate()).getTime();let g=dm[t];if(!g)g=dm[t]={t,day:r.date.getDate(),label:new Date(t).toLocaleDateString("pt-BR"),n:0,receita:0,lucro:0};g.n++;g.receita+=r.orderNet;}); 
+  matched.forEach(r=>{if(!r.date)return;const t=new Date(r.date.getFullYear(),r.date.getMonth(),r.date.getDate()).getTime();if(dm[t])dm[t].lucro+=r.lineProfit;});
+  const daily=Object.values(dm).sort((a,b)=>a.t-b.t);
+  const ds=firstValid.map(r=>r.date).filter(Boolean).sort((a,b)=>a-b);const fmt=d=>d?d.toLocaleDateString("pt-BR"):"?";
+  return {K,prods:prodsSorted,semCusto,prejuizo,daily,periodo:ds.length?fmt(ds[0])+" \u2013 "+fmt(ds[ds.length-1]):"\u2014"};
+}
+function shopeeMonthKey(rows){const ds=rows.filter(r=>r.valid&&r.date&&r.first).map(r=>r.date).sort((a,b)=>a-b);const d=ds[0]||new Date();return {key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})};}
+async function applyShopee(wbList,fileName){
+  await ensureSalesMonths();
+  const {rows}=parseShopeeWB(wbList);
+  if(!rows.length){toast("N\u00e3o encontrei pedidos nesse arquivo Shopee");return;}
+  const mk=shopeeMonthKey(rows);const A=shopeeAgg(rows);
+  const prev=SALES.shp.months[mk.key]||{};
+  SALES.shp.months[mk.key]={month:mk.key,monthLabel:mk.label,fileName,uploadedAt:Date.now(),A,extras:prev.extras||{adManual:null,custos:[]}};
+  SALES.channel="shp";SALES.shp.view=mk.key;
+  renderFechamento();await persistSalesMonths();
+  toast(A.K.nVend.toLocaleString("pt-BR")+" pedidos Shopee de "+mk.label+" \u00b7 l\u00edquido "+brl(A.K.receita));
+}
 function dailyChart(daily){
   if(!daily.length)return "";
   const bw=16,gap=10,x0=10,h=150,pad=26;
@@ -2319,10 +2449,10 @@ function segTableHtml(title,arr){
 function kpi(label,val,cls){return `<div class="skpi${cls?" "+cls:""}"><div class="sk-l">${label}</div><div class="sk-v">${val}</div></div>`;}
 async function ensureSalesMonths(){
   if(SALES.monthsLoaded)return;
-  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};}
+  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};SALES.shp.months=(d&&d.shpMonths)||{};if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};SALES.shp.months={};}
   SALES.monthsLoaded=true;
 }
-async function persistSalesMonths(){try{await DB.setSales({months:SALES.months});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
+async function persistSalesMonths(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
 function monthKeyOf(rows){
   const ds=rows.filter(r=>r.valid&&r.date).map(r=>r.date).sort((a,b)=>a-b);
   const d=ds[0]||new Date();
@@ -2333,7 +2463,7 @@ function buildMonthSummary(rows,fileName,key,label){
   const prev=SALES.rows;SALES.rows=rows;const A=salesAgg();SALES.rows=prev;Object.assign(salesFilters,savedF);
   return {month:key,monthLabel:label,fileName,uploadedAt:Date.now(),A};
 }
-async function openSales(){await ensureSalesMonths();renderSales();}
+async function openSales(){await ensureSalesMonths();renderFechamento();}
 function monthTrend(keys){
   const bw=34,gap=14,x0=10,h=120,pad=24;
   const vals=keys.map(k=>SALES.months[k].A.K.lucro);
@@ -2385,10 +2515,80 @@ function custosCardHtml(mkey,mrec,lucroVendas,receita,adsData){
     <div class="crow total"><div class="clbl">Resultado final do m\u00eas</div><div class="cval ${resultado<0?"neg":"pos"}" data-resfinal>${brl(resultado)} <span class="marg ${margem>=(assumptions.meta||10)/100?"ok":margem>=0?"mid":"no"}">${pct(margem)}</span></div></div>
   </div>`;
 }
+function wireCustos(body,mrec,lucro,receita){
+  if(!mrec)return;
+  const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=lucro-effAdSpend(mrec)-outros;const mg=receita>0?res/receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
+  const adInp=body.querySelector('[data-extra="ad"]');
+  if(adInp)adInp.oninput=()=>{const ex=monthExtras(mrec);ex.adManual=adInp.value===""?null:(+adInp.value||0);recalc();persistSalesDebounced();};
+  body.querySelectorAll("[data-costidx]").forEach(inp=>inp.oninput=()=>{const ex=monthExtras(mrec);const i=+inp.dataset.costidx;if(!ex.custos[i])return;if(inp.dataset.cf==="valor")ex.custos[i].valor=inp.value===""?null:(+inp.value||0);else ex.custos[i].nome=inp.value;recalc();persistSalesDebounced();});
+  body.querySelectorAll("[data-costadd]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.push({nome:b.dataset.costadd||"",valor:null});persistSalesMonths();renderFechamento();});
+  body.querySelectorAll("[data-costdel]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.splice(+b.dataset.costdel,1);persistSalesMonths();renderFechamento();});
+}
+function renderFechamento(){
+  const seg=$("#chseg");if(seg)seg.querySelectorAll(".chbtn").forEach(b=>b.classList.toggle("on",b.dataset.ch===SALES.channel));
+  const note=$("#salesNote");
+  if(note)note.innerHTML=SALES.channel==="shp"
+    ?"Suba o relat\u00f3rio de <b>pedidos</b> da Shopee (Meus Pedidos \u2192 Exportar, status Conclu\u00eddo/Todos). L\u00edquido por pedido = Valor Total \u2212 comiss\u00e3o \u2212 servi\u00e7o \u2212 transa\u00e7\u00e3o; o custo do kit vem da composi\u00e7\u00e3o deduzida. Se o export vier em 2 partes, selecione as duas juntas."
+    :SALES.channel==="both"
+    ?"Vis\u00e3o combinada: Mercado Livre + Shopee no mesmo m\u00eas, separado e somado. Para editar Ads/custos, escolha o canal espec\u00edfico."
+    :"Suba o relat\u00f3rio <b>Vendas</b> do Mercado Livre (.xlsx). Lucro real = Total depositado \u2212 custo da composi\u00e7\u00e3o. O custo de Ads entra na se\u00e7\u00e3o Custos do m\u00eas.";
+  if(SALES.channel==="shp")return renderShopee();
+  if(SALES.channel==="both")return renderCombined();
+  return renderSales();
+}
+function renderShopee(){
+  const body=$("#salesBody"),empty=$("#salesEmpty");
+  const keys=Object.keys(SALES.shp.months).sort();
+  if(!keys.length){body.innerHTML="";empty.style.display="";empty.querySelector(".big").textContent="Nenhum relat\u00f3rio Shopee";empty.querySelector("div:nth-child(2)").innerHTML="Suba o relat\u00f3rio de <b>pedidos</b> da Shopee para ver a rentabilidade.";return;}
+  empty.style.display="none";
+  const sel=SALES.shp.view&&SALES.shp.months[SALES.shp.view]?SALES.shp.view:keys[keys.length-1];SALES.shp.view=sel;
+  const mrec=SALES.shp.months[sel],A=mrec.A,K=A.K;
+  const strip=keys.map(k=>{const m=SALES.shp.months[k],on=k===sel;return `<button class="mchip${on?" on":""}" data-shmonth="${k}">${m.monthLabel}<span class="mc-l">${brl(m.A.K.lucro)}</span><span class="mdel" data-shdel="${k}" title="Remover">\u00d7</span></button>`;}).join("");
+  const hist=`<div class="scard histcard"><h4>Meses (Shopee)</h4><div class="mstrip">${strip}</div></div>`;
+  const kpis=`<div class="skpis">${kpi("Pedidos",K.nVend.toLocaleString("pt-BR"))}${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}${kpi("Receita l\u00edq.",brl(K.receita))}${kpi("Custo",brl(K.custo))}${kpi("Lucro",brl(K.lucro),K.lucro<0?"neg":"pos")}${kpi("Margem",pct(K.margem))}${kpi("Cancelados",K.nCancel.toLocaleString("pt-BR"))}</div>`;
+  const custosHtml=custosCardHtml(sel,mrec,K.lucro,K.receita,null);
+  const ded=`<div class="scard"><h4>Do bruto ao l\u00edquido</h4><div class="dedgrid">
+    <div><div class="sk-l">Bruto (Valor Total)</div><div class="dedv">${brl(K.bruto)}</div></div>
+    <div><div class="sk-l">\u2212 Comiss\u00e3o</div><div class="dedv neg">\u2212${brl(K.comissaoTot)}</div><div class="sec">${pct(K.comissaoPct)}</div></div>
+    <div><div class="sk-l">\u2212 Servi\u00e7o</div><div class="dedv neg">\u2212${brl(K.servicoTot)}</div><div class="sec">${pct(K.servicoPct)}</div></div>
+    <div><div class="sk-l">= Recebido</div><div class="dedv">${brl(K.receita)}</div><div class="sec">take ${pct(K.takeRate)}</div></div></div></div>`;
+  const boxes=`<div class="sgrid2">
+    <div class="scard"><h4>Cancelados / devolvidos</h4><div class="bignum">${K.nCancel.toLocaleString("pt-BR")}</div><div class="sec">${brl(K.recCancel)} em pedidos fora do lucro</div></div>
+    <div class="scard"><h4>Sem custo cadastrado</h4><div class="bignum">${A.semCusto.length}</div><div class="sec">${brl(K.recUnmatched)} em ${K.nUnmatched} linhas \u2014 cadastre o kit p/ entrar no lucro</div></div></div>`;
+  const chart=A.daily&&A.daily.length?`<div class="scard"><h4>Lucro por dia</h4>${dailyChart(A.daily)}</div>`:"";
+  const sk=shpSort.key,dir=shpSort.dir,val=g=>{const v=g[sk];return v==null?-Infinity:v;};
+  const prods=[...A.prods].sort((a,b)=>dir<0?val(b)-val(a):val(a)-val(b));
+  const sortsh=(key,label,r)=>{const on=shpSort.key===key,arr=on?(shpSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${r?"r ":""}sortsh${on?" on":""}" data-shsort="${key}">${label}${arr}</th>`;};
+  const prows=prods.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
+  const main=`<div class="scard"><h4>Por produto (${A.prods.length}) \u2014 clique nos t\u00edtulos pra ordenar</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></div>`;
+  body.innerHTML=hist+kpis+custosHtml+ded+boxes+chart+main;
+  body.querySelectorAll("[data-shmonth]").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.shdel!=null)return;SALES.shp.view=c.dataset.shmonth;renderShopee();});
+  body.querySelectorAll("[data-shdel]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.shdel,m=SALES.shp.months[k];if(!confirm("Remover o fechamento Shopee de "+((m&&m.monthLabel)||k)+"?"))return;delete SALES.shp.months[k];if(SALES.shp.view===k)SALES.shp.view="";await persistSalesMonths();renderShopee();toast("Removido");});
+  body.querySelectorAll("[data-shsort]").forEach(th=>th.onclick=()=>{const k=th.dataset.shsort;if(shpSort.key===k)shpSort.dir*=-1;else{shpSort.key=k;shpSort.dir=-1;}renderShopee();});
+  wireCustos(body,mrec,K.lucro,K.receita);
+}
+function renderCombined(){
+  const body=$("#salesBody"),empty=$("#salesEmpty");
+  const keys=[...new Set([...Object.keys(SALES.months),...Object.keys(SALES.shp.months)])].sort();
+  if(!keys.length){body.innerHTML="";empty.style.display="";empty.querySelector(".big").textContent="Nada carregado ainda";empty.querySelector("div:nth-child(2)").innerHTML="Suba os relat\u00f3rios de <b>Mercado Livre</b> e/ou <b>Shopee</b>.";return;}
+  empty.style.display="none";
+  if(!SALES._bothView||!keys.includes(SALES._bothView))SALES._bothView=keys[keys.length-1];
+  const sel=SALES._bothView,ml=SALES.months[sel],shp=SALES.shp.months[sel];
+  const row=(name,rec,getK)=>{if(!rec)return {name,has:false};const K=getK(rec),ad=effAdSpend(rec),ex=monthExtras(rec),outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);return {name,has:true,receita:K.receita,custo:K.custo,lucro:K.lucro,ad,outros,res:K.lucro-ad-outros};};
+  const chans=[row("Mercado Livre",ml,r=>r.A.K),row("Shopee",shp,r=>r.A.K)].filter(c=>c.has);
+  const T={receita:0,custo:0,lucro:0,ad:0,outros:0,res:0};chans.forEach(c=>{T.receita+=c.receita;T.custo+=c.custo;T.lucro+=c.lucro;T.ad+=c.ad;T.outros+=c.outros;T.res+=c.res;});
+  const strip=keys.map(k=>{const has=(SALES.months[k]?1:0)+(SALES.shp.months[k]?1:0),on=k===sel,lbl=(SALES.months[k]||SALES.shp.months[k]).monthLabel;return `<button class="mchip${on?" on":""}" data-bothmonth="${k}">${lbl}<span class="mc-l">${has} canal${has>1?"is":""}</span></button>`;}).join("");
+  const hist=`<div class="scard histcard"><h4>Meses</h4><div class="mstrip">${strip}</div></div>`;
+  const kpis=`<div class="skpis">${kpi("Receita l\u00edq.",brl(T.receita))}${kpi("Custo produtos",brl(T.custo))}${kpi("Lucro vendas",brl(T.lucro),T.lucro<0?"neg":"pos")}${kpi("Ads",brl(T.ad))}${kpi("Outros custos",brl(T.outros))}${kpi("Resultado final",brl(T.res),T.res<0?"neg":"pos")}</div>`;
+  const fr=c=>`<tr><td>${c.name}</td><td class="r">${brl(c.receita)}</td><td class="r sec">${brl(c.custo)}</td><td class="r">${brl(c.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r sec">${brl(c.outros)}</td><td class="r"><b class="${c.res<0?'neg':''}">${brl(c.res)}</b></td></tr>`;
+  const table=`<div class="scard"><h4>Por canal \u2014 ${(ml||shp).monthLabel}</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Canal</th><th class="r">Receita l\u00edq.</th><th class="r">Custo</th><th class="r">Lucro vendas</th><th class="r">Ads</th><th class="r">Outros</th><th class="r">Resultado</th></tr></thead><tbody>${chans.map(fr).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${brl(T.receita)}</b></td><td class="r">${brl(T.custo)}</td><td class="r"><b>${brl(T.lucro)}</b></td><td class="r">${brl(T.ad)}</td><td class="r">${brl(T.outros)}</td><td class="r"><b class="${T.res<0?'neg':''}">${brl(T.res)}</b></td></tr></tbody></table></div><div class="sec" style="margin-top:8px">Para ajustar Ads/custos de um canal, abra o canal espec\u00edfico.</div></div>`;
+  body.innerHTML=hist+kpis+table;
+  body.querySelectorAll("[data-bothmonth]").forEach(c=>c.onclick=()=>{SALES._bothView=c.dataset.bothmonth;renderCombined();});
+}
 function renderSales(){
   const body=$("#salesBody"),empty=$("#salesEmpty");
   const monthKeys=Object.keys(SALES.months).sort();
-  if(!SALES.loaded && !monthKeys.length){body.innerHTML="";empty.style.display="";return;}
+  if(!SALES.loaded && !monthKeys.length){body.innerHTML="";empty.style.display="";empty.querySelector(".big").textContent="Nenhum relat\u00f3rio Mercado Livre";empty.querySelector("div:nth-child(2)").innerHTML="Suba o arquivo de <b>Vendas</b> do Mercado Livre para ver a rentabilidade.";return;}
   empty.style.display="none";
   let isHist=false,A,meta;
   if(SALES.view!=="atual" && SALES.months[SALES.view]){meta=SALES.months[SALES.view];A=meta.A||null;isHist=true;}
@@ -2472,25 +2672,29 @@ function renderSales(){
     body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
   }
 }
-async function onSalesFile(file){
-  if(!file)return;
+async function onSalesFiles(files){
+  if(!files||!files.length)return;
   if(typeof XLSX==="undefined"){toast("A leitura de planilha n\u00e3o carregou (precisa de internet)");return;}
   toast("Lendo relat\u00f3rio\u2026");
   try{
-    const wb=await readWorkbook(file);
-    const det=detectReport(wb);
-    if(det.kind==="adscampaign"){await applyAdsCampaign(wb,file.name);return;}
-    if(det.kind==="adssales"){await applyAdsAttribution(wb,file.name);return;}
-    const {rows,sheet}=parseSalesWB(wb);
-    if(!rows.length){toast("N\u00e3o encontrei vendas nesse arquivo");return;}
-    await ensureSalesMonths();
-    const mk=monthKeyOf(rows);
-    SALES.loaded=true;SALES.rows=rows;SALES.fileName=file.name;SALES.sheet=sheet;SALES.currentMonth=mk.key;SALES.view="atual";
-    SALES.months[mk.key]=buildMonthSummary(rows,file.name,mk.key,mk.label);
-    renderSales();
-    await persistSalesMonths();
-    const val=rows.filter(r=>r.valid).length;
-    toast(val.toLocaleString("pt-BR")+" vendas de "+mk.label+" salvas na nuvem");
+    const parsed=[];for(const f of files){const wb=await readWorkbook(f);parsed.push({wb,name:f.name,det:detectReport(wb)});}
+    const shp=parsed.filter(p=>p.det.kind==="shopee");
+    if(shp.length)await applyShopee(shp.map(p=>p.wb),shp.map(p=>p.name).join(", "));
+    for(const p of parsed){
+      if(p.det.kind==="adscampaign")await applyAdsCampaign(p.wb,p.name);
+      else if(p.det.kind==="adssales")await applyAdsAttribution(p.wb,p.name);
+      else if(p.det.kind==="sales"){
+        const {rows,sheet}=parseSalesWB(p.wb);
+        if(!rows.length){toast("N\u00e3o encontrei vendas em "+p.name);continue;}
+        await ensureSalesMonths();
+        const mk=monthKeyOf(rows);
+        SALES.loaded=true;SALES.rows=rows;SALES.fileName=p.name;SALES.sheet=sheet;SALES.currentMonth=mk.key;SALES.view="atual";SALES.channel="ml";
+        SALES.months[mk.key]=buildMonthSummary(rows,p.name,mk.key,mk.label);
+        await persistSalesMonths();
+        toast(rows.filter(r=>r.valid).length.toLocaleString("pt-BR")+" vendas de "+mk.label+" salvas na nuvem");
+      }
+    }
+    renderFechamento();
   }catch(e){console.error(e);toast("Falha ao ler o arquivo");}
 }
 
@@ -2510,7 +2714,8 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.
 $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
 $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
 $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
-(function(){const f=$("#salesFile");const pick=()=>f&&f.click();$("#salesPick")&&($("#salesPick").onclick=pick);$("#salesPick2")&&($("#salesPick2").onclick=pick);f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onSalesFile(file);e.target.value="";});})();
+(function(){const f=$("#salesFile");const pick=()=>f&&f.click();$("#salesPick")&&($("#salesPick").onclick=pick);$("#salesPick2")&&($("#salesPick2").onclick=pick);f&&(f.onchange=e=>{const files=e.target.files;onSalesFiles(files);e.target.value="";});})();
+document.querySelectorAll("#chseg .chbtn").forEach(b=>b.onclick=()=>{SALES.channel=b.dataset.ch;renderFechamento();});
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
 $("#refreshDash").onclick=async()=>{await refreshSkus();renderDashboard();};
 $("#refreshBtn").onclick=refreshSkus;
