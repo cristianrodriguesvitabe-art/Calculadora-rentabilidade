@@ -320,6 +320,23 @@
   .sortsh{cursor:pointer;user-select:none}.sortsh.on{color:var(--ink)}
   .mc-l{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
   tr.rowtot td{border-top:2px solid var(--line2);font-weight:700}
+  .abcp{display:inline-block;min-width:16px;text-align:center;font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:1px 4px;vertical-align:middle}
+  .abc-A{background:var(--forest)}.abc-B{background:#C9A227}.abc-C{background:var(--muted)}
+  .abcwrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .abclegs{flex:1;min-width:180px}
+  .abcleg{font-size:13px;color:var(--ink);padding:2px 0}
+  .abcdot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+  .mvrow{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--paper)}
+  .mvrow:last-child{border-bottom:none}
+  .mvarrow{font-size:12px;font-weight:800}.mvarrow.up{color:var(--forest)}.mvarrow.down{color:var(--red,#b23b3b)}.mvarrow.new{color:#C9A227}
+  .mvlbl{flex:1;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .mvval{text-align:right;font-variant-numeric:tabular-nums}.mvval .sec{display:block;font-size:11px}
+  .detwrap{border:1px solid var(--line2);border-radius:12px;padding:6px 14px;margin-top:14px;background:var(--card,#fff)}
+  .detwrap>summary{cursor:pointer;padding:8px 0;color:var(--muted);list-style:none}
+  .detwrap>summary::-webkit-details-marker{display:none}
+  .detwrap>summary::before{content:"\u25b8 ";color:var(--muted)}
+  .detwrap[open]>summary::before{content:"\u25be "}
+  .detwrap[open]{padding-bottom:14px}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -385,7 +402,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 42</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 43</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2515,6 +2532,55 @@ function custosCardHtml(mkey,mrec,lucroVendas,receita,adsData){
     <div class="crow total"><div class="clbl">Resultado final do m\u00eas</div><div class="cval ${resultado<0?"neg":"pos"}" data-resfinal>${brl(resultado)} <span class="marg ${margem>=(assumptions.meta||10)/100?"ok":margem>=0?"mid":"no"}">${pct(margem)}</span></div></div>
   </div>`;
 }
+const ABC_COL={A:"var(--forest)",B:"#C9A227",C:"var(--muted)"};
+function abcClassify(items,vf){
+  const arr=items.filter(x=>vf(x)>0).slice().sort((a,b)=>vf(b)-vf(a));
+  const sum=arr.reduce((s,x)=>s+vf(x),0)||1;let cum=0;
+  const groups={A:{n:0,rev:0},B:{n:0,rev:0},C:{n:0,rev:0}};
+  arr.forEach(x=>{const v=vf(x);const before=cum/sum;cum+=v;const cls=before<0.8?"A":before<0.95?"B":"C";x._abc=cls;groups[cls].n++;groups[cls].rev+=v;});
+  return {list:arr,sum,groups};
+}
+function donutChart(parts,center,sub){
+  const tot=parts.reduce((s,p)=>s+p.value,0)||1;const R=54,r=34,cx=62,cy=62;let a0=-Math.PI/2;
+  const seg=parts.filter(p=>p.value>0).map(p=>{const frac=p.value/tot;let a1=a0+frac*2*Math.PI;if(frac>=0.9999)a1=a0+2*Math.PI-0.001;const large=frac>0.5?1:0;
+    const x0=cx+R*Math.cos(a0),y0=cy+R*Math.sin(a0),x1=cx+R*Math.cos(a1),y1=cy+R*Math.sin(a1);
+    const xi1=cx+r*Math.cos(a1),yi1=cy+r*Math.sin(a1),xi0=cx+r*Math.cos(a0),yi0=cy+r*Math.sin(a0);
+    a0=a1;return `<path d="M${x0.toFixed(2)},${y0.toFixed(2)} A${R},${R} 0 ${large} 1 ${x1.toFixed(2)},${y1.toFixed(2)} L${xi1.toFixed(2)},${yi1.toFixed(2)} A${r},${r} 0 ${large} 0 ${xi0.toFixed(2)},${yi0.toFixed(2)} Z" fill="${p.color}"><title>${p.label}: ${brl(p.value)} (${pct(frac)})</title></path>`;}).join("");
+  return `<svg width="124" height="124" viewBox="0 0 124 124">${seg}${center?`<text x="62" y="60" text-anchor="middle" font-size="15" font-weight="800" fill="var(--ink)">${center}</text>`:""}${sub?`<text x="62" y="76" text-anchor="middle" font-size="9" fill="var(--muted)">${sub}</text>`:""}</svg>`;
+}
+function paretoChart(list,vf,labelFn,N){
+  N=N||14;const top=list.slice(0,N);const sum=list.reduce((s,x)=>s+vf(x),0)||1;
+  const bw=20,gap=12,x0=10,h=180,pad=28;const max=Math.max(...top.map(vf),1);const W=x0*2+top.length*(bw+gap);
+  let cum=0;const pts=[];
+  const bars=top.map((x,i)=>{const v=vf(x);cum+=v;const bx=x0+i*(bw+gap);const bh=Math.max(Math.round(v/max*(h-pad*2)),1);const by=h-pad-bh;
+    pts.push([bx+bw/2,(h-pad)-(cum/sum)*(h-2*pad)]);
+    return `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="3" fill="${ABC_COL[x._abc||"A"]}"><title>${labelFn(x)}: ${brl(v)} (${pct(v/sum)} acum. ${pct(cum/sum)})</title></rect>`;}).join("");
+  const line=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+  const dots=pts.map(p=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.5" fill="var(--ink)"/>`).join("");
+  return `<div class="stabwrap"><svg width="${W}" height="${h}"><line x1="0" y1="${h-pad}" x2="${W}" y2="${h-pad}" stroke="var(--line2)"/>${bars}<path d="${line}" fill="none" stroke="var(--ink)" stroke-width="1.5" opacity=".5"/>${dots}</svg></div>`;
+}
+function abcCardHtml(abc,total){
+  const g=abc.groups,parts=[{label:"A",value:g.A.rev,color:ABC_COL.A},{label:"B",value:g.B.rev,color:ABC_COL.B},{label:"C",value:g.C.rev,color:ABC_COL.C}];
+  const leg=["A","B","C"].map(k=>`<div class="abcleg"><span class="abcdot" style="background:${ABC_COL[k]}"></span><b>${k}</b> \u00b7 ${g[k].n} itens \u00b7 ${brl(g[k].rev)} <span class="sec">(${pct(g[k].rev/(abc.sum||1))})</span></div>`).join("");
+  return `<div class="scard"><h4>Curva ABC (por receita)</h4><div class="abcwrap"><div>${donutChart(parts,(g.A.n).toString(),"itens A")}</div><div class="abclegs">${leg}<div class="sec" style="margin-top:6px">A = ~80% da receita \u00b7 foque aqui. C = cauda longa.</div></div></div></div>`;
+}
+function moversData(cur,prev,keyFn,vf){
+  const pm={};(prev||[]).forEach(x=>{pm[keyFn(x)]=vf(x);});
+  const arr=cur.map(x=>{const was=pm[keyFn(x)];const now=vf(x);return {x,now,was,delta:was==null?null:now-was,pctd:(was>0)?(now-was)/was:null,isNew:was==null};});
+  return {up:arr.filter(a=>a.delta>0).sort((a,b)=>b.delta-a.delta).slice(0,5),
+    down:arr.filter(a=>a.delta<0).sort((a,b)=>a.delta-b.delta).slice(0,5),
+    novos:arr.filter(a=>a.isNew&&a.now>0).sort((a,b)=>b.now-a.now).slice(0,5)};
+}
+function moversCardsHtml(m,labelFn,prevLabel){
+  if(!m)return "";
+  const row=(a,dir)=>`<div class="mvrow"><span class="mvarrow ${dir}">${dir==="up"?"\u25b2":"\u25bc"}</span><div class="mvlbl">${labelFn(a.x)}</div><div class="mvval"><b>${brl(a.now)}</b><span class="sec">${a.pctd!=null?(a.delta>0?"+":"")+pct(a.pctd):""}</span></div></div>`;
+  const novo=a=>`<div class="mvrow"><span class="mvarrow new">\u2726</span><div class="mvlbl">${labelFn(a.x)}</div><div class="mvval"><b>${brl(a.now)}</b><span class="sec">novo</span></div></div>`;
+  const up=m.up.length?m.up.map(a=>row(a,"up")).join(""):'<div class="sec">\u2014</div>';
+  const down=m.down.length?m.down.map(a=>row(a,"down")).join(""):'<div class="sec">\u2014</div>';
+  const nv=m.novos.length?`<div class="scard"><h4>Novos / reativados</h4>${m.novos.map(novo).join("")}</div>`:"";
+  return `<div class="sgrid2"><div class="scard"><h4>Em alta <span class="sec">vs ${prevLabel}</span></h4>${up}</div><div class="scard"><h4>Em queda <span class="sec">vs ${prevLabel}</span></h4>${down}</div></div>${nv}`;
+}
+function nameKey(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g,"").split(/\s+/).filter(w=>w.length>2&&!/^(com|sem|para|renova|kit|und|uni|the)$/.test(w)).sort().slice(0,5).join(" ");}
 function wireCustos(body,mrec,lucro,receita){
   if(!mrec)return;
   const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=lucro-effAdSpend(mrec)-outros;const mg=receita>0?res/receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
@@ -2547,6 +2613,12 @@ function renderShopee(){
   const hist=`<div class="scard histcard"><h4>Meses (Shopee)</h4><div class="mstrip">${strip}</div></div>`;
   const kpis=`<div class="skpis">${kpi("Pedidos",K.nVend.toLocaleString("pt-BR"))}${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}${kpi("Receita l\u00edq.",brl(K.receita))}${kpi("Custo",brl(K.custo))}${kpi("Lucro",brl(K.lucro),K.lucro<0?"neg":"pos")}${kpi("Margem",pct(K.margem))}${kpi("Cancelados",K.nCancel.toLocaleString("pt-BR"))}</div>`;
   const custosHtml=custosCardHtml(sel,mrec,K.lucro,K.receita,null);
+  const abc=abcClassify(A.prods,x=>x.receita);
+  const idxSel=keys.indexOf(sel);const prevKey=idxSel>0?keys[idxSel-1]:null;const prevProds=prevKey?(SALES.shp.months[prevKey].A.prods):null;
+  const m=prevProds?moversData(A.prods,prevProds,x=>x.sku||x.produto,x=>x.receita):null;
+  const dailyCard=A.daily&&A.daily.length?`<div class="scard"><h4>Lucro por dia</h4>${dailyChart(A.daily)}</div>`:"";
+  const band=`<div class="sgrid2">${abcCardHtml(abc)}<div class="scard"><h4>Top produtos (Pareto)</h4>${paretoChart(abc.list,x=>x.receita,x=>x.sku||x.produto)}</div></div>${dailyCard}`;
+  const movers=m?moversCardsHtml(m,x=>x.sku||(x.produto||"").slice(0,28),SALES.shp.months[prevKey].monthLabel):"";
   const ded=`<div class="scard"><h4>Do bruto ao l\u00edquido</h4><div class="dedgrid">
     <div><div class="sk-l">Bruto (Valor Total)</div><div class="dedv">${brl(K.bruto)}</div></div>
     <div><div class="sk-l">\u2212 Comiss\u00e3o</div><div class="dedv neg">\u2212${brl(K.comissaoTot)}</div><div class="sec">${pct(K.comissaoPct)}</div></div>
@@ -2555,13 +2627,12 @@ function renderShopee(){
   const boxes=`<div class="sgrid2">
     <div class="scard"><h4>Cancelados / devolvidos</h4><div class="bignum">${K.nCancel.toLocaleString("pt-BR")}</div><div class="sec">${brl(K.recCancel)} em pedidos fora do lucro</div></div>
     <div class="scard"><h4>Sem custo cadastrado</h4><div class="bignum">${A.semCusto.length}</div><div class="sec">${brl(K.recUnmatched)} em ${K.nUnmatched} linhas \u2014 cadastre o kit p/ entrar no lucro</div></div></div>`;
-  const chart=A.daily&&A.daily.length?`<div class="scard"><h4>Lucro por dia</h4>${dailyChart(A.daily)}</div>`:"";
   const sk=shpSort.key,dir=shpSort.dir,val=g=>{const v=g[sk];return v==null?-Infinity:v;};
   const prods=[...A.prods].sort((a,b)=>dir<0?val(b)-val(a):val(a)-val(b));
   const sortsh=(key,label,r)=>{const on=shpSort.key===key,arr=on?(shpSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${r?"r ":""}sortsh${on?" on":""}" data-shsort="${key}">${label}${arr}</th>`;};
-  const prows=prods.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
-  const main=`<div class="scard"><h4>Por produto (${A.prods.length}) \u2014 clique nos t\u00edtulos pra ordenar</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></div>`;
-  body.innerHTML=hist+kpis+custosHtml+ded+boxes+chart+main;
+  const prows=prods.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="abcp abc-${g._abc||"C"}">${g._abc||"C"}</span> <span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,44)}${g.variacao?" \u00b7 "+g.variacao.slice(0,20):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
+  const main=`<details class="detwrap" open><summary><h4 style="display:inline">Por produto (${A.prods.length})</h4> <span class="sec">clique nos t\u00edtulos pra ordenar</span></summary><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></details>`;
+  body.innerHTML=hist+kpis+band+movers+custosHtml+ded+boxes+main;
   body.querySelectorAll("[data-shmonth]").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.shdel!=null)return;SALES.shp.view=c.dataset.shmonth;renderShopee();});
   body.querySelectorAll("[data-shdel]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.shdel,m=SALES.shp.months[k];if(!confirm("Remover o fechamento Shopee de "+((m&&m.monthLabel)||k)+"?"))return;delete SALES.shp.months[k];if(SALES.shp.view===k)SALES.shp.view="";await persistSalesMonths();renderShopee();toast("Removido");});
   body.querySelectorAll("[data-shsort]").forEach(th=>th.onclick=()=>{const k=th.dataset.shsort;if(shpSort.key===k)shpSort.dir*=-1;else{shpSort.key=k;shpSort.dir=-1;}renderShopee();});
@@ -2582,7 +2653,22 @@ function renderCombined(){
   const kpis=`<div class="skpis">${kpi("Receita l\u00edq.",brl(T.receita))}${kpi("Custo produtos",brl(T.custo))}${kpi("Lucro vendas",brl(T.lucro),T.lucro<0?"neg":"pos")}${kpi("Ads",brl(T.ad))}${kpi("Outros custos",brl(T.outros))}${kpi("Resultado final",brl(T.res),T.res<0?"neg":"pos")}</div>`;
   const fr=c=>`<tr><td>${c.name}</td><td class="r">${brl(c.receita)}</td><td class="r sec">${brl(c.custo)}</td><td class="r">${brl(c.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r sec">${brl(c.outros)}</td><td class="r"><b class="${c.res<0?'neg':''}">${brl(c.res)}</b></td></tr>`;
   const table=`<div class="scard"><h4>Por canal \u2014 ${(ml||shp).monthLabel}</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Canal</th><th class="r">Receita l\u00edq.</th><th class="r">Custo</th><th class="r">Lucro vendas</th><th class="r">Ads</th><th class="r">Outros</th><th class="r">Resultado</th></tr></thead><tbody>${chans.map(fr).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${brl(T.receita)}</b></td><td class="r">${brl(T.custo)}</td><td class="r"><b>${brl(T.lucro)}</b></td><td class="r">${brl(T.ad)}</td><td class="r">${brl(T.outros)}</td><td class="r"><b class="${T.res<0?'neg':''}">${brl(T.res)}</b></td></tr></tbody></table></div><div class="sec" style="margin-top:8px">Para ajustar Ads/custos de um canal, abra o canal espec\u00edfico.</div></div>`;
-  body.innerHTML=hist+kpis+table;
+  let extra="";
+  if(ml&&shp){
+    const mlItems=ml.A.mlbs.filter(x=>x.receita>0),shpItems=shp.A.prods.filter(x=>x.receita>0);
+    const topML=[...mlItems].sort((a,b)=>b.receita-a.receita).slice(0,6),topSHP=[...shpItems].sort((a,b)=>b.receita-a.receita).slice(0,6);
+    const donut=donutChart([{label:"Mercado Livre",value:ml.A.K.receita,color:"var(--forest)"},{label:"Shopee",value:shp.A.K.receita,color:"#C9A227"}],brl(T.receita).replace("R$ ",""),"receita l\u00edq.");
+    const mlByName={},shpByName={};
+    mlItems.forEach(x=>{const k=nameKey(x.titulo);if(!k)return;(mlByName[k]=mlByName[k]||{rev:0,name:x.titulo}).rev+=x.receita;});
+    shpItems.forEach(x=>{const k=nameKey(x.produto);if(!k)return;(shpByName[k]=shpByName[k]||{rev:0,name:x.produto}).rev+=x.receita;});
+    const common=Object.keys(mlByName).filter(k=>shpByName[k]).map(k=>({name:mlByName[k].name,ml:mlByName[k].rev,shp:shpByName[k].rev,total:mlByName[k].rev+shpByName[k].rev})).sort((a,b)=>b.total-a.total).slice(0,10);
+    const donutCard=`<div class="scard"><h4>Receita por canal</h4><div class="abcwrap"><div>${donut}</div><div class="abclegs"><div class="abcleg"><span class="abcdot" style="background:var(--forest)"></span>Mercado Livre \u00b7 <b>${brl(ml.A.K.receita)}</b> <span class="sec">(${pct(ml.A.K.receita/(T.receita||1))})</span></div><div class="abcleg"><span class="abcdot" style="background:#C9A227"></span>Shopee \u00b7 <b>${brl(shp.A.K.receita)}</b> <span class="sec">(${pct(shp.A.K.receita/(T.receita||1))})</span></div></div></div></div>`;
+    const wML=`<div class="scard"><h4>Campeões \u2014 Mercado Livre</h4><table class="stab"><tbody>${topML.map(x=>`<tr><td><span class="mono">${x.mlb}</span> ${(x.titulo||"").slice(0,32)}</td><td class="r"><b>${brl(x.receita)}</b></td></tr>`).join("")}</tbody></table></div>`;
+    const wSHP=`<div class="scard"><h4>Campeões \u2014 Shopee</h4><table class="stab"><tbody>${topSHP.map(x=>`<tr><td><span class="mono">${x.sku||""}</span> ${(x.produto||"").slice(0,28)}</td><td class="r"><b>${brl(x.receita)}</b></td></tr>`).join("")}</tbody></table></div>`;
+    const commonCard=`<div class="scard"><h4>Vão bem nos dois canais <span class="sec">(aprox. por nome)</span></h4>${common.length?`<div class="stabwrap"><table class="stab"><thead><tr><th>Produto</th><th class="r">ML</th><th class="r">Shopee</th><th class="r">Total</th></tr></thead><tbody>${common.map(c=>`<tr><td>${c.name.slice(0,40)}</td><td class="r sec">${brl(c.ml)}</td><td class="r sec">${brl(c.shp)}</td><td class="r"><b>${brl(c.total)}</b></td></tr>`).join("")}</tbody></table></div>`:'<div class="sec">N\u00e3o encontrei correspond\u00eancia de nomes entre os canais neste m\u00eas.</div>'}</div>`;
+    extra=donutCard+`<div class="sgrid2">${wML}${wSHP}</div>`+commonCard;
+  }
+  body.innerHTML=hist+kpis+table+extra;
   body.querySelectorAll("[data-bothmonth]").forEach(c=>c.onclick=()=>{SALES._bothView=c.dataset.bothmonth;renderCombined();});
 }
 function renderSales(){
@@ -2641,9 +2727,14 @@ function renderSales(){
   const devol=A.devol.length?`<div class="scard"><h4>Devolu\u00e7\u00e3o / cancelamento por an\u00fancio (top ${Math.min(A.devol.length,15)})</h4><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Vendas</th><th class="r">Devolv./canc.</th><th class="r">Taxa</th></tr></thead><tbody>${A.devol.slice(0,15).map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,38):""}</td><td class="r">${g.n}</td><td class="r">${g.nCancel}</td><td class="r"><span class="marg ${g.returnRate>=0.1?"no":g.returnRate>=0.05?"mid":"ok"}">${pct(g.returnRate)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
   // tabela principal ordenável
   const sortableTh=(key,label,ralign)=>{if(isHist)return `<th class="${ralign?"r":""}">${label}</th>`;const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
+  const abc=abcClassify(A.mlbs,x=>x.receita);
+  const mlKeys=Object.keys(SALES.months).sort();const dispKey=isHist?SALES.view:SALES.currentMonth;const mlIdx=mlKeys.indexOf(dispKey);const mlPrevKey=mlIdx>0?mlKeys[mlIdx-1]:null;const mlPrev=(mlPrevKey&&SALES.months[mlPrevKey].A)?SALES.months[mlPrevKey].A.mlbs:null;
+  const mlMovers=mlPrev?moversData(A.mlbs,mlPrev,x=>x.mlb,x=>x.receita):null;
+  const band=`<div class="sgrid2">${abcCardHtml(abc)}<div class="scard"><h4>Top an\u00fancios (Pareto)</h4>${paretoChart(abc.list,x=>x.receita,x=>x.mlb)}</div></div>`;
+  const moversH=mlMovers?moversCardsHtml(mlMovers,x=>(x.titulo?x.titulo.slice(0,26):x.mlb),SALES.months[mlPrevKey].monthLabel):"";
   const mainRows=A.mlbs.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
     return `<tr${g.matched&&posA<0?' class="rowneg"':""}>
-    <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
+    <td><span class="abcp abc-${g._abc||"C"}">${g._abc||"C"}</span> <span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,50):"\u2014"}</div></td>
     <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
     <td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td>
     <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td>
@@ -2656,7 +2747,8 @@ function renderSales(){
   const mkeyEdit=isHist?SALES.view:SALES.currentMonth;
   const mrec=SALES.months[mkeyEdit];
   const custosHtml=mrec?custosCardHtml(mkeyEdit,mrec,K.lucro,K.receita,adsData):"";
-  body.innerHTML=hist+filters+kpis+custosHtml+ded+boxes+chart+segs+prej+preco+devol+main;
+  const detalhes=`<details class="detwrap"><summary><h4 style="display:inline">Detalhes t\u00e9cnicos</h4> <span class="sec">segmentos, pre\u00e7o praticado, devolu\u00e7\u00e3o</span></summary>${segs}${preco}${devol}</details>`;
+  body.innerHTML=hist+filters+kpis+band+moversH+custosHtml+ded+boxes+chart+prej+main+detalhes;
   body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
   body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
   if(mrec){
