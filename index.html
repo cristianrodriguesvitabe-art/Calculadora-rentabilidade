@@ -363,7 +363,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 39</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 40</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2342,18 +2342,14 @@ function adsPanelHtml(ads,lucroVendas,adc){
   const acos=ads.receitaAds>0?ads.investTot/ads.receitaAds:0;
   const roas=ads.investTot>0?ads.receitaAds/ads.investTot:0;
   const posAds=(lucroVendas!=null)?(lucroVendas-ads.investTot):null;
-  const camps=ads.campanhas.map(c=>{const a=c.receita>0?c.invest/c.receita:0;const r=c.invest>0?c.receita/c.invest:0;
-    return `<tr><td>${c.nome}</td><td class="r">${brl(c.invest)}</td><td class="r">${brl(c.receita)}</td><td class="r">${c.invest>0?r.toFixed(2)+"x":"\u2014"}</td><td class="r">${c.receita>0?`<span class="marg ${a<=0.15?"ok":a<=0.25?"mid":"no"}">${pct(a)}</span>`:'<span class="sec">\u2014</span>'}</td><td class="r">${c.cliques.toLocaleString("pt-BR")}</td></tr>`;}).join("");
-  const allocNote=adc?`<div class="sec" style="margin-top:6px">Custo por an\u00fancio (estimado): alocado ${brl(adc.allocated)}${adc.unallocated>0?` \u00b7 n\u00e3o alocado (campanhas sem venda atribu\u00edda) ${brl(adc.unallocated)}`:""}.</div>`:`<div class="sec" style="margin-top:6px">Para estimar o custo <b>por an\u00fancio</b>, suba tamb\u00e9m o relat\u00f3rio de <b>atribui\u00e7\u00e3o</b> (vendas por publicidade) deste m\u00eas.</div>`;
-  return `<div class="scard adscard"><h4>Publicidade (Ads) \u2014 ${ads.campanhas.length} campanhas</h4>
+  const allocNote=adc?`<div class="sec" style="margin-top:8px">Custo por an\u00fancio (estimado): alocado ${brl(adc.allocated)}${adc.unallocated>0?` \u00b7 n\u00e3o alocado (campanhas sem venda atribu\u00edda) ${brl(adc.unallocated)}`:""}.</div>`:`<div class="sec" style="margin-top:8px">Para estimar o custo <b>por an\u00fancio</b>, suba tamb\u00e9m o relat\u00f3rio de <b>atribui\u00e7\u00e3o</b> (vendas por publicidade) deste m\u00eas.</div>`;
+  return `<div class="scard adscard"><h4>Publicidade (Ads)</h4>
     <div class="dedgrid">
       <div><div class="sk-l">Investimento em Ads</div><div class="dedv neg">\u2212${brl(ads.investTot)}</div></div>
       <div><div class="sk-l">Receita atribu\u00edda</div><div class="dedv">${brl(ads.receitaAds)}</div></div>
       <div><div class="sk-l">ACOS geral / ROAS</div><div class="dedv">${pct(acos)}</div><div class="sec">ROAS ${roas.toFixed(2)}x</div></div>
       <div><div class="sk-l">Lucro p\u00f3s-Ads (m\u00eas)</div><div class="dedv ${posAds!=null&&posAds<0?"neg":""}">${posAds!=null?brl(posAds):"\u2014"}</div><div class="sec">${posAds!=null?"lucro das vendas \u2212 investimento":"suba o relat\u00f3rio de vendas do m\u00eas"}</div></div>
-    </div>
-    <table class="stab" style="margin-top:12px"><thead><tr><th>Campanha</th><th class="r">Investimento</th><th class="r">Receita Ads</th><th class="r">ROAS</th><th class="r">ACOS</th><th class="r">Cliques</th></tr></thead><tbody>${camps}</tbody></table>
-    ${allocNote}</div>`;
+    </div>${allocNote}</div>`;
 }
 function renderSales(){
   const body=$("#salesBody"),empty=$("#salesEmpty");
