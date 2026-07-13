@@ -248,6 +248,40 @@
   #view-saved tbody tr.childrow .childcell{padding-left:24px;box-shadow:inset 3px 0 0 var(--line2)}
   .sku-code.sub{font-family:var(--ui,inherit);font-weight:600;font-size:13px;color:var(--ink);text-transform:none}
   .grouprow.meliblock td{padding:8px 12px}
+  /* Vendas */
+  .sfilters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .sfilters .flab{font-weight:700;color:var(--muted);font-size:13px}
+  .sfilter{border:1px solid var(--line2);border-radius:8px;padding:6px 10px;background:#fff;font-size:13px;color:var(--ink)}
+  .sfilters .sfile{margin-left:auto;font-size:12px;color:var(--muted)}
+  .skpis{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:16px}
+  @media(max-width:1100px){.skpis{grid-template-columns:repeat(3,1fr)}}
+  .skpi{background:#fff;border:1px solid var(--line2);border-radius:12px;padding:12px 14px}
+  .skpi .sk-l{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .skpi .sk-v{font-size:20px;font-weight:800;margin-top:4px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .skpi.pos .sk-v{color:var(--forest)}.skpi.neg .sk-v{color:var(--red,#b23b3b)}
+  .sboxes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  @media(max-width:800px){.sboxes{grid-template-columns:1fr}}
+  .scard{background:#fff;border:1px solid var(--line2);border-radius:12px;padding:14px 16px;margin-bottom:16px}
+  .scard h4{margin:0 0 10px;font-size:14px;color:var(--ink)}
+  .scard.warn{border-color:#E4C08A;background:#FDF8EF}
+  .scard.danger{border-color:#D9A7A7;background:#FBF1F1}
+  .bxbig{font-size:22px;font-weight:800;color:var(--ink)}
+  .semlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .semchip{font-size:11px;background:#fff;border:1px solid var(--line2);border-radius:20px;padding:2px 9px;font-family:var(--mono);color:var(--muted)}
+  .semchip.more{background:var(--paper);font-weight:700}
+  .ssegs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:0}
+  @media(max-width:900px){.ssegs{grid-template-columns:1fr}}
+  .ssegs .scard{margin-bottom:16px}
+  .stab{width:100%;border-collapse:collapse;font-size:13px}
+  .stab th{text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:6px 8px;border-bottom:1px solid var(--line2)}
+  .stab td{padding:7px 8px;border-bottom:1px solid var(--paper);vertical-align:top}
+  .stab .r{text-align:right;font-variant-numeric:tabular-nums}
+  .stab.big th,.stab.big td{padding:8px 10px}
+  .stabwrap{overflow-x:auto}
+  .stab .mono{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .stab .stt{font-size:12px;color:var(--ink);margin-top:2px;max-width:340px}
+  .stab tr.rowneg td{background:#FBF1F1}
+  .stab .neg{color:var(--red,#b23b3b)}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -313,13 +347,14 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 34</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 35</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
       <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
       <button class="tab" role="tab" aria-selected="false" data-view="saved">SKUs <span class="n" id="navCount">0</span></button>
       <button class="tab" role="tab" aria-selected="false" data-view="unit">Por unidade</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="sales">Vendas</button>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
     </nav>
   </div>
@@ -498,8 +533,24 @@
     </div>
   </section>
 
-  <!-- AJUSTES -->
-  <section class="view" id="view-settings">
+  <!-- VENDAS -->
+  <section class="view" id="view-sales">
+    <div class="head-actions">
+      <h2>Vendas &amp; rentabilidade real</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="salesFile" accept=".xlsx,.xls" style="display:none">
+        <button class="btn btn-primary" id="salesPick">Subir relatório de vendas</button>
+      </div>
+    </div>
+    <p class="set-note" style="margin:-4px 0 18px;max-width:760px">Suba o relatório <b>Vendas</b> do Mercado Livre (.xlsx). Para cada venda eu cruzo o anúncio (MLB) com o seu kit cadastrado, puxo o <b>custo da composição</b> e calculo o <b>lucro real = Total depositado − custo</b>. Cancelados e devolvidos ficam num quadro à parte. <b>Obs.:</b> o custo de <b>publicidade (Ads)</b> não vem neste relatório — o lucro das vendas com Ads é <b>antes</b> desse custo.</p>
+    <div id="salesBody"></div>
+    <div class="empty" id="salesEmpty">
+      <div class="big">Nenhum relatório carregado</div>
+      <div>Suba o arquivo de <b>Vendas</b> do Mercado Livre para ver a rentabilidade de cada venda.</div>
+      <button class="btn btn-primary" style="margin-top:18px" id="salesPick2">Subir relatório de vendas</button>
+    </div>
+  </section>
+
     <div class="head-actions"><h2>Ajustes</h2></div>
     <div id="cloudBanner" class="banner" style="display:none"></div>
     <div class="set-grid">
@@ -2055,12 +2106,131 @@ function restoreDefaults(){
   saveConfig();loadAssumpInputs();renderChanTable();renderProdTable();renderAcctTable();buildSelects();syncKitCosts();renderKit();toast("Padrões restaurados");
 }
 
+// ---------- Vendas (rentabilidade real) ----------
+const SALES={loaded:false,rows:[],fileName:"",sheet:""};
+const salesFilters={conta:"",tipo:"",pub:""};
+const MESES={janeiro:0,fevereiro:1,"mar\u00e7o":2,marco:2,abril:3,maio:4,junho:5,julho:6,agosto:7,setembro:8,outubro:9,novembro:10,dezembro:11};
+function parseSaleDate(s){const t=String(s||"").match(/(\d+)\s+de\s+([\wç\u00e7]+)\s+de\s+(\d+)/i);if(!t)return null;const mo=MESES[t[2].toLowerCase()];if(mo==null)return null;return new Date(+t[3],mo,+t[1]);}
+function isCancelStatus(s,total){const t=(s||"").toLowerCase();if(/te demos o dinheiro|dinheiro j\u00e1 est\u00e1 dispon|dinheiro ja esta dispon|novamente \u00e0 venda|novamente a venda/.test(t))return false;if(/cancel|reembols|devolu|n\u00e3o entregue|nao entregue/.test(t))return true;if(!(total>0))return true;return false;}
+function parseSalesWB(wb){
+  const sn=wb.SheetNames.find(n=>/venda/i.test(n))||wb.SheetNames[0];
+  const M=sheetMatrix(wb.Sheets[sn]);
+  let hr=M.findIndex(r=>Array.isArray(r)&&r.some(c=>/n.*de venda/i.test(String(c||""))));
+  if(hr<0)hr=0;
+  const H=headerIndex(M[hr]);
+  const col=(name,alt)=>{if(H[name]!=null)return H[name];const k=Object.keys(H).find(h=>h.toLowerCase().includes(name.toLowerCase()));return k!=null?H[k]:(alt==null?-1:alt);};
+  const c={venda:col("N.\u00ba de venda",0),data:col("Data da venda",1),status:col("Estado",3),un:col("Unidades",7),
+    total:col("Total (BRL)",18),pub:col("Venda por publicidade",21),sku:col("SKU",22),mlb:col("an\u00fancio",23),
+    titulo:col("T\u00edtulo do an\u00fancio",26),variacao:col("Varia\u00e7\u00e3o",27),tipo:col("Tipo de an\u00fancio",29)};
+  const rows=[];
+  for(let i=hr+1;i<M.length;i++){
+    const r=M[i];if(!r)continue;
+    const venda=String(r[c.venda]==null?"":r[c.venda]).trim();
+    if(!/^\d/.test(venda))continue;
+    const mlb=String(r[c.mlb]==null?"":r[c.mlb]).trim();
+    const total=Number(r[c.total])||0, un=Number(r[c.un])||1;
+    const status=String(r[c.status]==null?"":r[c.status]).trim();
+    const pub=/sim/i.test(String(r[c.pub]||""))?"Sim":"N\u00e3o";
+    const rec=mlb?saved[mlb]:null;
+    const matched=!!(rec&&!rec.composicaoPendente&&(+rec.custoItens>0));
+    const custoUnit=rec?(+rec.custoItens||0):0, cost=matched?custoUnit*un:0;
+    const pkgline=!mlb, cancel=!pkgline&&isCancelStatus(status,total);
+    rows.push({venda,date:parseSaleDate(r[c.data]),status,pkgline,cancel,valid:!pkgline&&!cancel&&total>0,
+      un,total,mlb,sku:String(r[c.sku]||"").trim(),variacao:String(r[c.variacao]||"").trim(),
+      titulo:String(r[c.titulo]||(rec&&rec.nome)||"").trim(),tipo:(String(r[c.tipo]||"").trim()||"\u2014"),pub,
+      conta:rec?(rec.conta||"\u2014"):"\u2014",matched,custoUnit,cost,
+      profit:matched?(total-cost):null,margin:(matched&&total)?(total-cost)/total:null});
+  }
+  return {rows,sheet:sn};
+}
+function salesAgg(){
+  const f=salesFilters;
+  const base=SALES.rows.filter(r=>!r.pkgline&&(!f.conta||r.conta===f.conta)&&(!f.tipo||r.tipo===f.tipo)&&(!f.pub||r.pub===f.pub));
+  const valid=base.filter(r=>r.valid), cancel=base.filter(r=>r.cancel);
+  const matched=valid.filter(r=>r.matched), unmatched=valid.filter(r=>!r.matched);
+  const S=(a,g)=>a.reduce((s,x)=>s+g(x),0);
+  const receita=S(valid,x=>x.total), custo=S(matched,x=>x.cost), lucro=S(matched,x=>x.profit);
+  const recMatched=S(matched,x=>x.total);
+  const K={nVend:valid.length,unid:S(valid,x=>x.un),receita,custo,lucro,
+    margem:recMatched>0?lucro/recMatched:0,ticket:valid.length?receita/valid.length:0,
+    nCancel:cancel.length,recCancel:S(cancel,x=>x.total||0),
+    nUnmatched:unmatched.length,recUnmatched:S(unmatched,x=>x.total)};
+  // por MLB
+  const bm={};
+  valid.forEach(r=>{let g=bm[r.mlb];if(!g)g=bm[r.mlb]={mlb:r.mlb,titulo:r.titulo,conta:r.conta,tipo:r.tipo,n:0,un:0,receita:0,custo:0,lucro:0,matched:true};
+    g.n++;g.un+=r.un;g.receita+=r.total;if(r.matched){g.custo+=r.cost;g.lucro+=r.profit;}else g.matched=false;});
+  const mlbs=Object.values(bm).map(g=>({...g,margem:g.matched&&g.receita?g.lucro/g.receita:null})).sort((a,b)=>(b.lucro||-1e12)-(a.lucro||-1e12));
+  // segmentos
+  const seg=key=>{const m={};valid.forEach(r=>{const k=r[key]||"\u2014";let g=m[k];if(!g)g=m[k]={k,n:0,receita:0,custo:0,lucro:0,matched:true};g.n++;g.receita+=r.total;if(r.matched){g.custo+=r.cost;g.lucro+=r.profit;}else g.matched=false;});return Object.values(m).map(g=>({...g,margem:g.matched&&g.receita?g.lucro/g.receita:null})).sort((a,b)=>b.receita-a.receita);};
+  // sem custo (por MLB)
+  const um={};unmatched.forEach(r=>{let g=um[r.mlb];if(!g)g=um[r.mlb]={mlb:r.mlb,titulo:r.titulo,n:0,receita:0};g.n++;g.receita+=r.total;});
+  const semCusto=Object.values(um).sort((a,b)=>b.receita-a.receita);
+  const prejuizo=mlbs.filter(g=>g.matched&&g.lucro<0);
+  return {K,mlbs,porTipo:seg("tipo"),porPub:seg("pub"),porConta:seg("conta"),semCusto,prejuizo,
+    periodo:(()=>{const ds=valid.map(r=>r.date).filter(Boolean).sort((a,b)=>a-b);const fmt=d=>d?d.toLocaleDateString("pt-BR"):"?";return ds.length?fmt(ds[0])+" \u2013 "+fmt(ds[ds.length-1]):"\u2014";})()};
+}
+function kpi(label,val,cls){return `<div class="skpi${cls?" "+cls:""}"><div class="sk-l">${label}</div><div class="sk-v">${val}</div></div>`;}
+function segTableHtml(title,arr){
+  const rows=arr.map(g=>`<tr><td>${g.k}</td><td class="r">${g.n}</td><td class="r">${brl(g.receita)}</td><td class="r">${g.matched?"<b>"+brl(g.lucro)+"</b>":'<span class="sec">\u2014</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':'<span class="marg '+(g.margem>=0?"ok":"no")+'">'+pct(g.margem)+'</span>'}</td></tr>`).join("");
+  return `<div class="scard"><h4>${title}</h4><table class="stab"><thead><tr><th>&nbsp;</th><th class="r">Vendas</th><th class="r">Receita</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function renderSales(){
+  const body=$("#salesBody"),empty=$("#salesEmpty");
+  if(!SALES.loaded){body.innerHTML="";empty.style.display="";return;}
+  empty.style.display="none";
+  const A=salesAgg(),K=A.K;
+  const sel=(id,val,opts)=>`<select class="sfilter" data-sf="${id}">${opts.map(o=>`<option value="${o[0]}"${val===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select>`;
+  const filters=`<div class="sfilters"><span class="flab">Filtros:</span>
+    ${sel("conta",salesFilters.conta,[["","Todas as contas"],["MG","MG"],["GRU","GRU"]])}
+    ${sel("tipo",salesFilters.tipo,[["","Cl\u00e1ssico + Premium"],["Cl\u00e1ssico","Cl\u00e1ssico"],["Premium","Premium"]])}
+    ${sel("pub",salesFilters.pub,[["","Com + sem Ads"],["Sim","S\u00f3 com Ads"],["N\u00e3o","S\u00f3 sem Ads"]])}
+    <span class="sfile">${SALES.fileName} \u00b7 ${A.periodo}</span></div>`;
+  const kpis=`<div class="skpis">
+    ${kpi("Vendas v\u00e1lidas",K.nVend.toLocaleString("pt-BR"))}
+    ${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}
+    ${kpi("Receita l\u00edquida",brl(K.receita))}
+    ${kpi("Custo dos produtos",brl(K.custo))}
+    ${kpi("Lucro",brl(K.lucro),K.lucro>=0?"pos":"neg")}
+    ${kpi("Margem m\u00e9dia",pct(K.margem),K.margem>=0?"pos":"neg")}
+    ${kpi("Ticket m\u00e9dio",brl(K.ticket))}</div>`;
+  const boxes=`<div class="sboxes">
+    <div class="scard warn"><h4>Cancelados / devolvidos</h4><div class="bxbig">${K.nCancel.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita revertida (n\u00e3o conta no lucro): ${brl(K.recCancel)}</div></div>
+    <div class="scard ${K.nUnmatched?"warn":""}"><h4>Sem custo cadastrado</h4><div class="bxbig">${K.nUnmatched.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita ${brl(K.recUnmatched)} \u00b7 ${A.semCusto.length} an\u00fancios sem kit cadastrado</div>${A.semCusto.length?'<div class="semlist">'+A.semCusto.slice(0,12).map(g=>`<span class="semchip">${g.mlb}${g.titulo?" \u00b7 "+g.titulo.slice(0,32):""}</span>`).join("")+(A.semCusto.length>12?`<span class="semchip more">+${A.semCusto.length-12}</span>`:"")+'</div>':""}</div></div>`;
+  const segs=`<div class="ssegs">${segTableHtml("Cl\u00e1ssico \u00d7 Premium",A.porTipo)}${segTableHtml("Com \u00d7 sem publicidade",A.porPub)}${segTableHtml("Por conta",A.porConta)}</div>`;
+  const prej=A.prejuizo.length?`<div class="scard danger"><h4>\u26a0 An\u00fancios no preju\u00edzo (${A.prejuizo.length})</h4><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Vendas</th><th class="r">Receita</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${A.prejuizo.map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,40):""}</td><td class="r">${g.n}</td><td class="r">${brl(g.receita)}</td><td class="r"><b class="neg">${brl(g.lucro)}</b></td><td class="r"><span class="marg no">${pct(g.margem)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
+  const mainRows=A.mlbs.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}>
+    <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
+    <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
+    <td class="r">${brl(g.receita)}</td>
+    <td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td>
+    <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td>
+    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
+  const main=`<div class="scard"><h4>Por an\u00fancio (${A.mlbs.length}) \u2014 ordenado por lucro</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th><th class="r">Vendas</th><th class="r">Unid</th><th class="r">Receita</th><th class="r">Custo</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
+  body.innerHTML=filters+kpis+boxes+segs+prej+main;
+  body.querySelectorAll(".sfilter").forEach(s=>s.onchange=()=>{salesFilters[s.dataset.sf]=s.value;renderSales();});
+}
+async function onSalesFile(file){
+  if(!file)return;
+  if(typeof XLSX==="undefined"){toast("A leitura de planilha n\u00e3o carregou (precisa de internet)");return;}
+  toast("Lendo relat\u00f3rio\u2026");
+  try{
+    const wb=await readWorkbook(file);
+    const {rows,sheet}=parseSalesWB(wb);
+    if(!rows.length){toast("N\u00e3o encontrei vendas nesse arquivo");return;}
+    SALES.loaded=true;SALES.rows=rows;SALES.fileName=file.name;SALES.sheet=sheet;
+    renderSales();
+    const val=rows.filter(r=>r.valid).length;
+    toast(val.toLocaleString("pt-BR")+" vendas analisadas");
+  }catch(e){console.error(e);toast("Falha ao ler o arquivo");}
+}
+
 // ---------- Navegação ----------
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));
-  ["calc","dash","saved","unit","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
+  ["calc","dash","saved","unit","sales","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
   if(v==="saved")refreshSkus();
   if(v==="unit")renderUnitAnalysis();
+  if(v==="sales")renderSales();
   if(v==="dash")renderDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -2070,6 +2240,7 @@ document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.
 $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
 $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
 $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
+(function(){const f=$("#salesFile");const pick=()=>f&&f.click();$("#salesPick")&&($("#salesPick").onclick=pick);$("#salesPick2")&&($("#salesPick2").onclick=pick);f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onSalesFile(file);e.target.value="";});})();
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
 $("#refreshDash").onclick=async()=>{await refreshSkus();renderDashboard();};
 $("#refreshBtn").onclick=refreshSkus;
