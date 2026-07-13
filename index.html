@@ -363,7 +363,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 38</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 39</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2168,10 +2168,49 @@ async function applyAdsCampaign(wb,fileName){
   const {monthKey,monthLabel,ads}=parseAdsCampaign(wb);
   const m=SALES.months[monthKey]||{month:monthKey,monthLabel,fileName:"",uploadedAt:Date.now()};
   m.monthLabel=m.monthLabel||monthLabel;m.ads=ads;m.adsFileName=fileName;m.adsUploadedAt=Date.now();
+  if(m.attr)m.adCost=computeAdCostByMlb(ads,m.attr);
   SALES.months[monthKey]=m;
   SALES.view=(SALES.loaded&&SALES.currentMonth===monthKey)?"atual":monthKey;
   renderSales();await persistSalesMonths();
   toast("Ads de "+monthLabel+": investimento "+brl(ads.investTot)+" salvo na nuvem");
+}
+function parseAdsAttribution(wb){
+  const sn=wb.SheetNames.find(n=>/venda/i.test(n))||wb.SheetNames[wb.SheetNames.length-1];
+  const M=sheetMatrix(wb.Sheets[sn]);
+  let hr=M.findIndex(r=>Array.isArray(r)&&r.some(c=>/an[u\u00fa]ncio patrocinado/i.test(String(c||""))));
+  if(hr<0)hr=1;
+  const H=headerIndex(M[hr]);
+  const col=(name,alt)=>{const k=Object.keys(H).find(h=>h.toLowerCase().includes(name.toLowerCase()));return k!=null?H[k]:(alt==null?-1:alt);};
+  const c={desde:col("Desde",0),campanha:col("Campanha",2),mlb:col("N\u00famero do an\u00fancio patrocinado",4),tit:col("T\u00edtulo do an\u00fancio patrocinado",3),receita:col("Receita",9),vendas:col("Vendas",8)};
+  const map={};const dates=[];
+  for(let i=hr+1;i<M.length;i++){const r=M[i];if(!r)continue;const mlb=String(r[c.mlb]==null?"":r[c.mlb]).trim();if(!/^MLB/i.test(mlb))continue;
+    const camp=String(r[c.campanha]||"").trim(),rec=Number(r[c.receita])||0,ven=Number(r[c.vendas])||0;
+    const d=parseAdDate(r[c.desde]);if(d)dates.push(d);
+    const key=camp+"||"+mlb;let g=map[key];if(!g)g=map[key]={campanha:camp,mlb,titulo:String(r[c.tit]||"").trim(),receita:0,vendas:0};
+    g.receita+=rec;g.vendas+=ven;}
+  dates.sort((a,b)=>a-b);const d0=dates[0]||new Date();
+  return {monthKey:d0.getFullYear()+"-"+String(d0.getMonth()+1).padStart(2,"0"),monthLabel:d0.toLocaleDateString("pt-BR",{month:"long",year:"numeric"}),attr:{rows:Object.values(map)}};
+}
+function computeAdCostByMlb(ads,attr){
+  if(!ads||!attr||!attr.rows)return null;
+  const invByCamp={};ads.campanhas.forEach(c=>{invByCamp[c.nome]=(invByCamp[c.nome]||0)+c.invest;});
+  const revByCamp={};attr.rows.forEach(r=>{revByCamp[r.campanha]=(revByCamp[r.campanha]||0)+r.receita;});
+  const byMlb={};let allocated=0,unallocated=0;
+  Object.keys(invByCamp).forEach(camp=>{const inv=invByCamp[camp]||0;if(inv<=0)return;const tot=revByCamp[camp]||0;
+    if(tot>0){attr.rows.filter(r=>r.campanha===camp).forEach(r=>{const cost=inv*(r.receita/tot);if(cost>0){byMlb[r.mlb]=(byMlb[r.mlb]||0)+cost;allocated+=cost;}});}
+    else unallocated+=inv;});
+  return {byMlb,allocated,unallocated};
+}
+async function applyAdsAttribution(wb,fileName){
+  await ensureSalesMonths();
+  const {monthKey,monthLabel,attr}=parseAdsAttribution(wb);
+  const m=SALES.months[monthKey]||{month:monthKey,monthLabel,fileName:"",uploadedAt:Date.now()};
+  m.monthLabel=m.monthLabel||monthLabel;m.attr=attr;m.attrFileName=fileName;
+  if(m.ads)m.adCost=computeAdCostByMlb(m.ads,attr);
+  SALES.months[monthKey]=m;
+  SALES.view=(SALES.loaded&&SALES.currentMonth===monthKey)?"atual":monthKey;
+  renderSales();await persistSalesMonths();
+  toast(m.adCost?("Custo de Ads por an\u00fancio estimado para "+monthLabel):("Atribui\u00e7\u00e3o de "+monthLabel+" salva. Falta o relat\u00f3rio por campanha pra estimar o custo por an\u00fancio."));
 }
 function parseSalesWB(wb){
   const sn=wb.SheetNames.find(n=>/venda/i.test(n))||wb.SheetNames[0];
@@ -2299,12 +2338,13 @@ function histStripHtml(keys){
     return `<button class="mchip${on?" on":""}" data-month="${k}"><span class="mlab">${m.monthLabel||k}</span><span class="mval ${KK.lucro>=0?"":"neg"}">${brl(KK.lucro)}</span><span class="msub">${KK.nVend.toLocaleString("pt-BR")} vendas \u00b7 ${pct(KK.margem)}</span><span class="mdel" data-delmonth="${k}" title="Remover">\u00d7</span></button>`;}).join("");
   return `<div class="scard histcard"><h4>Histórico mensal (${keys.length}) \u2014 salvo na nuvem</h4><div class="mchips">${chips}</div>${keys.length>1?monthTrend(keys):""}</div>`;
 }
-function adsPanelHtml(ads,lucroVendas){
+function adsPanelHtml(ads,lucroVendas,adc){
   const acos=ads.receitaAds>0?ads.investTot/ads.receitaAds:0;
   const roas=ads.investTot>0?ads.receitaAds/ads.investTot:0;
   const posAds=(lucroVendas!=null)?(lucroVendas-ads.investTot):null;
   const camps=ads.campanhas.map(c=>{const a=c.receita>0?c.invest/c.receita:0;const r=c.invest>0?c.receita/c.invest:0;
     return `<tr><td>${c.nome}</td><td class="r">${brl(c.invest)}</td><td class="r">${brl(c.receita)}</td><td class="r">${c.invest>0?r.toFixed(2)+"x":"\u2014"}</td><td class="r">${c.receita>0?`<span class="marg ${a<=0.15?"ok":a<=0.25?"mid":"no"}">${pct(a)}</span>`:'<span class="sec">\u2014</span>'}</td><td class="r">${c.cliques.toLocaleString("pt-BR")}</td></tr>`;}).join("");
+  const allocNote=adc?`<div class="sec" style="margin-top:6px">Custo por an\u00fancio (estimado): alocado ${brl(adc.allocated)}${adc.unallocated>0?` \u00b7 n\u00e3o alocado (campanhas sem venda atribu\u00edda) ${brl(adc.unallocated)}`:""}.</div>`:`<div class="sec" style="margin-top:6px">Para estimar o custo <b>por an\u00fancio</b>, suba tamb\u00e9m o relat\u00f3rio de <b>atribui\u00e7\u00e3o</b> (vendas por publicidade) deste m\u00eas.</div>`;
   return `<div class="scard adscard"><h4>Publicidade (Ads) \u2014 ${ads.campanhas.length} campanhas</h4>
     <div class="dedgrid">
       <div><div class="sk-l">Investimento em Ads</div><div class="dedv neg">\u2212${brl(ads.investTot)}</div></div>
@@ -2313,7 +2353,7 @@ function adsPanelHtml(ads,lucroVendas){
       <div><div class="sk-l">Lucro p\u00f3s-Ads (m\u00eas)</div><div class="dedv ${posAds!=null&&posAds<0?"neg":""}">${posAds!=null?brl(posAds):"\u2014"}</div><div class="sec">${posAds!=null?"lucro das vendas \u2212 investimento":"suba o relat\u00f3rio de vendas do m\u00eas"}</div></div>
     </div>
     <table class="stab" style="margin-top:12px"><thead><tr><th>Campanha</th><th class="r">Investimento</th><th class="r">Receita Ads</th><th class="r">ROAS</th><th class="r">ACOS</th><th class="r">Cliques</th></tr></thead><tbody>${camps}</tbody></table>
-    <div class="sec" style="margin-top:8px">O relat\u00f3rio de Ads traz o investimento <b>por campanha</b> (n\u00e3o por an\u00fancio), ent\u00e3o o lucro p\u00f3s-Ads \u00e9 no n\u00edvel do m\u00eas. ACOS = investimento \u00f7 receita atribu\u00edda.</div></div>`;
+    ${allocNote}</div>`;
 }
 function renderSales(){
   const body=$("#salesBody"),empty=$("#salesEmpty");
@@ -2325,6 +2365,8 @@ function renderSales(){
   else if(SALES.loaded){A=salesAgg();meta={monthLabel:"upload atual",fileName:SALES.fileName};}
   else{const k=monthKeys[monthKeys.length-1];SALES.view=k;meta=SALES.months[k];A=meta.A||null;isHist=true;}
   const adsData=isHist?(meta&&meta.ads):(SALES.currentMonth&&SALES.months[SALES.currentMonth]&&SALES.months[SALES.currentMonth].ads);
+  const adcObj=isHist?(meta&&meta.adCost):(SALES.currentMonth&&SALES.months[SALES.currentMonth]&&SALES.months[SALES.currentMonth].adCost);
+  const adCostByMlb=(adcObj&&adcObj.byMlb)||null;
   const hist=monthKeys.length?histStripHtml(monthKeys):"";
   if(!A){
     body.innerHTML=hist+`<div class="scard"><h4>${(meta&&meta.monthLabel)||""}</h4><div class="sec">Este m\u00eas tem s\u00f3 o relat\u00f3rio de Ads. Suba o relat\u00f3rio de <b>vendas</b> desse m\u00eas pra ver o fechamento completo e o lucro p\u00f3s-Ads.</div></div>`+(adsData?adsPanelHtml(adsData,null):"");
@@ -2369,15 +2411,18 @@ function renderSales(){
   const devol=A.devol.length?`<div class="scard"><h4>Devolu\u00e7\u00e3o / cancelamento por an\u00fancio (top ${Math.min(A.devol.length,15)})</h4><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Vendas</th><th class="r">Devolv./canc.</th><th class="r">Taxa</th></tr></thead><tbody>${A.devol.slice(0,15).map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,38):""}</td><td class="r">${g.n}</td><td class="r">${g.nCancel}</td><td class="r"><span class="marg ${g.returnRate>=0.1?"no":g.returnRate>=0.05?"mid":"ok"}">${pct(g.returnRate)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
   // tabela principal ordenável
   const sortableTh=(key,label,ralign)=>{if(isHist)return `<th class="${ralign?"r":""}">${label}</th>`;const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
-  const mainRows=A.mlbs.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}>
+  const mainRows=A.mlbs.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
+    return `<tr${g.matched&&posA<0?' class="rowneg"':""}>
     <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
     <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
     <td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td>
     <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td>
-    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
+    ${adCostByMlb?`<td class="r sec">${ac>0?brl(ac):"\u2014"}</td><td class="r">${g.matched?`<b class="${posA<0?"neg":""}">${brl(posA)}</b>`:'<span class="sec">\u2014</span>'}</td>`:""}
+    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`;}).join("");
   const mainTitle=isHist?`Por an\u00fancio (${A.mlbs.length})`:`Por an\u00fancio (${A.mlbs.length}) \u2014 clique nos t\u00edtulos pra ordenar`;
-  const main=`<div class="scard"><h4>${mainTitle}</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
-  const adsHtml=adsData?adsPanelHtml(adsData,K.lucro):"";
+  const adsCols=adCostByMlb?`<th class="r">Ads (est.)</th><th class="r">Lucro p\u00f3s-Ads</th>`:"";
+  const main=`<div class="scard"><h4>${mainTitle}</h4>${adCostByMlb?'<div class="sec" style="margin:-4px 0 10px">Ads por an\u00fancio \u00e9 <b>estimado</b>: o investimento de cada campanha foi rateado entre os an\u00fancios dela pela receita atribu\u00edda.</div>':""}<div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${adsCols}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
+  const adsHtml=adsData?adsPanelHtml(adsData,K.lucro,adcObj):"";
   body.innerHTML=hist+filters+kpis+ded+adsHtml+boxes+chart+segs+prej+preco+devol+main;
   body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
   body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
@@ -2394,7 +2439,7 @@ async function onSalesFile(file){
     const wb=await readWorkbook(file);
     const det=detectReport(wb);
     if(det.kind==="adscampaign"){await applyAdsCampaign(wb,file.name);return;}
-    if(det.kind==="adssales"){toast("Esse \u00e9 o relat\u00f3rio de atribui\u00e7\u00e3o (sem investimento). Suba o de campanhas, que tem a coluna Investimento.");return;}
+    if(det.kind==="adssales"){await applyAdsAttribution(wb,file.name);return;}
     const {rows,sheet}=parseSalesWB(wb);
     if(!rows.length){toast("N\u00e3o encontrei vendas nesse arquivo");return;}
     await ensureSalesMonths();
