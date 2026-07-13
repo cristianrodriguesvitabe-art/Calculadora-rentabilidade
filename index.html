@@ -288,6 +288,16 @@
   @media(max-width:800px){.dedgrid{grid-template-columns:repeat(2,1fr)}}
   .dedv{font-size:19px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;margin-top:2px}
   .dedv.neg{color:var(--red,#b23b3b)}
+  .histcard .mchips{display:flex;flex-wrap:wrap;gap:8px}
+  .mchip{position:relative;text-align:left;border:1px solid var(--line2);background:#fff;border-radius:12px;padding:10px 30px 10px 12px;cursor:pointer;min-width:150px;display:flex;flex-direction:column;gap:1px}
+  .mchip:hover{border-color:var(--forest)}
+  .mchip.on{border-color:var(--forest);background:var(--paper);box-shadow:inset 0 0 0 1px var(--forest)}
+  .mchip .mlab{font-size:11px;color:var(--muted);font-weight:700;text-transform:capitalize}
+  .mchip .mval{font-size:17px;font-weight:800;color:var(--forest);font-variant-numeric:tabular-nums}
+  .mchip .mval.neg{color:var(--red,#b23b3b)}
+  .mchip .msub{font-size:11px;color:var(--muted)}
+  .mchip .mdel{position:absolute;top:6px;right:8px;font-size:14px;color:var(--faint);line-height:1;padding:2px 4px;border-radius:6px}
+  .mchip .mdel:hover{color:var(--red,#b23b3b);background:#FBF1F1}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -353,7 +363,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 36</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 37</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -557,6 +567,8 @@
     </div>
   </section>
 
+  <!-- AJUSTES -->
+  <section class="view" id="view-settings">
     <div class="head-actions"><h2>Ajustes</h2></div>
     <div id="cloudBanner" class="banner" style="display:none"></div>
     <div class="set-grid">
@@ -802,7 +814,10 @@ const DB = {
   async deleteSku(sku){ if(SUPA_ON) await sDel("skus","sku=eq."+encodeURIComponent(sku)); else await Local.del("sku:"+sku); },
   async getConfig(){ if(SUPA_ON){const rows=await sGet("app_config?id=eq.1&select=data");return rows[0]?rows[0].data:null;}
     const a=await Local.get("cfg:all");return a?JSON.parse(a):null; },
-  async setConfig(cfg){ if(SUPA_ON) await sUpsert("app_config",{id:1,data:cfg},"id"); else await Local.set("cfg:all",JSON.stringify(cfg)); }
+  async setConfig(cfg){ if(SUPA_ON) await sUpsert("app_config",{id:1,data:cfg},"id"); else await Local.set("cfg:all",JSON.stringify(cfg)); },
+  async getSales(){ if(SUPA_ON){const rows=await sGet("app_config?id=eq.2&select=data");return rows[0]?rows[0].data:null;}
+    const a=await Local.get("sales:all");return a?JSON.parse(a):null; },
+  async setSales(obj){ if(SUPA_ON) await sUpsert("app_config",{id:2,data:obj},"id"); else await Local.set("sales:all",JSON.stringify(obj)); }
 };
 function setSync(state){const p=$("#syncPill"),t=$("#syncTxt");p.className="sync"+(state==="cloud"?" cloud":state==="err"?" err":"");t.textContent=state==="cloud"?"Nuvem sincronizada":state==="err"?"Erro de conexão":"Modo local";}
 let cfgTimer;
@@ -2113,7 +2128,7 @@ function restoreDefaults(){
 }
 
 // ---------- Vendas (rentabilidade real) ----------
-const SALES={loaded:false,rows:[],fileName:"",sheet:""};
+const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual"};
 const salesFilters={conta:"",tipo:"",pub:""};
 const salesSort={key:"lucro",dir:-1};
 const MESES={janeiro:0,fevereiro:1,"mar\u00e7o":2,marco:2,abril:3,maio:4,junho:5,julho:6,agosto:7,setembro:8,outubro:9,novembro:10,dezembro:11};
@@ -2211,17 +2226,59 @@ function segTableHtml(title,arr){
   return `<div class="scard"><h4>${title}</h4><table class="stab"><thead><tr><th>&nbsp;</th><th class="r">Vendas</th><th class="r">Receita</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function kpi(label,val,cls){return `<div class="skpi${cls?" "+cls:""}"><div class="sk-l">${label}</div><div class="sk-v">${val}</div></div>`;}
+async function ensureSalesMonths(){
+  if(SALES.monthsLoaded)return;
+  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};}
+  SALES.monthsLoaded=true;
+}
+async function persistSalesMonths(){try{await DB.setSales({months:SALES.months});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
+function monthKeyOf(rows){
+  const ds=rows.filter(r=>r.valid&&r.date).map(r=>r.date).sort((a,b)=>a-b);
+  const d=ds[0]||new Date();
+  return {key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})};
+}
+function buildMonthSummary(rows,fileName,key,label){
+  const savedF={...salesFilters};salesFilters.conta="";salesFilters.tipo="";salesFilters.pub="";
+  const prev=SALES.rows;SALES.rows=rows;const A=salesAgg();SALES.rows=prev;Object.assign(salesFilters,savedF);
+  return {month:key,monthLabel:label,fileName,uploadedAt:Date.now(),A};
+}
+async function openSales(){await ensureSalesMonths();renderSales();}
+function monthTrend(keys){
+  const bw=34,gap=14,x0=10,h=120,pad=24;
+  const vals=keys.map(k=>SALES.months[k].A.K.lucro);
+  const max=Math.max(...vals.map(v=>Math.abs(v)),1);
+  const W=x0*2+keys.length*(bw+gap);
+  const bars=keys.map((k,i)=>{const m=SALES.months[k],v=m.A.K.lucro;const x=x0+i*(bw+gap);
+    const bh=Math.max(Math.round(Math.abs(v)/max*(h-pad*2)),1);const y=v>=0?(h-pad-bh):(h-pad);
+    const col=v>=0?"var(--forest)":"var(--red,#b23b3b)";
+    return `<g><rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="4" fill="${col}"><title>${m.monthLabel}: ${brl(v)}</title></rect><text x="${x+bw/2}" y="${h-8}" text-anchor="middle" font-size="9" fill="var(--muted)">${(m.monthLabel||k).slice(0,3)}</text></g>`;}).join("");
+  return `<div class="stabwrap" style="margin-top:10px"><svg width="${W}" height="${h}" class="daychart"><line x1="0" y1="${h-pad}" x2="${W}" y2="${h-pad}" stroke="var(--line2)"/>${bars}</svg></div>`;
+}
+function histStripHtml(keys){
+  const activeKey=(SALES.view==="atual")?SALES.currentMonth:SALES.view;
+  const chips=keys.map(k=>{const m=SALES.months[k],KK=m.A.K,on=k===activeKey;
+    return `<button class="mchip${on?" on":""}" data-month="${k}"><span class="mlab">${m.monthLabel||k}</span><span class="mval ${KK.lucro>=0?"":"neg"}">${brl(KK.lucro)}</span><span class="msub">${KK.nVend.toLocaleString("pt-BR")} vendas \u00b7 ${pct(KK.margem)}</span><span class="mdel" data-delmonth="${k}" title="Remover">\u00d7</span></button>`;}).join("");
+  return `<div class="scard histcard"><h4>Histórico mensal (${keys.length}) \u2014 salvo na nuvem</h4><div class="mchips">${chips}</div>${keys.length>1?monthTrend(keys):""}</div>`;
+}
 function renderSales(){
   const body=$("#salesBody"),empty=$("#salesEmpty");
-  if(!SALES.loaded){body.innerHTML="";empty.style.display="";return;}
+  const monthKeys=Object.keys(SALES.months).sort();
+  if(!SALES.loaded && !monthKeys.length){body.innerHTML="";empty.style.display="";return;}
   empty.style.display="none";
-  const A=salesAgg(),K=A.K;
-  const sel=(id,val,opts)=>`<select class="sfilter" data-sf="${id}">${opts.map(o=>`<option value="${o[0]}"${val===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select>`;
-  const filters=`<div class="sfilters"><span class="flab">Filtros:</span>
+  let isHist=false,A,meta;
+  if(SALES.view!=="atual" && SALES.months[SALES.view]){A=SALES.months[SALES.view].A;meta=SALES.months[SALES.view];isHist=true;}
+  else if(SALES.loaded){A=salesAgg();meta={monthLabel:"upload atual",fileName:SALES.fileName};}
+  else{const k=monthKeys[monthKeys.length-1];SALES.view=k;A=SALES.months[k].A;meta=SALES.months[k];isHist=true;}
+  const K=A.K;
+  const hist=monthKeys.length?histStripHtml(monthKeys):"";
+  let filters;
+  if(isHist){filters=`<div class="sfilters"><span class="flab">${meta.monthLabel||""}</span><span class="sec">Fechamento salvo na nuvem \u00b7 ${meta.fileName||""} \u00b7 ${A.periodo}. Para filtrar por conta/tipo/Ads, suba de novo o arquivo desse m\u00eas.</span></div>`;}
+  else{const sel=(id,val,opts)=>`<select class="sfilter" data-sf="${id}">${opts.map(o=>`<option value="${o[0]}"${val===o[0]?" selected":""}>${o[1]}</option>`).join("")}</select>`;
+    filters=`<div class="sfilters"><span class="flab">Filtros:</span>
     ${sel("conta",salesFilters.conta,[["","Todas as contas"],["MG","MG"],["GRU","GRU"]])}
     ${sel("tipo",salesFilters.tipo,[["","Cl\u00e1ssico + Premium"],["Cl\u00e1ssico","Cl\u00e1ssico"],["Premium","Premium"]])}
     ${sel("pub",salesFilters.pub,[["","Com + sem Ads"],["Sim","S\u00f3 com Ads"],["N\u00e3o","S\u00f3 sem Ads"]])}
-    <span class="sfile">${SALES.fileName} \u00b7 ${A.periodo}</span></div>`;
+    <span class="sfile">${SALES.fileName} \u00b7 ${A.periodo}</span></div>`;}
   const kpis=`<div class="skpis">
     ${kpi("Vendas v\u00e1lidas",K.nVend.toLocaleString("pt-BR"))}
     ${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}
@@ -2249,17 +2306,22 @@ function renderSales(){
   // devolução por anúncio
   const devol=A.devol.length?`<div class="scard"><h4>Devolu\u00e7\u00e3o / cancelamento por an\u00fancio (top ${Math.min(A.devol.length,15)})</h4><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Vendas</th><th class="r">Devolv./canc.</th><th class="r">Taxa</th></tr></thead><tbody>${A.devol.slice(0,15).map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,38):""}</td><td class="r">${g.n}</td><td class="r">${g.nCancel}</td><td class="r"><span class="marg ${g.returnRate>=0.1?"no":g.returnRate>=0.05?"mid":"ok"}">${pct(g.returnRate)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
   // tabela principal ordenável
-  const sortableTh=(key,label,ralign)=>{const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
+  const sortableTh=(key,label,ralign)=>{if(isHist)return `<th class="${ralign?"r":""}">${label}</th>`;const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
   const mainRows=A.mlbs.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}>
     <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
     <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
     <td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td>
     <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td>
     <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
-  const main=`<div class="scard"><h4>Por an\u00fancio (${A.mlbs.length}) \u2014 clique nos t\u00edtulos pra ordenar</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
-  body.innerHTML=filters+kpis+ded+boxes+chart+segs+prej+preco+devol+main;
-  body.querySelectorAll(".sfilter").forEach(s=>s.onchange=()=>{salesFilters[s.dataset.sf]=s.value;renderSales();});
-  body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
+  const mainTitle=isHist?`Por an\u00fancio (${A.mlbs.length})`:`Por an\u00fancio (${A.mlbs.length}) \u2014 clique nos t\u00edtulos pra ordenar`;
+  const main=`<div class="scard"><h4>${mainTitle}</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
+  body.innerHTML=hist+filters+kpis+ded+boxes+chart+segs+prej+preco+devol+main;
+  body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
+  body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
+  if(!isHist){
+    body.querySelectorAll(".sfilter").forEach(s=>s.onchange=()=>{salesFilters[s.dataset.sf]=s.value;renderSales();});
+    body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
+  }
 }
 async function onSalesFile(file){
   if(!file)return;
@@ -2269,10 +2331,14 @@ async function onSalesFile(file){
     const wb=await readWorkbook(file);
     const {rows,sheet}=parseSalesWB(wb);
     if(!rows.length){toast("N\u00e3o encontrei vendas nesse arquivo");return;}
-    SALES.loaded=true;SALES.rows=rows;SALES.fileName=file.name;SALES.sheet=sheet;
+    await ensureSalesMonths();
+    const mk=monthKeyOf(rows);
+    SALES.loaded=true;SALES.rows=rows;SALES.fileName=file.name;SALES.sheet=sheet;SALES.currentMonth=mk.key;SALES.view="atual";
+    SALES.months[mk.key]=buildMonthSummary(rows,file.name,mk.key,mk.label);
     renderSales();
+    await persistSalesMonths();
     const val=rows.filter(r=>r.valid).length;
-    toast(val.toLocaleString("pt-BR")+" vendas analisadas");
+    toast(val.toLocaleString("pt-BR")+" vendas de "+mk.label+" salvas na nuvem");
   }catch(e){console.error(e);toast("Falha ao ler o arquivo");}
 }
 
@@ -2282,7 +2348,7 @@ function switchView(v){
   ["calc","dash","saved","unit","sales","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
   if(v==="saved")refreshSkus();
   if(v==="unit")renderUnitAnalysis();
-  if(v==="sales")renderSales();
+  if(v==="sales")openSales();
   if(v==="dash")renderDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 }
