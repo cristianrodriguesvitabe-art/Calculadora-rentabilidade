@@ -130,7 +130,14 @@
   .ugroup .ghead{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:2px 2px 10px}
   .ugroup .gname{font-family:var(--display);font-size:17px;color:var(--ink);font-weight:600}
   .pill{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
-  .pill.ok{background:#e5f0e9;color:var(--pos)}.pill.bad{background:var(--berry-soft);color:var(--berry)}.pill.neutral{background:var(--line2);color:var(--muted)}
+  .pill.ok{background:#e5f0e9;color:var(--pos)}.pill.bad{background:var(--berry-soft);color:var(--berry)}.pill.neutral{background:var(--line2);color:var(--muted)}.pill.mid{background:#f6ecd9;color:var(--warn)}
+  .pubar{display:flex;align-items:center;gap:10px}.pubar-t{flex:1;height:8px;min-width:60px;background:var(--line2);border-radius:999px;overflow:hidden}.pubar-t i{display:block;height:100%;border-radius:999px}.pubar b{min-width:78px;text-align:right}
+  .fiscbox{margin-bottom:20px}.fiscbox summary{cursor:pointer;padding:14px 16px;font-size:13.5px;color:var(--ink);list-style:none}.fiscbox summary::-webkit-details-marker{display:none}.fiscbox summary .comp{margin-left:4px}
+  .fchips{display:flex;flex-wrap:wrap;gap:8px}
+  .fchip{font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.12s}
+  .fchip:hover{border-color:#C9A227;color:var(--ink)}
+  .fchip.on{background:#f6ecd9;border-color:#C9A227;color:#8a6d12}
+  .fchip .fdot{width:7px;height:7px;border-radius:50%;background:#C9A227}
   .ualert{background:var(--berry-soft);border:1px solid #eccdd3;border-radius:var(--r);padding:16px 18px;margin-bottom:20px}
   .ualert.good{background:#e9f2ec;border-color:#cfe3d6}
   .ualert .at{font-weight:700;color:var(--berry);margin-bottom:6px}.ualert.good .at{color:var(--pos)}
@@ -419,7 +426,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 50</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 51</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -851,7 +858,7 @@ const DEF_ACCOUNTS = ["MG","GRU"];
 // ===== Tabelas de códigos de produto (referência; não alteram a composição salva) =====
 const PROD_COD={"BALM.0279":"HIDRATANTE LABIAL DE CEREJA","BALM.0280":"HIDRATANTE LABIAL DE BAUNILHA","BALM.0282":"HIDRATANTE LABIAL DE CAPPUCCINO","BALM.0281":"HIDRATANTE LABIAL DE UVA","BALM.0284":"ALIVIO FLEX","COL1.0118":"RENOVA BE VERISOL - FRUTAS TROPICAIS","COL1.0170":"RENOVA BE VERISOL - CHOCOLATE","COL1.0209":"RENOVA BE VERISOL - CRANBERRY","COL1.0210":"RENOVA BE VERISOL - LIMAO","COL1.0211":"RENOVA BE VERISOL - TANGERINA","COL1.0267":"RENOVA BE VERISOL - PINK LIMONADE","COL2.0221":"COLAGENO TIPO II","COL3.0215":"RENOVA BE LAC GEST - LARANJA","COL3.0266":"RENOVA BE LAC GEST - Limão","CREA.0272":"CREATINA + MORNING SHOT LARANJA","CREA.0273":"CREATINA + MORNING SHOT LIMAO C/ MORANGO","CREA.0274":"CREATINA + MORNING SHOT ABACAXI","CREM.0235":"CREME FACIAL + RESVERATROL","CREM.0236":"CREME FACIAL + RETINOL","CREM.0237":"BOOSTER PDRN","ESPU.0272":"ESPUMA DE LIMPEZA FACIAL","HIDR.0252":"HIDRATANTE FACIAL + PROTECAO SOLAR FPS","MELA.0219":"MELATONINA","MULT.0233":"MULTIVITAMINICO PREMIUM DE A A Z","OMEG.0234":"OMEGA 3 EPA/DHA + VITA E","SERU.0158":"SERUM - VITA C","SERU.0159":"SERUM - HIDRATANTE","SERU.0160":"SERUM - ANTI AGE","WHEY.0175":"WHEY - COOKIES","WHEY.0176":"WHEY - COCO","WHEY.0177":"WHEY - CHOCOLATE","WHEY.0178":"WHEY - BAUNILHA","MULT.0230":"MORO 4K CAFE VERDE","MULT.0231":"MAGNESIO","MULT.0232":"COENZIMA Q10 + VITAMINA E","ESFO.0002":"ESFOLIANTE CORPORAL COCO","ESFO.0003":"ESFOLIANTE CORPORAL MARACUJA","ESFO.0001":"ESFOLIANTE CORPORAL MELANCIA","CREM.0238":"SÉRUM FIRMADOR INSTANTÂNEO","AMOS.0007":"FIRMADOR INSTANTANEO RENOVA BE SACHE 1G"};
 const KIT_CODES={"MLB5198358902":["COL2.0221","BALM.0279","AMOS.0007","BALM.0284"],"MLB3562548295":["COL1.0211","CREM.0235","COL1.0170","COL1.0209","COL1.0210","COL1.0267","COL1.0118"],"MLB2216999687":["COL1.0211","CREM.0235","COL1.0267","COL1.0209","COL1.0210","COL1.0118"],"MLB5088391500":["COL1.0209","CREA.0274","BALM.0279","COL1.0267","COL1.0210","COL1.0211","COL1.0118"],"MLB4646769770":["COL1.0210","COL1.0211","COL1.0209","CREM.0236"],"MLB2690492304":["COL1.0210","CREM.0235","COL1.0267"],"MLB3658161881":["COL1.0211","CREM.0235","CREM.0236","COL1.0210","COL1.0209","COL1.0118"],"MLB3919952707":["COL2.0221","BALM.0279","BALM.0284","CREM.0235"],"MLB2690488914":["COL1.0211","BALM.0279","COL1.0118","COL1.0209","COL1.0210"],"MLB4006505211":["COL1.0209","CREM.0236","BALM.0279","COL1.0210","COL1.0211","COL1.0118","COL1.0267"],"MLB3361767191":["COL1.0211","AMOS.0007","COL1.0209","COL1.0210","COL1.0267","COL1.0118"],"MLB3661431720":["COL1.0209","COL2.0221","AMOS.0007","COL1.0211","COL1.0118","COL1.0210"],"MLB4646772014":["COL1.0211","COL1.0209","COL1.0118","CREM.0236"],"MLB4799872422":["CREA.0274","AMOS.0007"],"MLB3382262685":["COL1.0170","OMEG.0234","BALM.0279","COL1.0211","COL1.0210","COL1.0267"],"MLB2657095036":["WHEY.0178","BALM.0279","WHEY.0175","WHEY.0176","WHEY.0177"],"MLB5299100208":["CREA.0274","BALM.0279","CREA.0272","CREA.0273"],"MLB4646807340":["COL1.0211","COL1.0210","COL1.0118","BALM.0279"],"MLB3507728073":["COL1.0118","AMOS.0007","COL1.0209","COL1.0267"],"MLB5531870740":["COL2.0221","BALM.0279","BALM.0284"],"MLB3751987305":["COL1.0118","SERU.0158","COL1.0211","COL1.0210","COL1.0209"],"MLB5207285978":["COL1.0209","AMOS.0007","CREM.0235","CREM.0236"],"MLB4649602442":["COL3.0215","BALM.0279","COL3.0266"],"MLB2657069856":["WHEY.0176","BALM.0284","WHEY.0178","WHEY.0175","WHEY.0177"],"MLB3817413584":["OMEG.0234","COL2.0221","BALM.0279","AMOS.0007","CREM.0235"],"MLB3562869219":["COL1.0210","COL1.0211","COL1.0209","CREM.0236","COL1.0118","BALM.0279"],"MLB5457337792":["BALM.0279","MULT.0231","CREM.0236","CREM.0235","AMOS.0007"],"MLB3792912052":["COL1.0210","SERU.0159","COL1.0211","COL1.0118"],"MLB4075494778":["CREM.0237","SERU.0158","SERU.0159","SERU.0160"],"MLB3361881381":["COL1.0209","CREM.0235","CREM.0236","SERU.0158","SERU.0159","SERU.0160","COL1.0210","COL1.0211","COL1.0118","COL1.0170"],"MLB4542766369":["COL1.0209","CREM.0237","COL1.0211","COL1.0210","COL1.0118","COL1.0267","COL1.0170"],"MLB6434192652":["BALM.0281","BALM.0279","BALM.0280","BALM.0282"],"MLB4559080841":["COL1.0209","CREM.0238","COL1.0211","COL1.0210","COL1.0118","COL1.0267","COL1.0170"],"MLB6756759050":["COL1.0209","CREM.0235"],"MLB6717961444":["COL2.0221","BALM.0279"],"MLB6719860578":["COL1.0209","CREM.0235"],"MLB6940077568":["COL1.0267","OMEG.0234","BALM.0279"],"MLB6964553642":["COL1.0209","CREM.0238"],"MLB3509713439":["COL1.0209","MULT.0233","SERU.0158","SERU.0159","CREM.0236","CREM.0235","MELA.0219","SERU.0160","COL1.0211","COL1.0118","COL1.0210"],"MLB4433923828":["CREM.0235","CREM.0236","MELA.0219","MULT.0233","SERU.0158","SERU.0159","SERU.0160","COL1.0210","COL1.0211","COL1.0209","COL1.0118","COL1.0170"],"MLB4148969261":["BALM.0279","MULT.0231"],"MLB2874630917":["COL3.0215","BALM.0279"],"MLB5541160828":["MULT.0232","AMOS.0007"],"MLB4473854723":["MULT.0232","AMOS.0007"],"MLB3658840279":["SERU.0159","SERU.0160"],"MLB4473907747":["MULT.0231","AMOS.0007"],"MLB3520911251":["HIDR.0252"],"MLB3068523075":["MELA.0219","CREM.0235"],"MLB4105581435":["BALM.0279","MULT.0230"],"MLB3860689464":["COL1.0118","SERU.0159"],"MLB4104559507":["COL1.0211","AMOS.0007"],"MLB4646720406":["COL1.0209","COL1.0210","COL1.0118","AMOS.0007"],"MLB3917315713":["COL1.0209","COL1.0210","COL1.0118","CREM.0236"],"MLB5196038906":["COL1.0118","COL1.0210","COL1.0211","CREM.0236"],"MLB4134228063":["COL1.0209","CREM.0236"],"MLB3918231977":["COL1.0211","COL1.0210","CREM.0236","COL1.0209"],"MLB3918237727":["COL1.0210","CREM.0236"],"MLB3900214137":["COL1.0209","AMOS.0007"],"MLB3963775249":["COL1.0118","CREM.0236"],"MLB5276713550":["COL1.0210","CREM.0236"],"MLB3967615093":["COL1.0211","CREM.0236"],"MLB5276772526":["CREM.0236","COL1.0209"],"MLB5276758388":["COL1.0267","CREM.0236"],"MLB5423616086":["COL1.0211","CREM.0235","CREM.0236","HIDR.0252"],"MLB3938796663":["OMEG.0234","MULT.0233","COL2.0221","CREM.0235"],"MLB6483040640":["MULT.0231","AMOS.0007"],"MLB5259909344":["CREA.0274","CREM.0236"],"MLB3936508303":["CREA.0274","CREM.0236"],"MLB3562548183":["COL1.0209","AMOS.0007"],"MLB5547010078":["BALM.0279","MULT.0230"],"MLB6482044958":["CREM.0237"],"MLB5212173294":["CREA.0274","BALM.0279"],"MLB3983900307":["CREA.0273","BALM.0279"],"MLB3382394643":["BALM.0279","OMEG.0234"],"MLB3873540860":["CREM.0235","CREM.0236"],"MLB3912942621":["BALM.0279","CREA.0272","CREA.0274","CREA.0273"],"MLB2216989502":["COL1.0209","BALM.0279"],"MLB6799981716":["COL1.0209","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981722":["COL1.0118","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981718":["COL1.0210","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981720":["COL1.0211","CREA.0274","COL2.0221","BALM.0279"],"MLB6799981724":["COL1.0267","CREA.0274","COL2.0221","BALM.0279"],"MLB3451694685":["COL1.0210","COL1.0211","COL1.0209","CREM.0236"],"MLB6251502204":["COL2.0221","AMOS.0007"],"MLB3683105059":["COL1.0211","CREM.0235","CREM.0236"],"MLB3343554600":["COL1.0210","BALM.0279"],"MLB4610596270":["COL1.0209","CREM.0235"],"MLB4051571712":["COL1.0211","BALM.0279"],"MLB5419802970":["COL1.0209","CREM.0235"],"MLB3540741863":["COL1.0118","CREM.0235","CREM.0236","SERU.0158"],"MLB3540690119":["COL1.0210","COL1.0211","SERU.0158","AMOS.0007"],"MLB3540716201":["COL1.0209","COL1.0210","SERU.0158","CREM.0235","CREM.0236"],"MLB4362221816":["COL1.0209","COL1.0118","SERU.0158","CREM.0235","CREM.0236"],"MLB4355809836":["SERU.0158","SERU.0159","SERU.0160"],"MLB3954274869":["CREA.0274","CREM.0235"],"MLB3947912537":["CREA.0274","BALM.0279"],"MLB3387383991":["COL1.0118","COL1.0209","COL1.0211","COL1.0210","SERU.0159"],"MLB5421064476":["COL1.0210","AMOS.0007"],"MLB3845867334":["COL2.0221","AMOS.0007"],"MLB4480524347":["MULT.0230","AMOS.0007"],"MLB3540755109":["COL1.0209","COL1.0211","CREM.0235","CREM.0236","SERU.0158"],"MLB3385916377":["MULT.0233","BALM.0279"],"MLB4358475742":["COL1.0210","WHEY.0175","BALM.0279"],"MLB4413244510":["COL1.0209","COL1.0210","COL1.0211","COL1.0118"],"MLB3918224591":["COL1.0211","COL1.0118","COL1.0267","AMOS.0007"],"MLB3918223551":["COL1.0209","COL1.0210","COL1.0267","CREM.0235"],"MLB3918244921":["COL1.0118","AMOS.0007"],"MLB5196052020":["COL1.0209","COL1.0211","COL1.0267","CREM.0235"],"MLB3918200179":["COL1.0210","COL1.0211","COL1.0267","CREM.0235"],"MLB5196050744":["COL1.0211","COL1.0210","COL1.0209","AMOS.0007"],"MLB3918309571":["COL1.0211","AMOS.0007"],"MLB3918272199":["COL1.0210","AMOS.0007"],"MLB4674296158":["COL1.0170","SERU.0159"],"MLB4502096129":["CREM.0238"],"MLB3564265457":["MULT.0233","BALM.0279"],"MLB3617432797":["COL2.0221","BALM.0279"],"MLB3430465239":["COL2.0221","AMOS.0007"],"MLB3983827651":["CREA.0273","CREM.0235"],"MLB3983991781":["CREA.0272","AMOS.0007"],"MLB5297121654":["CREA.0273","BALM.0279"],"MLB3982849315":["CREA.0273","CREM.0235"],"MLB6251542858":["MULT.0232","AMOS.0007"],"MLB4081085078":["OMEG.0234","BALM.0279"],"MLB3463632603":["OMEG.0234","BALM.0279"],"MLB5733600598":["COL1.0209","OMEG.0234","BALM.0279"],"MLB3943941863":["COL1.0211","CREM.0236"],"MLB5241179246":["COL1.0118","CREM.0235"],"MLB3944005539":["COL1.0209","CREM.0235"],"MLB4234376924":["HIDR.0252","ESPU.0272"],"MLB4105555215":["BALM.0279","MULT.0232"],"MLB3658762973":["SERU.0158","SERU.0159"],"MLB3523887837":["COL1.0209","COL1.0170","SERU.0158","SERU.0159","SERU.0160","MULT.0233","MELA.0219","CREM.0235","CREM.0236"],"MLB3547041159":["COL1.0209","COL1.0210","COL1.0118","SERU.0158","SERU.0159","SERU.0160","AMOS.0007"],"MLB4277678935":["ESFO.0002","ESFO.0003","ESFO.0001"],"MLB4304636601":["CREM.0235","CREM.0236"],"MLB4753220543":["BALM.0287"],"MLB4753440839":["BALM.0285"],"MLB3819854658":["SERU.0160"],"MLB2687836633":["SERU.0159"],"MLB2687908759":["SERU.0158"],"MLB6507193820":["CREM.0237"],"MLB4440792551":["CREM.0238"]};
-let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP), ACCOUNTS = clone(DEF_ACCOUNTS);
+let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP), ACCOUNTS = clone(DEF_ACCOUNTS), FISCAL = {};
 let kit = [], saved = {};
 let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "", skuFilter = "";
 let skuSearch = "", skuConta = "", skuCanal = "", skuStatus = "", skuPlat = "", skuSort = {key:"upd",dir:-1};
@@ -900,14 +907,15 @@ const DB = {
 };
 function setSync(state){const p=$("#syncPill"),t=$("#syncTxt");p.className="sync"+(state==="cloud"?" cloud":state==="err"?" err":"");t.textContent=state==="cloud"?"Nuvem sincronizada":state==="err"?"Erro de conexão":"Modo local";}
 let cfgTimer;
-async function saveConfig(){const cfg={assumptions,channels:CHANNELS,catalog:CATALOG,accounts:ACCOUNTS};clearTimeout(cfgTimer);
+async function saveConfig(){const cfg={assumptions,channels:CHANNELS,catalog:CATALOG,accounts:ACCOUNTS,fiscal:FISCAL};clearTimeout(cfgTimer);
   cfgTimer=setTimeout(async()=>{try{await DB.setConfig(cfg);if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar ajustes na nuvem");}},400);}
 async function loadConfig(){
   try{const c=await DB.getConfig();
     if(c){if(c.assumptions)assumptions={...DEF_ASSUMP,...c.assumptions};
       if(Array.isArray(c.channels)&&c.channels.length)CHANNELS=c.channels;
       if(Array.isArray(c.catalog)&&c.catalog.length)CATALOG=c.catalog;
-      if(Array.isArray(c.accounts)&&c.accounts.length)ACCOUNTS=c.accounts;}
+      if(Array.isArray(c.accounts)&&c.accounts.length)ACCOUNTS=c.accounts;
+      if(c.fiscal&&typeof c.fiscal==="object")FISCAL=c.fiscal;}
     if(SUPA_ON)setSync("cloud");
   }catch(e){if(SUPA_ON)setSync("err");}
   migrateChannels();
@@ -1948,71 +1956,91 @@ async function pasteApply(){
 function skuUnits(rec){return (rec.itens||[]).reduce((s,it)=>s+(+it.q||0),0);}
 function skuPrice(rec){return +rec.pricePor||+rec.price||0;}
 function isPure(rec){return (rec.itens||[]).length===1;}
+function normFisc(n){return String(n||"").trim().toUpperCase();}
+function isFiscal(n){return !!FISCAL[normFisc(n)];}
+function seedFiscal(list){
+  if(assumptions.fiscalSeeded)return;
+  const re=/CREME FACIAL|RESVERATROL|RETINOL|FIRMADOR.*SACHE|SACHE.*FIRMADOR/;
+  const names=new Set();
+  list.forEach(r=>(r.itens||[]).forEach(it=>names.add(normFisc(it.n))));
+  names.forEach(n=>{if(re.test(n))FISCAL[n]=true;});
+  assumptions.fiscalSeeded=true;saveConfig();
+}
 function renderUnitAnalysis(){
   const list=Object.values(saved).filter(r=>!r.composicaoPendente);
   if(!list.length){$("#unitBody").innerHTML="";$("#unitEmpty").style.display="block";return;}
   $("#unitEmpty").style.display="none";
+  seedFiscal(list);
   const meta=(assumptions.meta||10)/100, violations=[];
-  // puros agrupados por produto
-  const groups={};
-  list.forEach(r=>{if(isPure(r)){const p=r.itens[0].n;(groups[p]=groups[p]||[]).push(r);}});
-  // referência: menor kit de cada produto (preço/un mais alto)
-  const ref={};
-  Object.keys(groups).forEach(p=>{
-    const rs=groups[p].map(r=>({u:skuUnits(r),ppu:skuUnits(r)?skuPrice(r)/skuUnits(r):0})).sort((x,y)=>x.u-y.u);
-    ref[p]={maxPpu:rs[0]?rs[0].ppu:0,minPpu:rs.length?rs[rs.length-1].ppu:0};
+  // --- por kit: separa itens fiscais (a custo) dos de valor; define produto-âncora ---
+  const rowsByProd={};
+  list.forEach(r=>{
+    const items=r.itens||[];if(!items.length)return;
+    const fisc=items.filter(it=>isFiscal(it.n));
+    let val=items.filter(it=>!isFiscal(it.n));
+    if(!val.length)val=items.slice();               // kit 100% fiscal: usa ele mesmo
+    const fiscalCost=fisc.reduce((s,it)=>s+(+it.c||0)*(+it.q||0),0);
+    // âncora = item de valor com mais unidades (desempate: maior custo)
+    const anchor=val.slice().sort((a,b)=>(b.q-a.q)||((b.c||0)-(a.c||0)))[0];
+    const anchorUnits=+anchor.q||1;
+    const price=skuPrice(r);
+    const pu=(price-fiscalCost)/anchorUnits;         // colágeno líquido por pote (balizador)
+    const lpu=(r.liquido||0)/anchorUnits;
+    const combo=val.length>1;
+    const p=anchor.n;
+    (rowsByProd[p]=rowsByProd[p]||[]).push({r,p,anchorUnits,price,pu,lpu,fiscalCost,fisc,combo,others:val.filter(v=>v!==anchor)});
   });
-  const withMulti=Object.keys(groups).filter(p=>groups[p].length>1).sort();
-  const singleOnly=Object.keys(groups).filter(p=>groups[p].length===1).sort();
-  // escada por produto
-  const ladderHtml=withMulti.map(prod=>{
-    const rows=groups[prod].map(r=>{const u=skuUnits(r);return{r,u,price:skuPrice(r),ppu:u?skuPrice(r)/u:0,lpu:u?(r.liquido||0)/u:0};}).sort((x,y)=>x.u-y.u);
-    const bySize={};rows.forEach(r=>{bySize[r.u]=Math.min(bySize[r.u]==null?Infinity:bySize[r.u],r.ppu);});
-    const sizes=Object.keys(bySize).map(Number).sort((x,y)=>x-y);
-    const prevSmaller=u=>{let best=null;sizes.forEach(s=>{if(s<u)best=s;});return best;};
-    const body=rows.map(row=>{
-      const ps=prevSmaller(row.u);
-      let status=`<span class="pill neutral">base</span>`,rowcls="";
-      if(ps!=null){const prevPpu=bySize[ps];
-        if(row.ppu>=prevPpu-1e-9){status=`<span class="pill bad">⚠ + caro/un que o de ${ps}</span>`;rowcls="warn-row";
-          violations.push(`<b>${prod}</b>: kit de ${row.u} sai a ${brl(row.ppu)}/un — não é mais barato que o de ${ps} (${brl(prevPpu)}/un)`);}
-        else status=`<span class="pill ok">✓ ${brl(prevPpu-row.ppu)}/un + barato</span>`;}
+  const prods=Object.keys(rowsByProd).sort((a,b)=>rowsByProd[b].length-rowsByProd[a].length||a.localeCompare(b));
+  const groupsHtml=prods.map(prod=>{
+    const rows=rowsByProd[prod].slice().sort((x,y)=>x.pu-y.pu);
+    const refMin=rows.reduce((m,x)=>Math.min(m,x.pu),Infinity);
+    const maxPu=rows.reduce((m,x)=>Math.max(m,x.pu),0)||1;
+    const single=rows.length===1;
+    const body=rows.map((row,i)=>{
+      const over=refMin>0?(row.pu-refMin)/refMin:0;
+      let status,bar="var(--forest)";
+      if(single){status=`<span class="pill neutral">único</span>`;}
+      else if(i===0){status=`<span class="pill ok">✓ mais barato/un</span>`;}
+      else if(over>0.15){status=`<span class="pill bad">⚠ muito acima</span>`;bar="var(--red,#b3261e)";
+        violations.push(`<b>${dispSku(row.r)}</b>: ${prod} sai a ${brl(row.pu)}/un — ${pct(over*100)} acima do mais barato (${brl(refMin)}/un)`);}
+      else if(over>0.03){status=`<span class="pill mid">acima do mais barato</span>`;bar="#C9A227";
+        violations.push(`<b>${dispSku(row.r)}</b>: ${prod} sai a ${brl(row.pu)}/un, acima do kit mais barato (${brl(refMin)}/un)`);}
+      else {status=`<span class="pill ok">ok</span>`;}
+      const w=Math.max(6,Math.round(row.pu/maxPu*100));
+      const comp=(row.r.itens||[]).map(it=>`${it.q}× ${it.n}`).join(" + ");
+      const notes=[];
+      if(row.combo)notes.push(`<span class="pill neutral" style="margin-left:6px">combo · ${row.others.map(o=>o.n).join(" + ")} também é valor</span>`);
+      const fiscTxt=row.fisc.length?`<div class="comp" style="margin-top:2px">acompanha a custo: ${row.fisc.map(f=>`${f.n} ${brl((+f.c||0)*(+f.q||0))}`).join(" · ")}</div>`:"";
       const mcls=row.r.lucratividade>=meta?"ok":row.r.lucratividade>=0?"mid":"no";
-      return `<tr class="${rowcls}"><td class="r u-mono">${row.u}</td><td><div class="sku-code">${row.r.sku}</div></td>
-        <td class="r u-mono">${brl(row.price)}</td><td class="r u-mono"><b>${brl(row.ppu)}</b></td>
-        <td class="r u-mono">${brl(row.lpu)}</td><td class="r"><span class="marg ${mcls}">${pct(row.r.lucratividade)}</span></td>
+      return `<tr><td><div class="sku-code">${dispSku(row.r)}</div><div class="sku-name">${comp}</div>${fiscTxt}${notes.join("")}</td>
+        <td class="r u-mono">${row.anchorUnits}</td>
+        <td class="r u-mono">${brl(row.price)}</td>
+        <td><div class="pubar"><div class="pubar-t"><i style="width:${w}%;background:${bar}"></i></div><b class="u-mono">${brl(row.pu)}</b></div></td>
+        <td class="r u-mono">${brl(row.lpu)}</td>
+        <td class="r"><span class="marg ${mcls}">${pct(row.r.lucratividade)}</span></td>
         <td>${status}</td></tr>`;
     }).join("");
+    const rangeTxt=single?"":`${brl(refMin)} – ${brl(maxPu)} /un`;
     return `<div class="card ugroup"><div class="pad" style="padding:14px 16px 8px">
-      <div class="ghead"><span class="gname">${prod}</span><span class="comp">${sizes.length} tamanhos</span></div>
-      <table><thead><tr><th class="r">Un.</th><th>SKU</th><th class="r">Preço</th><th class="r">Preço/un</th><th class="r">Líq./un</th><th class="r">Margem</th><th>Escada</th></tr></thead>
+      <div class="ghead"><span class="gname">${prod}</span><span class="comp">${rows.length} ${rows.length===1?"kit":"kits"}${rangeTxt?" · "+rangeTxt:""}</span></div>
+      <table><thead><tr><th>Kit</th><th class="r">Un.</th><th class="r">Preço</th><th>Preço/un (valor)</th><th class="r">Líq./un</th><th class="r">Margem</th><th>Escada</th></tr></thead>
       <tbody>${body}</tbody></table></div></div>`;
   }).join("");
-  // mistos
-  const mixed=list.filter(r=>!isPure(r));
-  const mixedHtml=mixed.map(r=>{
-    const price=skuPrice(r),units=skuUnits(r),totalCost=(r.itens||[]).reduce((s,it)=>s+it.c*it.q,0)||1;
-    const comps=(r.itens||[]).map(it=>{
-      const ippu=price*it.c/totalCost;let flag="";
-      if(ref[it.n]&&ippu>ref[it.n].maxPpu+1e-9){flag=` <span class="pill bad">acima do menor kit (${brl(ref[it.n].maxPpu)}/un)</span>`;
-        violations.push(`<b>${r.sku}</b>: ${it.n} sai a ${brl(ippu)}/un no misto, acima do menor kit puro (${brl(ref[it.n].maxPpu)}/un)`);}
-      return `<div>${it.q}× <b>${it.n}</b> — ${brl(ippu)}/un${flag}</div>`;
-    }).join("");
-    const mcls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
-    return `<tr><td><div class="sku-code">${dispSku(r)}</div>${r.nome?`<div class="sku-name">${r.nome}</div>`:""}</td>
-      <td class="r u-mono">${units}</td><td class="r u-mono">${brl(price)}</td><td class="r u-mono">${brl(units?price/units:0)}</td>
-      <td class="r"><span class="marg ${mcls}">${pct(r.lucratividade)}</span></td>
-      <td class="comp">${comps}</td></tr>`;
-  }).join("");
+  // --- gerenciador de itens fiscais ---
+  const allNames=[...new Set(list.flatMap(r=>(r.itens||[]).map(it=>it.n)))].sort();
+  const chips=allNames.map(n=>{const f=isFiscal(n);return `<button class="fchip ${f?"on":""}" data-fisc="${encodeURIComponent(n)}">${f?'<span class="fdot"></span>':""}${n}</button>`;}).join("");
+  const fiscMgr=`<details class="card fiscbox"><summary><b>Itens fiscais</b> — entram no kit a custo, não balizam o preço/un <span class="comp">(${allNames.filter(isFiscal).length} marcados)</span></summary>
+    <div class="pad" style="padding:10px 14px 14px"><p class="comp" style="margin:0 0 10px">Clique pra marcar/desmarcar. O custo dos fiscais é descontado do preço antes de calcular o valor por pote do produto principal.</p>
+    <div class="fchips">${chips}</div></div></details>`;
   const alertHtml=violations.length
     ? `<div class="ualert"><div class="at">⚠ ${violations.length} ${violations.length===1?"ponto":"pontos"} fora da faixa</div><ul>${violations.map(v=>`<li>${v}</li>`).join("")}</ul></div>`
-    : `<div class="ualert good"><div class="at">✓ Escada de preços consistente</div><div class="comp">Todos os kits do mesmo produto ficam mais baratos por unidade conforme o tamanho aumenta.</div></div>`;
-  let html=alertHtml;
-  if(ladderHtml)html+=`<div class="subh" style="margin:22px 0 12px">Escada de preço por produto</div>`+ladderHtml;
-  if(mixedHtml)html+=`<div class="subh" style="margin:24px 0 12px">Kits mistos — preço por item</div>
-    <div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>SKU</th><th class="r">Un.</th><th class="r">Preço</th><th class="r">Preço/un</th><th class="r">Margem</th><th>Preço por item (rateado por custo)</th></tr></thead><tbody>${mixedHtml}</tbody></table></div></div>`;
-  if(singleOnly.length)html+=`<p class="set-note" style="margin-top:18px">Produtos com só 1 tamanho cadastrado (sem escada para comparar): ${singleOnly.join(", ")}.</p>`;
-  $("#unitBody").innerHTML=html;
+    : `<div class="ualert good"><div class="at">✓ Preço por unidade consistente</div><div class="comp">Dentro de cada produto, os kits cobram o item de valor num preço/un parecido — a escada está coerente.</div></div>`;
+  $("#unitBody").innerHTML=fiscMgr+alertHtml+`<div class="subh" style="margin:22px 0 12px">Preço por unidade — por produto</div>`+groupsHtml;
+  $("#unitBody").querySelectorAll("[data-fisc]").forEach(b=>b.addEventListener("click",()=>{
+    const n=normFisc(decodeURIComponent(b.dataset.fisc));
+    if(FISCAL[n])delete FISCAL[n];else FISCAL[n]=true;
+    saveConfig();renderUnitAnalysis();
+  }));
 }
 // ---------- Resumo (dashboard) ----------
 function breakdownOf(rec){
