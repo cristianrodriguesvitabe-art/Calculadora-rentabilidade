@@ -402,7 +402,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 43</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 44</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2581,6 +2581,14 @@ function moversCardsHtml(m,labelFn,prevLabel){
   return `<div class="sgrid2"><div class="scard"><h4>Em alta <span class="sec">vs ${prevLabel}</span></h4>${up}</div><div class="scard"><h4>Em queda <span class="sec">vs ${prevLabel}</span></h4>${down}</div></div>${nv}`;
 }
 function nameKey(s){return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g,"").split(/\s+/).filter(w=>w.length>2&&!/^(com|sem|para|renova|kit|und|uni|the)$/.test(w)).sort().slice(0,5).join(" ");}
+function codeByNameMap(){const m={};(typeof CATALOG!=="undefined"?CATALOG:[]).forEach(p=>{if(p&&p.n&&p.cod)m[String(p.n).trim().toLowerCase()]=String(p.cod).trim().toUpperCase();});return m;}
+function recCodes(rec,cbn){
+  if(!rec)return [];
+  if(Array.isArray(rec.codigos)&&rec.codigos.length)return rec.codigos.map(c=>({code:String(c.c||"").trim().toUpperCase(),qty:+c.q||1})).filter(x=>x.code);
+  if(Array.isArray(rec.itens)&&rec.itens.length)return rec.itens.map(it=>({code:String(it.cod||it.codigo||(cbn&&cbn[String(it.n||it.nome||"").trim().toLowerCase()])||"").trim().toUpperCase(),qty:+(it.q||it.qtd||1)||1})).filter(x=>x.code);
+  return [];
+}
+function compSig(rec,cbn){const cs=recCodes(rec,cbn);if(!cs.length)return null;const agg={};cs.forEach(x=>{agg[x.code]=(agg[x.code]||0)+x.qty;});return Object.keys(agg).sort().map(k=>k+"x"+agg[k]).join("+");}
 function wireCustos(body,mrec,lucro,receita){
   if(!mrec)return;
   const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=lucro-effAdSpend(mrec)-outros;const mg=receita>0?res/receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
@@ -2618,7 +2626,7 @@ function renderShopee(){
   const m=prevProds?moversData(A.prods,prevProds,x=>x.sku||x.produto,x=>x.receita):null;
   const dailyCard=A.daily&&A.daily.length?`<div class="scard"><h4>Lucro por dia</h4>${dailyChart(A.daily)}</div>`:"";
   const band=`<div class="sgrid2">${abcCardHtml(abc)}<div class="scard"><h4>Top produtos (Pareto)</h4>${paretoChart(abc.list,x=>x.receita,x=>x.sku||x.produto)}</div></div>${dailyCard}`;
-  const movers=m?moversCardsHtml(m,x=>x.sku||(x.produto||"").slice(0,28),SALES.shp.months[prevKey].monthLabel):"";
+  const movers=m?moversCardsHtml(m,x=>`<span class="mono">${x.sku||""}</span> ${(x.produto||"").slice(0,22)}`,SALES.shp.months[prevKey].monthLabel):"";
   const ded=`<div class="scard"><h4>Do bruto ao l\u00edquido</h4><div class="dedgrid">
     <div><div class="sk-l">Bruto (Valor Total)</div><div class="dedv">${brl(K.bruto)}</div></div>
     <div><div class="sk-l">\u2212 Comiss\u00e3o</div><div class="dedv neg">\u2212${brl(K.comissaoTot)}</div><div class="sec">${pct(K.comissaoPct)}</div></div>
@@ -2658,14 +2666,15 @@ function renderCombined(){
     const mlItems=ml.A.mlbs.filter(x=>x.receita>0),shpItems=shp.A.prods.filter(x=>x.receita>0);
     const topML=[...mlItems].sort((a,b)=>b.receita-a.receita).slice(0,6),topSHP=[...shpItems].sort((a,b)=>b.receita-a.receita).slice(0,6);
     const donut=donutChart([{label:"Mercado Livre",value:ml.A.K.receita,color:"var(--forest)"},{label:"Shopee",value:shp.A.K.receita,color:"#C9A227"}],brl(T.receita).replace("R$ ",""),"receita l\u00edq.");
-    const mlByName={},shpByName={};
-    mlItems.forEach(x=>{const k=nameKey(x.titulo);if(!k)return;(mlByName[k]=mlByName[k]||{rev:0,name:x.titulo}).rev+=x.receita;});
-    shpItems.forEach(x=>{const k=nameKey(x.produto);if(!k)return;(shpByName[k]=shpByName[k]||{rev:0,name:x.produto}).rev+=x.receita;});
-    const common=Object.keys(mlByName).filter(k=>shpByName[k]).map(k=>({name:mlByName[k].name,ml:mlByName[k].rev,shp:shpByName[k].rev,total:mlByName[k].rev+shpByName[k].rev})).sort((a,b)=>b.total-a.total).slice(0,10);
+    const cbn=codeByNameMap(),sidx=shopeeSkuIndex();
+    const mlBySig={},shpBySig={};
+    mlItems.forEach(x=>{const rec=saved[x.mlb];const sig=compSig(rec,cbn);if(!sig)return;const g=mlBySig[sig]=mlBySig[sig]||{rev:0,name:(rec&&rec.nome)||x.titulo,mlb:x.mlb};g.rev+=x.receita;});
+    shpItems.forEach(x=>{const rec=sidx[shpNorm(x.sku)];const sig=compSig(rec,cbn);if(!sig)return;const g=shpBySig[sig]=shpBySig[sig]||{rev:0,name:(rec&&rec.nome)||x.produto,sku:x.sku};g.rev+=x.receita;});
+    const common=Object.keys(mlBySig).filter(k=>shpBySig[k]).map(k=>({name:mlBySig[k].name,mlb:mlBySig[k].mlb,sku:shpBySig[k].sku,ml:mlBySig[k].rev,shp:shpBySig[k].rev,total:mlBySig[k].rev+shpBySig[k].rev})).sort((a,b)=>b.total-a.total).slice(0,12);
     const donutCard=`<div class="scard"><h4>Receita por canal</h4><div class="abcwrap"><div>${donut}</div><div class="abclegs"><div class="abcleg"><span class="abcdot" style="background:var(--forest)"></span>Mercado Livre \u00b7 <b>${brl(ml.A.K.receita)}</b> <span class="sec">(${pct(ml.A.K.receita/(T.receita||1))})</span></div><div class="abcleg"><span class="abcdot" style="background:#C9A227"></span>Shopee \u00b7 <b>${brl(shp.A.K.receita)}</b> <span class="sec">(${pct(shp.A.K.receita/(T.receita||1))})</span></div></div></div></div>`;
     const wML=`<div class="scard"><h4>Campeões \u2014 Mercado Livre</h4><table class="stab"><tbody>${topML.map(x=>`<tr><td><span class="mono">${x.mlb}</span> ${(x.titulo||"").slice(0,32)}</td><td class="r"><b>${brl(x.receita)}</b></td></tr>`).join("")}</tbody></table></div>`;
     const wSHP=`<div class="scard"><h4>Campeões \u2014 Shopee</h4><table class="stab"><tbody>${topSHP.map(x=>`<tr><td><span class="mono">${x.sku||""}</span> ${(x.produto||"").slice(0,28)}</td><td class="r"><b>${brl(x.receita)}</b></td></tr>`).join("")}</tbody></table></div>`;
-    const commonCard=`<div class="scard"><h4>Vão bem nos dois canais <span class="sec">(aprox. por nome)</span></h4>${common.length?`<div class="stabwrap"><table class="stab"><thead><tr><th>Produto</th><th class="r">ML</th><th class="r">Shopee</th><th class="r">Total</th></tr></thead><tbody>${common.map(c=>`<tr><td>${c.name.slice(0,40)}</td><td class="r sec">${brl(c.ml)}</td><td class="r sec">${brl(c.shp)}</td><td class="r"><b>${brl(c.total)}</b></td></tr>`).join("")}</tbody></table></div>`:'<div class="sec">N\u00e3o encontrei correspond\u00eancia de nomes entre os canais neste m\u00eas.</div>'}</div>`;
+    const commonCard=`<div class="scard"><h4>Vão bem nos dois canais <span class="sec">(mesma composição)</span></h4>${common.length?`<div class="stabwrap"><table class="stab"><thead><tr><th>Produto (MLB \u00b7 SKU)</th><th class="r">ML</th><th class="r">Shopee</th><th class="r">Total</th></tr></thead><tbody>${common.map(c=>`<tr><td>${(c.name||"").slice(0,34)}<div class="stt"><span class="mono">${c.mlb}</span> \u00b7 <span class="mono">${c.sku}</span></div></td><td class="r sec">${brl(c.ml)}</td><td class="r sec">${brl(c.shp)}</td><td class="r"><b>${brl(c.total)}</b></td></tr>`).join("")}</tbody></table></div>`:'<div class="sec">Nenhum kit com a mesma composi\u00e7\u00e3o vendeu nos dois canais neste m\u00eas (ou faltam c\u00f3digos deduzidos nos cadastros).</div>'}</div>`;
     extra=donutCard+`<div class="sgrid2">${wML}${wSHP}</div>`+commonCard;
   }
   body.innerHTML=hist+kpis+table+extra;
@@ -2731,7 +2740,7 @@ function renderSales(){
   const mlKeys=Object.keys(SALES.months).sort();const dispKey=isHist?SALES.view:SALES.currentMonth;const mlIdx=mlKeys.indexOf(dispKey);const mlPrevKey=mlIdx>0?mlKeys[mlIdx-1]:null;const mlPrev=(mlPrevKey&&SALES.months[mlPrevKey].A)?SALES.months[mlPrevKey].A.mlbs:null;
   const mlMovers=mlPrev?moversData(A.mlbs,mlPrev,x=>x.mlb,x=>x.receita):null;
   const band=`<div class="sgrid2">${abcCardHtml(abc)}<div class="scard"><h4>Top an\u00fancios (Pareto)</h4>${paretoChart(abc.list,x=>x.receita,x=>x.mlb)}</div></div>`;
-  const moversH=mlMovers?moversCardsHtml(mlMovers,x=>(x.titulo?x.titulo.slice(0,26):x.mlb),SALES.months[mlPrevKey].monthLabel):"";
+  const moversH=mlMovers?moversCardsHtml(mlMovers,x=>`<span class="mono">${x.mlb}</span> ${x.titulo?x.titulo.slice(0,22):""}`,SALES.months[mlPrevKey].monthLabel):"";
   const mainRows=A.mlbs.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
     return `<tr${g.matched&&posA<0?' class="rowneg"':""}>
     <td><span class="abcp abc-${g._abc||"C"}">${g._abc||"C"}</span> <span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,50):"\u2014"}</div></td>
