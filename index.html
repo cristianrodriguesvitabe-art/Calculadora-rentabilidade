@@ -347,6 +347,13 @@
   .herobar-liq{background:var(--forest);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;min-width:0;white-space:nowrap}
   .herobar-ded{background:#d9b48a}
   @media(max-width:560px){.herokpi.rt{margin-left:0;text-align:left}.heroarrow{display:none}}
+  .tabsep{display:inline-block;width:1px;height:20px;background:var(--line2);margin:0 6px;vertical-align:middle;flex:0 0 auto}
+  .chtag{font-size:10px;font-weight:800;color:#fff;border-radius:5px;padding:2px 6px}
+  .chtag.ml{background:var(--forest)}.chtag.shp{background:#C9A227}
+  .alrow{padding:8px 10px;border-radius:8px;margin-bottom:6px;font-size:13px;background:var(--paper);border-left:3px solid var(--line2)}
+  .alrow:last-child{margin-bottom:0}
+  .alrow.warn{border-left-color:#C9A227;background:#FBF6E9}
+  .alrow.bad{border-left-color:var(--red,#b23b3b);background:#FBF1F1}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -412,15 +419,17 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 49</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 50</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
-      <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
-      <button class="tab" role="tab" aria-selected="false" data-view="saved">SKUs <span class="n" id="navCount">0</span></button>
       <button class="tab" role="tab" aria-selected="false" data-view="unit">Por unidade</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="saved">SKUs <span class="n" id="navCount">0</span></button>
+      <span class="tabsep" aria-hidden="true"></span>
+      <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
       <button class="tab" role="tab" aria-selected="false" data-view="sales">Fechamento</button>
       <button class="tab" role="tab" aria-selected="false" data-view="analytics">Análise</button>
+      <span class="tabsep" aria-hidden="true"></span>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
     </nav>
   </div>
@@ -2015,10 +2024,41 @@ function breakdownOf(rec){
   return financials({L,N,ch,catIdx,freight:+rec.freight||0,rebate:+rec.rebate||0});
 }
 function marginColor(z,meta){return z>=meta?"var(--pos)":z>=0?"var(--warn)":"var(--neg)";}
+function execSummaryHtml(){
+  const keys=[...new Set([...Object.keys(SALES.months),...Object.keys(SALES.shp.months)])].sort();
+  if(!keys.length)return "";
+  const sel=keys[keys.length-1];
+  const ml=SALES.months[sel],shp=SALES.shp.months[sel];
+  const metaPct=(assumptions.meta||10)/100;
+  const chan=(name,rec)=>{if(!rec)return null;const K=rec.A.K;const ad=effAdSpend(rec);const ex=monthExtras(rec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);return {name,K,ad,outros,res:K.lucro-ad-outros};};
+  const cs=[chan("Mercado Livre",ml),chan("Shopee",shp)].filter(Boolean);
+  const T={bruto:0,receita:0,custo:0,lucro:0,ad:0,outros:0,res:0,recUnmatched:0};
+  cs.forEach(c=>{T.bruto+=c.K.bruto||0;T.receita+=c.K.receita;T.custo+=c.K.custo;T.lucro+=c.K.lucro;T.ad+=c.ad;T.outros+=c.outros;T.res+=c.res;T.recUnmatched+=c.K.recUnmatched||0;});
+  const margemRes=T.receita>0?T.res/T.receita:0, cobertura=T.receita>0?(T.receita-T.recUnmatched)/T.receita:1, label=(ml||shp).monthLabel;
+  const hero=receitaHero({receita:T.receita,bruto:T.bruto},"taxas dos canais");
+  const dcards=`<div class="skpis">${kpi("Resultado final",brl(T.res),T.res<0?"neg":"pos")}${kpi("Lucro das vendas",brl(T.lucro))}${kpi("Investimento Ads",brl(T.ad))}${kpi("Margem final",pct(margemRes),margemRes>=metaPct?"pos":margemRes>=0?"":"neg")}</div>`;
+  const chRow=c=>`<tr><td>${c.name}</td><td class="r">${brl(c.K.receita)}</td><td class="r">${brl(c.K.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r"><b class="${c.res<0?"neg":""}">${brl(c.res)}</b></td></tr>`;
+  const chTable=`<div class="scard"><h4>Por canal</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Canal</th><th class="r">Receita líq.</th><th class="r">Lucro vendas</th><th class="r">Ads</th><th class="r">Resultado</th></tr></thead><tbody>${cs.map(chRow).join("")}${cs.length>1?`<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${brl(T.receita)}</b></td><td class="r"><b>${brl(T.lucro)}</b></td><td class="r">${brl(T.ad)}</td><td class="r"><b class="${T.res<0?"neg":""}">${brl(T.res)}</b></td></tr>`:""}</tbody></table></div></div>`;
+  const items=[];
+  if(ml)ml.A.mlbs.forEach(g=>items.push({id:g.mlb,name:g.titulo,rev:g.receita,ch:"ML"}));
+  if(shp)shp.A.prods.forEach(g=>items.push({id:g.sku,name:g.produto,rev:g.receita,ch:"SHP"}));
+  const top=items.sort((a,b)=>b.rev-a.rev).slice(0,5);
+  const champHtml=`<div class="scard"><h4>Campeões do mês</h4>${top.map(x=>`<div class="mvrow"><span class="chtag ${x.ch==="ML"?"ml":"shp"}">${x.ch}</span><div class="mvlbl"><span class="mono">${x.id||""}</span> ${(x.name||"").slice(0,24)}</div><div class="mvval"><b>${brl(x.rev)}</b></div></div>`).join("")}</div>`;
+  const nPrej=((ml&&ml.A.prejuizo)?ml.A.prejuizo.length:0)+((shp&&shp.A.prejuizo)?shp.A.prejuizo.length:0);
+  const alerts=[];
+  if(cobertura<0.98)alerts.push(`<div class="alrow warn"><b>Cobertura de custo ${pct(cobertura)}</b> — ${brl(T.recUnmatched)} em vendas sem custo cadastrado; o lucro real pode ser menor.</div>`);
+  if(nPrej>0)alerts.push(`<div class="alrow bad"><b>${nPrej} itens no prejuízo</b> — detalhe em Fechamento.</div>`);
+  if(margemRes<metaPct)alerts.push(`<div class="alrow warn"><b>Margem final ${pct(margemRes)}</b> abaixo da meta (${assumptions.meta}%).</div>`);
+  if(T.ad===0)alerts.push(`<div class="alrow">Sem Ads lançado neste mês — se investiu, preencha em Fechamento → Custos do mês.</div>`);
+  const alertsHtml=`<div class="scard"><h4>O que resolver</h4>${alerts.length?alerts.join(""):'<div class="sec">Nada crítico neste mês. \u2714</div>'}</div>`;
+  return `<div class="dsec"><div class="t">Fechamento do mês \u2014 ${label}</div><div class="d">Resultado real com base nos relatórios subidos (Mercado Livre + Shopee).</div></div>${hero}${dcards}${chTable}<div class="sgrid2">${champHtml}${alertsHtml}</div>`;
+}
 function renderDashboard(){
+  const exec=execSummaryHtml();
   const list=Object.values(saved).filter(r=>!r.composicaoPendente);
-  if(!list.length){$("#dashBody").innerHTML="";$("#dashEmpty").style.display="block";return;}
+  if(!list.length && !exec){$("#dashBody").innerHTML="";$("#dashEmpty").style.display="block";return;}
   $("#dashEmpty").style.display="none";
+  if(!list.length){$("#dashBody").innerHTML=exec;return;}
   const meta=(assumptions.meta||10)/100;
   const avg=list.reduce((s,r)=>s+(r.lucratividade||0),0)/list.length;
   const below=list.filter(r=>(r.lucratividade||0)<meta).length;
@@ -2076,7 +2116,7 @@ function renderDashboard(){
   const topYhtml=topY.map((r,i)=>`<div class="dbar-row" style="grid-template-columns:22px 1fr auto"><div class="dbar-val" style="color:var(--faint)">${i+1}</div><div class="dbar-label">${r.sku}<small>${r.canal||""}${r.origem?" · "+r.origem:""}</small></div><div class="dbar-val">${brl(r.liquido||0)}</div></div>`).join("");
   const topSec=`<div class="dsec"><div class="t">Kits mais rentáveis</div><div class="d">Ranking por lucratividade. Verde acima da meta, âmbar abaixo, vermelho no prejuízo.</div>${topRows}
     <div class="dup-sec" style="margin-top:18px">Maior lucro por venda (R$)</div>${topYhtml}</div>`;
-  $("#dashBody").innerHTML=cards+chanSec+costSec+topSec;
+  $("#dashBody").innerHTML=exec+(exec?`<div class="dsec"><div class="t" style="margin-top:6px">Carteira cadastrada</div><div class="d">Consolidado te\u00f3rico dos kits cadastrados (precifica\u00e7\u00e3o) \u2014 n\u00e3o \u00e9 venda real.</div></div>`:"")+cards+chanSec+costSec+topSec;
 }
 
 // ---------- Ajustes ----------
@@ -2722,6 +2762,7 @@ function renderAnalyticsBoth(){
   body.innerHTML=hist+donutCard+`<div class="sgrid2">${wML}${wSHP}</div>`+commonCard;
   body.querySelectorAll("[data-anmonth]").forEach(c=>c.onclick=()=>{SALES.anView.both=c.dataset.anmonth;renderAnalytics();});
 }
+async function openDashboard(){await ensureSalesMonths();renderDashboard();}
 async function openAnalytics(){await ensureSalesMonths();renderAnalytics();}
 function renderFechamento(){
   const seg=$("#chseg");if(seg)seg.querySelectorAll(".chbtn").forEach(b=>b.classList.toggle("on",b.dataset.ch===SALES.channel));
@@ -2921,7 +2962,7 @@ function switchView(v){
   if(v==="unit")renderUnitAnalysis();
   if(v==="sales")openSales();
   if(v==="analytics")openAnalytics();
-  if(v==="dash")renderDashboard();
+  if(v==="dash")openDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -2934,7 +2975,7 @@ $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchVie
 document.querySelectorAll("#chseg .chbtn").forEach(b=>b.onclick=()=>{SALES.channel=b.dataset.ch;renderFechamento();});
 document.querySelectorAll("#anseg .chbtn").forEach(b=>b.onclick=()=>{SALES.anChannel=b.dataset.ch;renderAnalytics();});
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
-$("#refreshDash").onclick=async()=>{await refreshSkus();renderDashboard();};
+$("#refreshDash").onclick=async()=>{await refreshSkus();await ensureSalesMonths();renderDashboard();};
 $("#refreshBtn").onclick=refreshSkus;
 $("#channel").onchange=()=>{showChannelFees(true);suggestAcct();calc();};
 $("#acct").onchange=()=>{selAcct=$("#acct").value;};
