@@ -138,6 +138,25 @@
   .fchip:hover{border-color:#C9A227;color:var(--ink)}
   .fchip.on{background:#f6ecd9;border-color:#C9A227;color:#8a6d12}
   .fchip .fdot{width:7px;height:7px;border-radius:50%;background:#C9A227}
+  .ptabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .ptab{background:var(--line2);border:1px solid transparent;color:var(--muted);border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .ptab:hover{color:var(--ink)}
+  .ptab.on{background:#fff;border:2px solid var(--forest);color:var(--ink);padding:5px 13px}
+  .ptab .pc{color:var(--faint);font-weight:600}
+  .ustats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:12px}
+  .ustat{background:var(--line2);border-radius:var(--r);padding:12px 14px}
+  .ustat .k{font-size:12px;color:var(--muted)}
+  .ustat .v{font-size:22px;font-weight:700;color:var(--ink);font-family:var(--mono)}.ustat .v.pos{color:var(--pos)}.ustat .v.warn{color:#8a6d12}
+  .ulegend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:2px 6px 10px}
+  .ulegend span{display:flex;align-items:center;gap:5px}.ulegend i{width:10px;height:10px;border-radius:50%}.ulegend .dash{display:inline-block;width:16px;border-top:2px dashed #b9b7ad}
+  .uchart .uax-grid{stroke:var(--line2)}.uchart .uax-axis{stroke:var(--line)}
+  .uchart .uax-lbl{fill:var(--faint);font-size:11px;font-family:var(--mono)}.uchart .uax-cap{fill:var(--muted);font-size:12px}
+  .uchart .utrend{fill:none;stroke:#b9b7ad;stroke-width:2;stroke-dasharray:5 4}
+  .ucap{font-size:11px;color:var(--faint);text-align:center;padding:6px 0 4px}
+  .fulllist>summary,.fiscbox>summary{cursor:pointer;padding:14px 16px;font-size:13.5px;color:var(--ink);list-style:none}
+  .fulllist>summary::-webkit-details-marker,.fiscbox>summary::-webkit-details-marker{display:none}
+  .fulllist>summary::before,.fiscbox>summary::before{content:"▸ ";color:var(--faint)}
+  .fulllist[open]>summary::before,.fiscbox[open]>summary::before{content:"▾ "}
   .ualert{background:var(--berry-soft);border:1px solid #eccdd3;border-radius:var(--r);padding:16px 18px;margin-bottom:20px}
   .ualert.good{background:#e9f2ec;border-color:#cfe3d6}
   .ualert .at{font-weight:700;color:var(--berry);margin-bottom:6px}.ualert.good .at{color:var(--pos)}
@@ -426,7 +445,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 51</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 52</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1958,89 +1977,107 @@ function skuPrice(rec){return +rec.pricePor||+rec.price||0;}
 function isPure(rec){return (rec.itens||[]).length===1;}
 function normFisc(n){return String(n||"").trim().toUpperCase();}
 function isFiscal(n){return !!FISCAL[normFisc(n)];}
+let unitProd=null;
 function seedFiscal(list){
-  if(assumptions.fiscalSeeded)return;
-  const re=/CREME FACIAL|RESVERATROL|RETINOL|FIRMADOR.*SACHE|SACHE.*FIRMADOR/;
+  if(assumptions.fiscalSeedV>=2)return;
+  const re=/\bCREME\b|RESVERATROL|RETINOL|FIRMADOR.*SACH|SACH.*FIRMADOR/;
   const names=new Set();
   list.forEach(r=>(r.itens||[]).forEach(it=>names.add(normFisc(it.n))));
-  names.forEach(n=>{if(re.test(n))FISCAL[n]=true;});
-  assumptions.fiscalSeeded=true;saveConfig();
+  names.forEach(n=>{if(re.test(n))FISCAL[n]=true;});   // só adiciona; nunca remove marcação manual
+  assumptions.fiscalSeedV=2;assumptions.fiscalSeeded=true;saveConfig();
+}
+function unitScatter(rows){
+  const W=700,H=300,pl=58,pr=18,pt=18,pb=42,iw=W-pl-pr,ih=H-pt-pb;
+  const us=rows.map(r=>r.units);let xmin=Math.min(...us),xmax=Math.max(...us);if(xmin===xmax){xmin-=1;xmax+=1;}xmin-=0.6;xmax+=0.6;
+  const pus=rows.map(r=>r.pu);let ymin=Math.min(...pus),ymax=Math.max(...pus);const yr=(ymax-ymin)||ymax||1;ymin-=yr*0.14;ymax+=yr*0.14;if(ymin<0)ymin=0;
+  const X=u=>pl+(u-xmin)/(xmax-xmin)*iw, Y=v=>pt+(1-(v-ymin)/(ymax-ymin))*ih;
+  let g="";for(let i=0;i<=4;i++){const v=ymin+(ymax-ymin)*i/4,y=Y(v);g+=`<line x1="${pl}" y1="${y.toFixed(1)}" x2="${W-pr}" y2="${y.toFixed(1)}" class="uax-grid"/><text x="${pl-8}" y="${(y+4).toFixed(1)}" class="uax-lbl" text-anchor="end">${brl(v)}</text>`;}
+  const uset=[...new Set(us)].sort((a,b)=>a-b);let xg="";
+  uset.forEach(u=>{xg+=`<text x="${X(u).toFixed(1)}" y="${H-pb+20}" class="uax-lbl" text-anchor="middle">${u}</text>`;});
+  xg+=`<text x="${(pl+iw/2).toFixed(1)}" y="${H-6}" class="uax-cap" text-anchor="middle">potes por kit</text>`;
+  const byU={};rows.forEach(r=>{(byU[r.units]=byU[r.units]||[]).push(r.pu);});
+  const med=a=>{const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+  const tp=uset.map(u=>X(u).toFixed(1)+","+Y(med(byU[u])).toFixed(1));
+  const trend=tp.length>1?`<polyline points="${tp.join(" ")}" class="utrend"/>`:"";
+  let dots="";uset.forEach(u=>{const tr=rows.filter(r=>r.units===u),n=tr.length;tr.sort((a,b)=>a.pu-b.pu).forEach((r,i)=>{
+    const off=n>1?(-0.28+0.56*i/(n-1)):0,x=X(u+off),y=Y(r.pu),col=r.flag==="alto"?"#b3261e":r.flag==="acima"?"#C9A227":"#234B3E";
+    dots+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${col}" stroke="#fff" stroke-width="2"><title>${dispSku(r.r)} — ${brl(r.pu)}/un (${u} ${u>1?"potes":"pote"})</title></circle>`;});});
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" class="uchart" role="img"><desc>Preço por pote do produto por tamanho de kit</desc>
+    <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${H-pb}" class="uax-axis"/><line x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}" class="uax-axis"/>
+    ${g}${xg}${trend}${dots}</svg>`;
 }
 function renderUnitAnalysis(){
   const list=Object.values(saved).filter(r=>!r.composicaoPendente);
   if(!list.length){$("#unitBody").innerHTML="";$("#unitEmpty").style.display="block";return;}
   $("#unitEmpty").style.display="none";
   seedFiscal(list);
-  const meta=(assumptions.meta||10)/100, violations=[];
-  // --- por kit: separa itens fiscais (a custo) dos de valor; define produto-âncora ---
+  const meta=(assumptions.meta||10)/100;
+  // por kit → produto-âncora (item de valor com mais unidades); fiscais entram a custo
   const rowsByProd={};
   list.forEach(r=>{
     const items=r.itens||[];if(!items.length)return;
     const fisc=items.filter(it=>isFiscal(it.n));
-    let val=items.filter(it=>!isFiscal(it.n));
-    if(!val.length)val=items.slice();               // kit 100% fiscal: usa ele mesmo
+    let val=items.filter(it=>!isFiscal(it.n));if(!val.length)val=items.slice();
     const fiscalCost=fisc.reduce((s,it)=>s+(+it.c||0)*(+it.q||0),0);
-    // âncora = item de valor com mais unidades (desempate: maior custo)
     const anchor=val.slice().sort((a,b)=>(b.q-a.q)||((b.c||0)-(a.c||0)))[0];
-    const anchorUnits=+anchor.q||1;
-    const price=skuPrice(r);
-    const pu=(price-fiscalCost)/anchorUnits;         // colágeno líquido por pote (balizador)
-    const lpu=(r.liquido||0)/anchorUnits;
-    const combo=val.length>1;
-    const p=anchor.n;
-    (rowsByProd[p]=rowsByProd[p]||[]).push({r,p,anchorUnits,price,pu,lpu,fiscalCost,fisc,combo,others:val.filter(v=>v!==anchor)});
+    const units=+anchor.q||1,price=skuPrice(r);
+    (rowsByProd[anchor.n]=rowsByProd[anchor.n]||[]).push({r,units,price,pu:(price-fiscalCost)/units,lpu:(r.liquido||0)/units,fiscalCost,fisc,combo:val.length>1,others:val.filter(v=>v!==anchor)});
   });
   const prods=Object.keys(rowsByProd).sort((a,b)=>rowsByProd[b].length-rowsByProd[a].length||a.localeCompare(b));
-  const groupsHtml=prods.map(prod=>{
-    const rows=rowsByProd[prod].slice().sort((x,y)=>x.pu-y.pu);
-    const refMin=rows.reduce((m,x)=>Math.min(m,x.pu),Infinity);
-    const maxPu=rows.reduce((m,x)=>Math.max(m,x.pu),0)||1;
-    const single=rows.length===1;
-    const body=rows.map((row,i)=>{
-      const over=refMin>0?(row.pu-refMin)/refMin:0;
-      let status,bar="var(--forest)";
-      if(single){status=`<span class="pill neutral">único</span>`;}
-      else if(i===0){status=`<span class="pill ok">✓ mais barato/un</span>`;}
-      else if(over>0.15){status=`<span class="pill bad">⚠ muito acima</span>`;bar="var(--red,#b3261e)";
-        violations.push(`<b>${dispSku(row.r)}</b>: ${prod} sai a ${brl(row.pu)}/un — ${pct(over*100)} acima do mais barato (${brl(refMin)}/un)`);}
-      else if(over>0.03){status=`<span class="pill mid">acima do mais barato</span>`;bar="#C9A227";
-        violations.push(`<b>${dispSku(row.r)}</b>: ${prod} sai a ${brl(row.pu)}/un, acima do kit mais barato (${brl(refMin)}/un)`);}
-      else {status=`<span class="pill ok">ok</span>`;}
-      const w=Math.max(6,Math.round(row.pu/maxPu*100));
-      const comp=(row.r.itens||[]).map(it=>`${it.q}× ${it.n}`).join(" + ");
-      const notes=[];
-      if(row.combo)notes.push(`<span class="pill neutral" style="margin-left:6px">combo · ${row.others.map(o=>o.n).join(" + ")} também é valor</span>`);
-      const fiscTxt=row.fisc.length?`<div class="comp" style="margin-top:2px">acompanha a custo: ${row.fisc.map(f=>`${f.n} ${brl((+f.c||0)*(+f.q||0))}`).join(" · ")}</div>`:"";
-      const mcls=row.r.lucratividade>=meta?"ok":row.r.lucratividade>=0?"mid":"no";
-      return `<tr><td><div class="sku-code">${dispSku(row.r)}</div><div class="sku-name">${comp}</div>${fiscTxt}${notes.join("")}</td>
-        <td class="r u-mono">${row.anchorUnits}</td>
-        <td class="r u-mono">${brl(row.price)}</td>
-        <td><div class="pubar"><div class="pubar-t"><i style="width:${w}%;background:${bar}"></i></div><b class="u-mono">${brl(row.pu)}</b></div></td>
-        <td class="r u-mono">${brl(row.lpu)}</td>
-        <td class="r"><span class="marg ${mcls}">${pct(row.r.lucratividade)}</span></td>
-        <td>${status}</td></tr>`;
-    }).join("");
-    const rangeTxt=single?"":`${brl(refMin)} – ${brl(maxPu)} /un`;
-    return `<div class="card ugroup"><div class="pad" style="padding:14px 16px 8px">
-      <div class="ghead"><span class="gname">${prod}</span><span class="comp">${rows.length} ${rows.length===1?"kit":"kits"}${rangeTxt?" · "+rangeTxt:""}</span></div>
-      <table><thead><tr><th>Kit</th><th class="r">Un.</th><th class="r">Preço</th><th>Preço/un (valor)</th><th class="r">Líq./un</th><th class="r">Margem</th><th>Escada</th></tr></thead>
-      <tbody>${body}</tbody></table></div></div>`;
+  if(!unitProd||!rowsByProd[unitProd])unitProd=prods[0];
+  const tabs=`<div class="ptabs">`+prods.map(p=>`<button class="ptab ${p===unitProd?"on":""}" data-prod="${encodeURIComponent(p)}">${p} <span class="pc">${rowsByProd[p].length}</span></button>`).join("")+`</div>`;
+  // produto ativo — comparação POR TAMANHO (tier = nº de potes)
+  const rows=rowsByProd[unitProd].slice();
+  const byTier={};rows.forEach(r=>{(byTier[r.units]=byTier[r.units]||[]).push(r);});
+  const tierBest={};Object.keys(byTier).forEach(u=>tierBest[u]=Math.min(...byTier[u].map(r=>r.pu)));
+  rows.forEach(r=>{const best=tierBest[r.units];r.over=best>0?(r.pu-best)/best:0;r.flag=r.over>0.15?"alto":r.over>0.06?"acima":"ok";});
+  const nOut=rows.filter(r=>r.flag!=="ok").length;
+  // escada entre tamanhos: tamanho maior deveria ter mediana menor
+  const med=a=>{const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2;};
+  const tiers=Object.keys(byTier).map(Number).sort((a,b)=>a-b);
+  const tierMed={};tiers.forEach(u=>tierMed[u]=med(byTier[u].map(r=>r.pu)));
+  let broken=null;for(let i=1;i<tiers.length;i++){if(tierMed[tiers[i]]>=tierMed[tiers[i-1]]-1e-9){broken=[tiers[i-1],tiers[i]];break;}}
+  // stats
+  const sorted=rows.map(r=>r.pu).sort((a,b)=>a-b);
+  const mn=sorted[0],md=sorted[sorted.length>>1],mx=sorted[sorted.length-1];
+  const single=tiers.length<2;
+  const stats=`<div class="ustats">
+    <div class="ustat"><div class="k">Kits</div><div class="v">${rows.length}</div></div>
+    <div class="ustat"><div class="k">${unitProd} /un — mais barato</div><div class="v pos">${brl(mn)}</div></div>
+    <div class="ustat"><div class="k">Mediano</div><div class="v">${brl(md)}</div></div>
+    <div class="ustat"><div class="k">Pra revisar</div><div class="v ${nOut?"warn":""}">${nOut}</div></div></div>`;
+  let verdict;
+  if(single)verdict=`<div class="ualert good"><div class="at">Um tamanho só</div><div class="comp">Sem outros tamanhos de ${unitProd} pra comparar a escada.</div></div>`;
+  else if(nOut===0&&!broken)verdict=`<div class="ualert good"><div class="at">✓ Escada saudável</div><div class="comp">O ${unitProd} sai mais barato por pote conforme o kit cresce. Nenhum kit fora da faixa.</div></div>`;
+  else verdict=`<div class="ualert"><div class="at">⚠ ${nOut?nOut+" kit"+(nOut>1?"s":"")+" pra revisar":"Escada invertida"}</div><div class="comp">${broken?`Kit de ${broken[1]} potes não está mais barato/un que o de ${broken[0]}. `:""}Veja abaixo quem cobra o ${unitProd} caro perto dos kits do mesmo tamanho.</div></div>`;
+  const legend=`<div class="ulegend"><span><i style="background:#234B3E"></i>na faixa</span><span><i style="background:#C9A227"></i>acima do tamanho</span><span><i style="background:#b3261e"></i>muito acima</span><span><b class="dash"></b>escada esperada</span></div>`;
+  const chartCard=`<div class="card"><div class="pad" style="padding:14px 10px 6px">${legend}${unitScatter(rows)}<div class="ucap">Cada ponto é um kit · vertical = quanto o ${unitProd} sai por pote (já sem o custo dos itens fiscais)</div></div></div>`;
+  // lista: só o que revisar
+  const rev=rows.filter(r=>r.flag!=="ok").sort((a,b)=>b.over-a.over);
+  const revHtml=rev.length?`<div class="subh" style="margin:22px 0 10px">Kits pra revisar</div><div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Kit</th><th class="r">Potes</th><th class="r">${unitProd}/un</th><th class="r">vs. tamanho</th><th class="r">Margem</th></tr></thead><tbody>`+rev.map(r=>{
+    const mcls=r.r.lucratividade>=meta?"ok":r.r.lucratividade>=0?"mid":"no";
+    const comp=(r.r.itens||[]).map(it=>`${it.q}× ${it.n}`).join(" + ");
+    return `<tr><td><div class="sku-code">${dispSku(r.r)}</div><div class="sku-name">${comp}</div></td><td class="r u-mono">${r.units}</td><td class="r u-mono"><b>${brl(r.pu)}</b></td><td class="r u-mono"><span class="pill ${r.flag==="alto"?"bad":"mid"}">+${Math.round(r.over*100)}%</span><div class="comp">melhor: ${brl(tierBest[r.units])}</div></td><td class="r"><span class="marg ${mcls}">${pct(r.r.lucratividade)}</span></td></tr>`;
+  }).join("")+`</tbody></table></div></div>`:"";
+  // lista completa (recolhida)
+  const maxPu=mx||1;
+  const fullRows=rows.slice().sort((a,b)=>a.units-b.units||a.pu-b.pu).map(r=>{
+    const w=Math.max(6,Math.round(r.pu/maxPu*100)),bar=r.flag==="alto"?"#b3261e":r.flag==="acima"?"#C9A227":"var(--forest)";
+    const mcls=r.r.lucratividade>=meta?"ok":r.r.lucratividade>=0?"mid":"no";
+    const comp=(r.r.itens||[]).map(it=>`${it.q}× ${it.n}`).join(" + ");
+    const fiscTxt=r.fisc.length?`<div class="comp" style="margin-top:2px">a custo: ${r.fisc.map(f=>`${f.n} ${brl((+f.c||0)*(+f.q||0))}`).join(" · ")}</div>`:"";
+    const combo=r.combo?`<span class="pill neutral" style="margin-left:6px">combo</span>`:"";
+    return `<tr><td><div class="sku-code">${dispSku(r.r)}</div><div class="sku-name">${comp}</div>${fiscTxt}${combo}</td><td class="r u-mono">${r.units}</td><td class="r u-mono">${brl(r.price)}</td><td><div class="pubar"><div class="pubar-t"><i style="width:${w}%;background:${bar}"></i></div><b class="u-mono">${brl(r.pu)}</b></div></td><td class="r u-mono">${brl(r.lpu)}</td><td class="r"><span class="marg ${mcls}">${pct(r.r.lucratividade)}</span></td></tr>`;
   }).join("");
-  // --- gerenciador de itens fiscais ---
+  const fullList=`<details class="card fulllist"${rev.length?"":" open"}><summary>Todos os ${rows.length} kits de ${unitProd}</summary><div class="pad" style="padding:4px 8px"><table><thead><tr><th>Kit</th><th class="r">Potes</th><th class="r">Preço</th><th>${unitProd}/un</th><th class="r">Líq./un</th><th class="r">Margem</th></tr></thead><tbody>${fullRows}</tbody></table></div></details>`;
+  // gerenciador de itens fiscais
   const allNames=[...new Set(list.flatMap(r=>(r.itens||[]).map(it=>it.n)))].sort();
   const chips=allNames.map(n=>{const f=isFiscal(n);return `<button class="fchip ${f?"on":""}" data-fisc="${encodeURIComponent(n)}">${f?'<span class="fdot"></span>':""}${n}</button>`;}).join("");
   const fiscMgr=`<details class="card fiscbox"><summary><b>Itens fiscais</b> — entram no kit a custo, não balizam o preço/un <span class="comp">(${allNames.filter(isFiscal).length} marcados)</span></summary>
-    <div class="pad" style="padding:10px 14px 14px"><p class="comp" style="margin:0 0 10px">Clique pra marcar/desmarcar. O custo dos fiscais é descontado do preço antes de calcular o valor por pote do produto principal.</p>
-    <div class="fchips">${chips}</div></div></details>`;
-  const alertHtml=violations.length
-    ? `<div class="ualert"><div class="at">⚠ ${violations.length} ${violations.length===1?"ponto":"pontos"} fora da faixa</div><ul>${violations.map(v=>`<li>${v}</li>`).join("")}</ul></div>`
-    : `<div class="ualert good"><div class="at">✓ Preço por unidade consistente</div><div class="comp">Dentro de cada produto, os kits cobram o item de valor num preço/un parecido — a escada está coerente.</div></div>`;
-  $("#unitBody").innerHTML=fiscMgr+alertHtml+`<div class="subh" style="margin:22px 0 12px">Preço por unidade — por produto</div>`+groupsHtml;
-  $("#unitBody").querySelectorAll("[data-fisc]").forEach(b=>b.addEventListener("click",()=>{
-    const n=normFisc(decodeURIComponent(b.dataset.fisc));
-    if(FISCAL[n])delete FISCAL[n];else FISCAL[n]=true;
-    saveConfig();renderUnitAnalysis();
-  }));
+    <div class="pad" style="padding:10px 14px 14px"><p class="comp" style="margin:0 0 10px">Clique pra marcar/desmarcar. O custo dos fiscais é descontado do preço antes de calcular o valor por pote do produto principal.</p><div class="fchips">${chips}</div></div></details>`;
+  $("#unitBody").innerHTML=tabs+stats+verdict+chartCard+revHtml+`<div style="margin-top:18px"></div>`+fullList+fiscMgr;
+  $("#unitBody").querySelectorAll("[data-prod]").forEach(b=>b.addEventListener("click",()=>{unitProd=decodeURIComponent(b.dataset.prod);renderUnitAnalysis();}));
+  $("#unitBody").querySelectorAll("[data-fisc]").forEach(b=>b.addEventListener("click",()=>{const n=normFisc(decodeURIComponent(b.dataset.fisc));if(FISCAL[n])delete FISCAL[n];else FISCAL[n]=true;saveConfig();renderUnitAnalysis();}));
 }
 // ---------- Resumo (dashboard) ----------
 function breakdownOf(rec){
