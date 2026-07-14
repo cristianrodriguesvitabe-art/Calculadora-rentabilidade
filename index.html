@@ -402,7 +402,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 45</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 47</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2198,11 +2198,11 @@ function isCancelStatus(s,total){const t=(s||"").toLowerCase();if(/te demos o di
 const MESES_ABR={jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
 function parseAdDate(s){const t=String(s||"").match(/(\d{1,2})[-\/ ]([a-z\u00e7]{3,})[-\/ ](\d{4})/i);if(!t)return null;const mo=MESES_ABR[t[2].slice(0,3).toLowerCase()];if(mo==null)return null;return new Date(+t[3],mo,+t[1]);}
 function detectReport(wb){
-  for(const sn of wb.SheetNames){const M=sheetMatrix(wb.Sheets[sn]);const flat=M.slice(0,4).map(r=>Array.isArray(r)?r:[]).reduce((a,r)=>a.concat(r),[]).map(x=>String(x||""));
+  for(const sn of wb.SheetNames){const M=sheetMatrix(wb.Sheets[sn]);const flat=M.slice(0,12).map(r=>Array.isArray(r)?r:[]).reduce((a,r)=>a.concat(r),[]).map(x=>String(x||""));
     if(flat.some(x=>/id do pedido/i.test(x))&&flat.some(x=>/taxa de comiss|n[u\u00fa]mero de refer[e\u00ea]ncia sku/i.test(x)))return {kind:"shopee",sheet:sn};
-    if(flat.some(x=>/investimento/i.test(x)))return {kind:"adscampaign",sheet:sn};
-    if(flat.some(x=>/n\.?[\u00bao] de venda/i.test(x)))return {kind:"sales",sheet:sn};
+    if(flat.some(x=>/n\.?\s*[\u00ba\u00b0o]?\s*de venda/i.test(x)))return {kind:"sales",sheet:sn};
     if(flat.some(x=>/an[u\u00fa]ncio patrocinado/i.test(x)))return {kind:"adssales",sheet:sn};
+    if(flat.some(x=>/investimento/i.test(x)))return {kind:"adscampaign",sheet:sn};
   }
   return {kind:"sales"};
 }
@@ -2281,7 +2281,7 @@ function parseSalesWB(wb){
   if(hr<0)hr=0;
   const H=headerIndex(M[hr]);
   const col=(name,alt)=>{if(H[name]!=null)return H[name];const k=Object.keys(H).find(h=>h.toLowerCase().includes(name.toLowerCase()));return k!=null?H[k]:(alt==null?-1:alt);};
-  const c={venda:col("N.\u00ba de venda",0),data:col("Data da venda",1),status:col("Estado",3),un:col("Unidades",7),
+  const c={venda:col("N.\u00ba de venda",0),data:col("Data da venda",1),dep:col("Dep\u00f3sito",2),status:col("Estado",3),un:col("Unidades",7),
     recProd:col("Receita por produtos",8),tarifa:col("Tarifa de venda e impostos",11),frete:col("Tarifas de envio",13),
     total:col("Total (BRL)",18),pub:col("Venda por publicidade",21),sku:col("SKU",22),mlb:col("an\u00fancio",23),
     titulo:col("T\u00edtulo do an\u00fancio",26),variacao:col("Varia\u00e7\u00e3o",27),precoUnit:col("Pre\u00e7o unit\u00e1rio de venda",28),tipo:col("Tipo de an\u00fancio",29)};
@@ -2298,7 +2298,7 @@ function parseSalesWB(wb){
     const matched=!!(rec&&!rec.composicaoPendente&&(+rec.custoItens>0));
     const custoUnit=rec?(+rec.custoItens||0):0, cost=matched?custoUnit*un:0;
     const pkgline=!mlb, cancel=!pkgline&&isCancelStatus(status,total);
-    rows.push({venda,date:parseSaleDate(r[c.data]),status,pkgline,cancel,valid:!pkgline&&!cancel&&total>0,
+    rows.push({venda,date:parseSaleDate(r[c.data]),status,pkgline,cancel,valid:!pkgline&&!cancel&&total>0,deposito:String(r[c.dep]||"").trim(),
       un,total,recProd:Number(r[c.recProd])||0,tarifa:Number(r[c.tarifa])||0,frete:Number(r[c.frete])||0,precoUnit:Number(r[c.precoUnit])||0,
       mlb,sku:String(r[c.sku]||"").trim(),variacao:String(r[c.variacao]||"").trim(),
       titulo:String(r[c.titulo]||(rec&&rec.nome)||"").trim(),tipo:(String(r[c.tipo]||"").trim()||"\u2014"),pub,
@@ -2307,6 +2307,36 @@ function parseSalesWB(wb){
   }
   return {rows,sheet:sn};
 }
+function detectAccount(rows){
+  let mg=0,gru=0;
+  rows.forEach(r=>{const d=(r.deposito||"").toLowerCase();if(/extrema/.test(d))mg++;else if(/guarulho/.test(d))gru++;});
+  if(mg===0&&gru===0)return null;
+  return mg>=gru?"MG":"GRU";
+}
+const CONTA_LBL={MG:"Extrema (MG)",GRU:"Guarulhos (GRU)"};
+function mergeAggs(list){
+  list=list.filter(Boolean);
+  if(!list.length)return null;
+  if(list.length===1)return list[0];
+  const S=f=>list.reduce((s,a)=>s+(a.K[f]||0),0);
+  const mlbs=[].concat(...list.map(a=>a.mlbs||[]));
+  const recMatched=mlbs.filter(g=>g.matched).reduce((s,g)=>s+g.receita,0);
+  const bruto=S("bruto"),tarifaTot=S("tarifaTot"),freteTot=S("freteTot"),receita=S("receita"),lucro=S("lucro"),nVend=S("nVend");
+  const K={nVend,unid:S("unid"),receita,custo:S("custo"),lucro,margem:recMatched>0?lucro/recMatched:0,ticket:nVend?receita/nVend:0,
+    nCancel:S("nCancel"),recCancel:S("recCancel"),nUnmatched:S("nUnmatched"),recUnmatched:S("recUnmatched"),
+    bruto,tarifaTot,freteTot,tarifaPct:bruto>0?tarifaTot/bruto:0,fretePct:bruto>0?freteTot/bruto:0,takeRate:bruto>0?receita/bruto:0};
+  const mergeSeg=key=>{const m={};list.forEach(a=>(a[key]||[]).forEach(g=>{let x=m[g.k];if(!x)x=m[g.k]={k:g.k,n:0,receita:0,custo:0,lucro:0,matched:true};x.n+=g.n;x.receita+=g.receita;x.custo+=g.custo||0;x.lucro+=g.lucro||0;if(g.matched===false)x.matched=false;}));return Object.values(m).map(g=>({...g,margem:g.matched&&g.receita?g.lucro/g.receita:null})).sort((a,b)=>b.receita-a.receita);};
+  const mlbsSorted=[...mlbs].sort((a,b)=>b.receita-a.receita);
+  const dm={};list.forEach(a=>(a.daily||[]).forEach(d=>{let g=dm[d.t];if(!g)g=dm[d.t]={t:d.t,day:d.day,label:d.label,n:0,receita:0,lucro:0};g.n+=d.n;g.receita+=d.receita;g.lucro+=d.lucro;}));
+  const daily=Object.values(dm).sort((a,b)=>a.t-b.t);
+  return {K,mlbs:mlbsSorted,porTipo:mergeSeg("porTipo"),porPub:mergeSeg("porPub"),porConta:mergeSeg("porConta"),
+    semCusto:[].concat(...list.map(a=>a.semCusto||[])).sort((a,b)=>b.receita-a.receita),
+    prejuizo:mlbsSorted.filter(g=>g.matched&&g.lucro<0).sort((a,b)=>a.lucro-b.lucro),
+    precoGap:mlbsSorted.filter(g=>g.precoCad>0&&g.precoMedio>0&&g.gapPct<-0.005).sort((a,b)=>a.gapPct-b.gapPct),
+    devol:mlbsSorted.filter(g=>g.nCancel>0&&(g.n+g.nCancel)>=3).sort((a,b)=>b.returnRate-a.returnRate),
+    daily,periodo:[...new Set(list.map(a=>a.periodo).filter(Boolean))].join(" \u00b7 ")};
+}
+function monthA(m){if(!m)return null;if(m.parts&&Object.keys(m.parts).length)return mergeAggs(Object.values(m.parts).map(x=>x.A));return m.A||null;}
 function salesAgg(){
   const f=salesFilters;
   const base=SALES.rows.filter(r=>!r.pkgline&&(!f.conta||r.conta===f.conta)&&(!f.tipo||r.tipo===f.tipo)&&(!f.pub||r.pub===f.pub));
@@ -2786,8 +2816,10 @@ function renderSales(){
   // devolução por anúncio
   const devol=A.devol.length?`<div class="scard"><h4>Devolu\u00e7\u00e3o / cancelamento por an\u00fancio (top ${Math.min(A.devol.length,15)})</h4><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Vendas</th><th class="r">Devolv./canc.</th><th class="r">Taxa</th></tr></thead><tbody>${A.devol.slice(0,15).map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,38):""}</td><td class="r">${g.n}</td><td class="r">${g.nCancel}</td><td class="r"><span class="marg ${g.returnRate>=0.1?"no":g.returnRate>=0.05?"mid":"ok"}">${pct(g.returnRate)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
   // tabela principal ordenável
-  const sortableTh=(key,label,ralign)=>{if(isHist)return `<th class="${ralign?"r":""}">${label}</th>`;const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
-  const mainRows=A.mlbs.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
+  const sortableTh=(key,label,ralign)=>{const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
+  const smk=salesSort.key,sdir=salesSort.dir,sval=g=>{const v=g[smk];return v==null?-Infinity:v;};
+  const mlbsView=[...A.mlbs].sort((a,b)=>sdir<0?sval(b)-sval(a):sval(a)-sval(b));
+  const mainRows=mlbsView.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
     return `<tr${g.matched&&posA<0?' class="rowneg"':""}>
     <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
     <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
@@ -2803,7 +2835,9 @@ function renderSales(){
   const mrec=SALES.months[mkeyEdit];
   const custosHtml=mrec?custosCardHtml(mkeyEdit,mrec,K.lucro,K.receita,adsData):"";
   const detalhes=`<details class="detwrap"><summary><h4 style="display:inline">Detalhes t\u00e9cnicos</h4> <span class="sec">segmentos, pre\u00e7o praticado, devolu\u00e7\u00e3o</span></summary>${segs}${preco}${devol}</details>`;
-  body.innerHTML=hist+filters+kpis+custosHtml+ded+boxes+chart+prej+main+detalhes;
+  const parts=meta&&meta.parts;
+  const contaCard=(parts&&Object.keys(parts).length>1)?`<div class="scard"><h4>Por conta (Mercado Livre)</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Conta</th><th class="r">Vendas</th><th class="r">Receita líq.</th><th class="r">Custo</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${Object.keys(parts).sort().map(acct=>{const pk=parts[acct].A.K;return `<tr><td>${CONTA_LBL[acct]||acct}</td><td class="r">${pk.nVend.toLocaleString("pt-BR")}</td><td class="r">${brl(pk.receita)}</td><td class="r sec">${brl(pk.custo)}</td><td class="r"><b class="${pk.lucro<0?"neg":""}">${brl(pk.lucro)}</b></td><td class="r"><span class="marg ${pk.margem>=(assumptions.meta||10)/100?"ok":pk.margem>=0?"mid":"no"}">${pct(pk.margem)}</span></td></tr>`;}).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${K.nVend.toLocaleString("pt-BR")}</b></td><td class="r"><b>${brl(K.receita)}</b></td><td class="r">${brl(K.custo)}</td><td class="r"><b>${brl(K.lucro)}</b></td><td class="r">${pct(K.margem)}</td></tr></tbody></table></div></div>`:"";
+  body.innerHTML=hist+filters+kpis+contaCard+custosHtml+ded+boxes+chart+prej+main+detalhes;
   body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
   body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
   if(mrec){
@@ -2814,9 +2848,9 @@ function renderSales(){
     body.querySelectorAll("[data-costadd]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.push({nome:b.dataset.costadd||"",valor:null});persistSalesMonths();renderSales();});
     body.querySelectorAll("[data-costdel]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.splice(+b.dataset.costdel,1);persistSalesMonths();renderSales();});
   }
+  body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
   if(!isHist){
     body.querySelectorAll(".sfilter").forEach(s=>s.onchange=()=>{salesFilters[s.dataset.sf]=s.value;renderSales();});
-    body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
   }
 }
 async function onSalesFiles(files){
@@ -2834,11 +2868,19 @@ async function onSalesFiles(files){
         const {rows,sheet}=parseSalesWB(p.wb);
         if(!rows.length){toast("N\u00e3o encontrei vendas em "+p.name);continue;}
         await ensureSalesMonths();
+        const acct=detectAccount(rows)||"?";
+        if(acct!=="?")rows.forEach(r=>{r.conta=acct;});
         const mk=monthKeyOf(rows);
-        SALES.loaded=true;SALES.rows=rows;SALES.fileName=p.name;SALES.sheet=sheet;SALES.currentMonth=mk.key;SALES.view="atual";SALES.channel="ml";
-        SALES.months[mk.key]=buildMonthSummary(rows,p.name,mk.key,mk.label);
+        const partA=buildMonthSummary(rows,p.name,mk.key,mk.label).A;
+        const m=SALES.months[mk.key]||{month:mk.key,monthLabel:mk.label,fileName:p.name,uploadedAt:Date.now()};
+        m.parts=m.parts||{};m.parts[acct]={A:partA,fileName:p.name,uploadedAt:Date.now(),sheet};
+        m.A=mergeAggs(Object.values(m.parts).map(x=>x.A));
+        m.monthLabel=m.monthLabel||mk.label;m.fileName=p.name;
+        SALES.months[mk.key]=m;
+        SALES.loaded=true;SALES.currentMonth=mk.key;SALES.view=mk.key;SALES.channel="ml";
         await persistSalesMonths();
-        toast(rows.filter(r=>r.valid).length.toLocaleString("pt-BR")+" vendas de "+mk.label+" salvas na nuvem");
+        const lbl=CONTA_LBL[acct]||"conta não identificada";
+        toast(rows.filter(r=>r.valid).length.toLocaleString("pt-BR")+" vendas ("+lbl+") de "+mk.label+" salvas");
       }
     }
     renderFechamento();
