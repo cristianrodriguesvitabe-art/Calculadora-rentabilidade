@@ -412,7 +412,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 48</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 49</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2292,7 +2292,7 @@ function parseSalesWB(wb){
   const H=headerIndex(M[hr]);
   const col=(name,alt)=>{if(H[name]!=null)return H[name];const k=Object.keys(H).find(h=>h.toLowerCase().includes(name.toLowerCase()));return k!=null?H[k]:(alt==null?-1:alt);};
   const c={venda:col("N.\u00ba de venda",0),data:col("Data da venda",1),dep:col("Dep\u00f3sito",2),status:col("Estado",3),un:col("Unidades",7),
-    recProd:col("Receita por produtos",8),tarifa:col("Tarifa de venda e impostos",11),frete:col("Tarifas de envio",13),
+    recProd:col("Receita por produtos",8),acr:col("Receita por acr\u00e9scimo",9),recEnvio:col("Receita por envio",12),bonus:col("Descontos e b\u00f4nus",16),tarifa:col("Tarifa de venda e impostos",11),frete:col("Tarifas de envio",13),
     total:col("Total (BRL)",18),pub:col("Venda por publicidade",21),sku:col("SKU",22),mlb:col("an\u00fancio",23),
     titulo:col("T\u00edtulo do an\u00fancio",26),variacao:col("Varia\u00e7\u00e3o",27),precoUnit:col("Pre\u00e7o unit\u00e1rio de venda",28),tipo:col("Tipo de an\u00fancio",29)};
   const rows=[];
@@ -2309,7 +2309,7 @@ function parseSalesWB(wb){
     const custoUnit=rec?(+rec.custoItens||0):0, cost=matched?custoUnit*un:0;
     const pkgline=!mlb, cancel=!pkgline&&isCancelStatus(status,total);
     rows.push({venda,date:parseSaleDate(r[c.data]),status,pkgline,cancel,valid:!pkgline&&!cancel&&total>0,deposito:String(r[c.dep]||"").trim(),
-      un,total,recProd:Number(r[c.recProd])||0,tarifa:Number(r[c.tarifa])||0,frete:Number(r[c.frete])||0,precoUnit:Number(r[c.precoUnit])||0,
+      un,total,recProd:Number(r[c.recProd])||0,bruto:(Number(r[c.recProd])||0)+(Number(r[c.acr])||0)+(Number(r[c.recEnvio])||0),bonus:Number(r[c.bonus])||0,tarifa:Number(r[c.tarifa])||0,frete:Number(r[c.frete])||0,precoUnit:Number(r[c.precoUnit])||0,
       mlb,sku:String(r[c.sku]||"").trim(),variacao:String(r[c.variacao]||"").trim(),
       titulo:String(r[c.titulo]||(rec&&rec.nome)||"").trim(),tipo:(String(r[c.tipo]||"").trim()||"\u2014"),pub,
       conta:rec?(rec.conta||"\u2014"):"\u2014",matched,custoUnit,cost,precoCad:rec?(+rec.pricePor||+rec.price||0):0,
@@ -2355,7 +2355,7 @@ function salesAgg(){
   const S=(a,g)=>a.reduce((s,x)=>s+g(x),0);
   const receita=S(valid,x=>x.total), custo=S(matched,x=>x.cost), lucro=S(matched,x=>x.profit);
   const recMatched=S(matched,x=>x.total);
-  const bruto=S(valid,x=>x.recProd||0), tarifaTot=S(valid,x=>Math.abs(x.tarifa||0)), freteTot=S(valid,x=>Math.abs(x.frete||0));
+  const bruto=S(valid,x=>x.bruto||0), tarifaTot=S(valid,x=>Math.abs(x.tarifa||0)), freteTot=S(valid,x=>Math.abs(x.frete||0));
   const K={nVend:valid.length,unid:S(valid,x=>x.un),receita,custo,lucro,
     margem:recMatched>0?lucro/recMatched:0,ticket:valid.length?receita/valid.length:0,
     nCancel:cancel.length,recCancel:S(cancel,x=>x.total||0),
@@ -2825,11 +2825,13 @@ function renderSales(){
     <div class="scard warn"><h4>Cancelados / devolvidos</h4><div class="bxbig">${K.nCancel.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita revertida (n\u00e3o conta no lucro): ${brl(K.recCancel)}</div></div>
     <div class="scard ${K.nUnmatched?"warn":""}"><h4>Sem custo cadastrado</h4><div class="bxbig">${K.nUnmatched.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita ${brl(K.recUnmatched)} \u00b7 ${A.semCusto.length} an\u00fancios sem kit cadastrado</div>${A.semCusto.length?'<div class="semlist">'+A.semCusto.slice(0,12).map(g=>`<span class="semchip">${g.mlb}${g.titulo?" \u00b7 "+g.titulo.slice(0,32):""}</span>`).join("")+(A.semCusto.length>12?`<span class="semchip more">+${A.semCusto.length-12}</span>`:"")+'</div>':""}</div></div>`;
   // deduções do ML
+  const dedAjuste=K.receita-(K.bruto-K.tarifaTot-K.freteTot);
   const ded=`<div class="scard"><h4>Para onde foi o faturamento (bruto \u2192 recebido)</h4>
     <div class="dedgrid">
-      <div><div class="sk-l">Receita bruta</div><div class="dedv">${brl(K.bruto)}</div></div>
+      <div><div class="sk-l">Receita bruta</div><div class="dedv">${brl(K.bruto)}</div><div class="sec">produtos + frete + acr\u00e9scimo</div></div>
       <div><div class="sk-l">Comiss\u00e3o + impostos</div><div class="dedv neg">\u2212${brl(K.tarifaTot)}</div><div class="sec">${pct(K.tarifaPct)} do bruto</div></div>
       <div><div class="sk-l">Frete</div><div class="dedv neg">\u2212${brl(K.freteTot)}</div><div class="sec">${pct(K.fretePct)} do bruto</div></div>
+      ${Math.abs(dedAjuste)>1?`<div><div class="sk-l">B\u00f4nus e ajustes</div><div class="dedv ${dedAjuste<0?"neg":""}">${dedAjuste>=0?"+":"\u2212"}${brl(Math.abs(dedAjuste))}</div><div class="sec">descontos, b\u00f4nus ML</div></div>`:""}
       <div><div class="sk-l">Recebido (l\u00edquido)</div><div class="dedv">${brl(K.receita)}</div><div class="sec">${pct(K.takeRate)} do bruto</div></div>
     </div></div>`;
   const chart=`<div class="scard"><h4>Evolu\u00e7\u00e3o di\u00e1ria (lucro por dia)</h4>${dailyChart(A.daily)}<div class="sec" style="margin-top:6px">Passe o mouse nas barras pra ver receita, lucro e nº de vendas do dia.</div></div>`;
