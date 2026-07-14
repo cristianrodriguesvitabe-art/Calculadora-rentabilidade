@@ -337,6 +337,16 @@
   .detwrap>summary::before{content:"\u25b8 ";color:var(--muted)}
   .detwrap[open]>summary::before{content:"\u25be "}
   .detwrap[open]{padding-bottom:14px}
+  .herocard{background:linear-gradient(180deg,var(--card,#fff),var(--paper))}
+  .herogrid{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap}
+  .herokpi{min-width:120px}.herokpi.rt{margin-left:auto;text-align:right}
+  .herov{font-size:26px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;line-height:1.1}
+  .herov.pos{color:var(--forest)}.herov.neg{color:var(--red,#b23b3b)}
+  .heroarrow{font-size:22px;color:var(--muted);padding-bottom:4px}
+  .herobar{display:flex;height:22px;border-radius:7px;overflow:hidden;margin-top:14px;background:var(--line2)}
+  .herobar-liq{background:var(--forest);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;min-width:0;white-space:nowrap}
+  .herobar-ded{background:#d9b48a}
+  @media(max-width:560px){.herokpi.rt{margin-left:0;text-align:left}.heroarrow{display:none}}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -402,7 +412,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 47</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 48</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2635,6 +2645,19 @@ function recCodes(rec,cbn){
   return [];
 }
 function compSig(rec,cbn){const cs=recCodes(rec,cbn);if(!cs.length)return null;const agg={};cs.forEach(x=>{agg[x.code]=(agg[x.code]||0)+x.qty;});return Object.keys(agg).sort().map(k=>k+"x"+agg[k]).join("+");}
+function receitaHero(K,dedLabel){
+  const liq=K.receita||0,bruto=K.bruto||0,deduz=Math.max(bruto-liq,0),ret=bruto>0?liq/bruto:0;
+  const pctLiq=bruto>0?Math.max(4,Math.min(96,Math.round(ret*100))):100;
+  return `<div class="scard herocard">
+    <div class="herogrid">
+      <div class="herokpi"><div class="sk-l">Receita bruta</div><div class="herov">${brl(bruto)}</div></div>
+      <div class="heroarrow">\u2192</div>
+      <div class="herokpi"><div class="sk-l">Receita l\u00edquida (recebida)</div><div class="herov pos">${brl(liq)}</div></div>
+      <div class="herokpi rt"><div class="sk-l">${dedLabel||"Taxas + frete"}</div><div class="herov neg">\u2212${brl(deduz)}</div><div class="sec">${pct(1-ret)} do bruto</div></div>
+    </div>
+    <div class="herobar"><div class="herobar-liq" style="width:${pctLiq}%"><span>l\u00edquido ${pct(ret)}</span></div><div class="herobar-ded" style="width:${100-pctLiq}%"></div></div>
+  </div>`;
+}
 function wireCustos(body,mrec,lucro,receita){
   if(!mrec)return;
   const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=lucro-effAdSpend(mrec)-outros;const mg=receita>0?res/receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
@@ -2721,7 +2744,8 @@ function renderShopee(){
   const mrec=SALES.shp.months[sel],A=mrec.A,K=A.K;
   const strip=keys.map(k=>{const m=SALES.shp.months[k],on=k===sel;return `<button class="mchip${on?" on":""}" data-shmonth="${k}">${m.monthLabel}<span class="mc-l">${brl(m.A.K.lucro)}</span><span class="mdel" data-shdel="${k}" title="Remover">\u00d7</span></button>`;}).join("");
   const hist=`<div class="scard histcard"><h4>Meses (Shopee)</h4><div class="mstrip">${strip}</div></div>`;
-  const kpis=`<div class="skpis">${kpi("Pedidos",K.nVend.toLocaleString("pt-BR"))}${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}${kpi("Receita l\u00edq.",brl(K.receita))}${kpi("Custo",brl(K.custo))}${kpi("Lucro",brl(K.lucro),K.lucro<0?"neg":"pos")}${kpi("Margem",pct(K.margem))}${kpi("Cancelados",K.nCancel.toLocaleString("pt-BR"))}</div>`;
+  const heroHtml=receitaHero(K,"Comissão + serviço + transação");
+  const kpis=`<div class="skpis">${kpi("Pedidos",K.nVend.toLocaleString("pt-BR"))}${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}${kpi("Custo",brl(K.custo))}${kpi("Lucro",brl(K.lucro),K.lucro<0?"neg":"pos")}${kpi("Margem",pct(K.margem))}${kpi("Cancelados",K.nCancel.toLocaleString("pt-BR"))}</div>`;
   const custosHtml=custosCardHtml(sel,mrec,K.lucro,K.receita,null);
   const dailyCard=A.daily&&A.daily.length?`<div class="scard"><h4>Lucro por dia</h4>${dailyChart(A.daily)}</div>`:"";
   const ded=`<div class="scard"><h4>Do bruto ao l\u00edquido</h4><div class="dedgrid">
@@ -2737,7 +2761,7 @@ function renderShopee(){
   const sortsh=(key,label,r)=>{const on=shpSort.key===key,arr=on?(shpSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${r?"r ":""}sortsh${on?" on":""}" data-shsort="${key}">${label}${arr}</th>`;};
   const prows=prods.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
   const main=`<details class="detwrap" open><summary><h4 style="display:inline">Por produto (${A.prods.length})</h4> <span class="sec">clique nos t\u00edtulos pra ordenar</span></summary><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></details>`;
-  body.innerHTML=hist+kpis+custosHtml+ded+boxes+dailyCard+main;
+  body.innerHTML=hist+heroHtml+kpis+custosHtml+ded+boxes+dailyCard+main;
   body.querySelectorAll("[data-shmonth]").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.shdel!=null)return;SALES.shp.view=c.dataset.shmonth;renderShopee();});
   body.querySelectorAll("[data-shdel]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.shdel,m=SALES.shp.months[k];if(!confirm("Remover o fechamento Shopee de "+((m&&m.monthLabel)||k)+"?"))return;delete SALES.shp.months[k];if(SALES.shp.view===k)SALES.shp.view="";await persistSalesMonths();renderShopee();toast("Removido");});
   body.querySelectorAll("[data-shsort]").forEach(th=>th.onclick=()=>{const k=th.dataset.shsort;if(shpSort.key===k)shpSort.dir*=-1;else{shpSort.key=k;shpSort.dir=-1;}renderShopee();});
@@ -2789,10 +2813,10 @@ function renderSales(){
     ${sel("tipo",salesFilters.tipo,[["","Cl\u00e1ssico + Premium"],["Cl\u00e1ssico","Cl\u00e1ssico"],["Premium","Premium"]])}
     ${sel("pub",salesFilters.pub,[["","Com + sem Ads"],["Sim","S\u00f3 com Ads"],["N\u00e3o","S\u00f3 sem Ads"]])}
     <span class="sfile">${SALES.fileName} \u00b7 ${A.periodo}</span></div>`;}
+  const heroHtml=receitaHero(K,"Comissão + impostos + frete");
   const kpis=`<div class="skpis">
     ${kpi("Vendas v\u00e1lidas",K.nVend.toLocaleString("pt-BR"))}
     ${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}
-    ${kpi("Receita l\u00edquida",brl(K.receita))}
     ${kpi("Custo dos produtos",brl(K.custo))}
     ${kpi("Lucro",brl(K.lucro),K.lucro>=0?"pos":"neg")}
     ${kpi("Margem m\u00e9dia",pct(K.margem),K.margem>=0?"pos":"neg")}
@@ -2837,7 +2861,7 @@ function renderSales(){
   const detalhes=`<details class="detwrap"><summary><h4 style="display:inline">Detalhes t\u00e9cnicos</h4> <span class="sec">segmentos, pre\u00e7o praticado, devolu\u00e7\u00e3o</span></summary>${segs}${preco}${devol}</details>`;
   const parts=meta&&meta.parts;
   const contaCard=(parts&&Object.keys(parts).length>1)?`<div class="scard"><h4>Por conta (Mercado Livre)</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Conta</th><th class="r">Vendas</th><th class="r">Receita líq.</th><th class="r">Custo</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${Object.keys(parts).sort().map(acct=>{const pk=parts[acct].A.K;return `<tr><td>${CONTA_LBL[acct]||acct}</td><td class="r">${pk.nVend.toLocaleString("pt-BR")}</td><td class="r">${brl(pk.receita)}</td><td class="r sec">${brl(pk.custo)}</td><td class="r"><b class="${pk.lucro<0?"neg":""}">${brl(pk.lucro)}</b></td><td class="r"><span class="marg ${pk.margem>=(assumptions.meta||10)/100?"ok":pk.margem>=0?"mid":"no"}">${pct(pk.margem)}</span></td></tr>`;}).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${K.nVend.toLocaleString("pt-BR")}</b></td><td class="r"><b>${brl(K.receita)}</b></td><td class="r">${brl(K.custo)}</td><td class="r"><b>${brl(K.lucro)}</b></td><td class="r">${pct(K.margem)}</td></tr></tbody></table></div></div>`:"";
-  body.innerHTML=hist+filters+kpis+contaCard+custosHtml+ded+boxes+chart+prej+main+detalhes;
+  body.innerHTML=hist+filters+heroHtml+kpis+contaCard+custosHtml+ded+boxes+chart+prej+main+detalhes;
   body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
   body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
   if(mrec){
