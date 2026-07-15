@@ -197,6 +197,7 @@
   .secth .stitle{font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink)}
   .secth .scount{font-size:11.5px;color:var(--muted);background:var(--line2);border-radius:999px;padding:1px 9px;font-family:var(--mono)}
   .secth .chev{transition:transform .18s;color:var(--muted);font-size:11px}
+  .secsum{margin-left:auto;font-size:12px}
   .stksect.col .chev{transform:rotate(-90deg)}
   .stksect.col .sbody{display:none}
   .sbody{padding-top:10px}
@@ -501,7 +502,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 69</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 70</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2825,7 +2826,7 @@ const STOCKUI={col:{},_init:0};
 const STOCKSORT={};
 function stkSortArr(arr,tid,defKey,defDir){const s=STOCKSORT[tid]||{key:defKey,dir:defDir};const k=s.key,dir=(s.dir||defDir)==="asc"?1:-1;return arr.slice().sort((a,b)=>{let x=a[k],y=b[k];if(typeof x==="string"||typeof y==="string")return String(x||"").localeCompare(String(y||""))*dir;return (((+x)||0)-((+y)||0))*dir;});}
 function stkTh(tid,key,label,defKey,defDir){const s=STOCKSORT[tid]||{key:defKey,dir:defDir};const on=s.key===key;const ar=on?(s.dir==="asc"?" ↑":" ↓"):"";return `<th class="r sortable${on?" son":""}" data-sort="${tid}:${key}">${label}${ar}</th>`;}
-function stkSect(id,title,count,body,openDef){const col=(id in STOCKUI.col)?STOCKUI.col[id]:!openDef;return `<div class="stksect${col?" col":""}"><div class="secth" data-toggle="${id}"><span class="chev">▾</span><span class="stitle">${title}</span>${count!=null?`<span class="scount">${count}</span>`:""}</div><div class="sbody" id="${id}">${body}</div></div>`;}
+function stkSect(id,title,count,body,openDef){const col=(id in STOCKUI.col)?STOCKUI.col[id]:!openDef;return `<div class="stksect${col?" col":""}"><div class="secth" data-toggle="${id}"><span class="chev">▾</span><span class="stitle">${title}</span>${count!=null?`<span class="scount">${count}</span>`:""}<button class="lk secsum" data-sum="${id}">resumo</button></div><div class="sbody" id="${id}">${body}</div></div>`;}
 function stockBaseProd(r){
   const its=stockCompItens(r);if(!its.length)return "";
   const val=its.filter(it=>!isFiscal(it.n));const anc=(val.length?val:its)[0];if(!anc)return "";
@@ -2868,7 +2869,7 @@ function renderStock(){
   const cobTxt=r=>r.cls==="zero"?`<span class="stk zero">zerado</span>`:(r.cob>=9999?`<span class="stk parado">sem giro</span>`:`<span class="stk ${r.cob<meta?"baixo":r.cob>meta*2?"parado":"ok"}">${Math.round(r.cob)}d</span>`);
   const openBtn=r=>`<button class="lk stkopen" data-open="${r.mlb}">${r.rec?"abrir":"cadastrar"}</button>`;
   const cadTag=r=>r.rec?"":" · <b style='color:var(--berry)'>sem cadastro</b>";
-  const subInfo=r=>{const fl=skuFlavor(r.sku),comp=stockCompTxt(r);return `<div class="skcomp">${comp||'<span class="comp" style="font-family:var(--display)">sem composição</span>'}</div><div class="comp">${fl?`<b style="color:var(--ink)">${fl}</b> · `:""}${r.sku}</div><div class="comp">${r.mlb}${cadTag(r)}</div>`;};
+  const subInfo=r=>{const fl=skuFlavor(r.sku);return `<div class="sku-name" style="font-weight:600;color:var(--ink)">${((r.produto||r.sku||"")+"").slice(0,72)}</div><div class="comp">${fl?`<b style="color:var(--ink)">${fl}</b> · `:""}${r.sku} · ${r.mlb}${cadTag(r)}</div>`;};
   // qualidade do estoque (por R$ a custo)
   const catR={ok:0,risco:0,parado:0},catU={ok:0,risco:0,parado:0};
   frows.forEach(r=>{const k=r.cls==="ok"?"ok":(r.cls==="parado"?"parado":"risco");catR[k]+=r.imob;catU[k]+=r.aptas;});
@@ -2924,7 +2925,7 @@ function renderStock(){
   if(!STOCKUI._init){STOCKUI.col={"stk-reab":false,"stk-semvenda":false,"stk-excesso":true,"stk-consol":true,"stk-novos":true,"stk-comprar":true};STOCKUI._init=1;}
   const semvNote=`<p class="comp" style="margin:0 0 10px">Anúncios com estoque no Full que <b>não venderam nenhuma unidade nos últimos 30 dias</b>.</p>`;
   const excNote=`<p class="comp" style="margin:0 0 10px">Anúncios que vendem, mas têm <b>mais de ${meta*2} dias de cobertura</b> (estoque bem acima do giro atual).</p>`;
-  STOCK._last={rupt,semVenda,excesso,meta,margMeta,filtro:(F.prod||(F.q?`"${F.q}"`:"")),updatedAt:STOCK.updatedAt};
+  STOCK._last={rupt,semVenda,excesso,consolArr,novos,comprar:compArr,meta,margMeta,filtro:(F.prod||(F.q?`"${F.q}"`:"")),updatedAt:STOCK.updatedAt};
   $("#stockBody").innerHTML=kpis+qbar+filters+metaCtl
     +stkSect("stk-reab","Reabastecer agora",rupt.length,reabHtml,true)
     +stkSect("stk-semvenda","Itens sem vendas nos últimos 30 dias",semVenda.length,semvNote+semVendaHtml,true)
@@ -2936,32 +2937,62 @@ function renderStock(){
   const ss=$("#stkSearch");if(ss)ss.oninput=e=>{STOCKFILTER.q=e.target.value;STOCKFILTER._f=1;renderStock();};
   const sp=$("#stkProd");if(sp)sp.onchange=e=>{STOCKFILTER.prod=e.target.value;renderStock();};
   const sc=$("#stkClear");if(sc)sc.onclick=()=>{STOCKFILTER.q="";STOCKFILTER.prod="";renderStock();};
+  $("#stockBody").querySelectorAll("[data-sum]").forEach(el=>el.onclick=e=>{e.stopPropagation();openBlockSummary(el.dataset.sum);});
   $("#stockBody").querySelectorAll("[data-toggle]").forEach(el=>el.onclick=()=>{const id=el.dataset.toggle;STOCKUI.col[id]=!STOCKUI.col[id];renderStock();});
   $("#stockBody").querySelectorAll("[data-sort]").forEach(el=>el.onclick=()=>{const[tid,key]=el.dataset.sort.split(":");const s=STOCKSORT[tid];if(s&&s.key===key)s.dir=s.dir==="asc"?"desc":"asc";else STOCKSORT[tid]={key,dir:"desc"};renderStock();});
   $("#stockBody").querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{const id=el.dataset.goto;if(id in STOCKUI.col)STOCKUI.col[id]=false;renderStock();const t=document.getElementById(id);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});});
   $("#stockBody").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openStockInCalc(byMlb[b.dataset.open]));
   if(STOCKFILTER._f){const s=$("#stkSearch");if(s){s.focus();const v=s.value;s.setSelectionRange(v.length,v.length);}STOCKFILTER._f=0;}
 }
+function openTextModal(title,text){
+  const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const bg=document.createElement("div");bg.className="modal-bg";
+  bg.innerHTML=`<div class="modal" style="max-width:640px"><div class="modal-h">${esc(title)}<button class="lk" data-x>fechar</button></div><div class="pad" style="padding:14px 20px 20px"><div style="margin-bottom:10px"><button class="btn btn-primary" data-cp>Copiar</button></div><pre class="sumpre" style="max-height:62vh">${esc(text)}</pre></div>`;
+  document.body.appendChild(bg);
+  const close=()=>bg.remove();
+  bg.addEventListener("click",e=>{if(e.target===bg)close();});
+  bg.querySelector("[data-x]").onclick=close;
+  bg.querySelector("[data-cp]").onclick=()=>{try{navigator.clipboard.writeText(text).then(()=>toast("Copiado"),()=>toast("Não consegui copiar"));}catch(e){toast("Não consegui copiar");}};
+}
+function stockBlockSummary(id){
+  const L=STOCK._last;if(!L)return null;
+  const fl=r=>skuFlavor(r.sku)||r.sku, cc=r=>stockCompTxt(r)||"—", nm=r=>(r.produto||"").replace(/\s+/g," ").trim().slice(0,44);
+  const upd=L.updatedAt?` (${new Date(L.updatedAt).toLocaleDateString("pt-BR")})`:"";
+  const filt=L.filtro?` · filtro: ${L.filtro}`:"";
+  if(id==="stk-reab"){const a=L.rupt.filter(r=>r.reenvio>0).sort((x,y)=>y.reenvio-x.reenvio);const t=a.reduce((s,r)=>s+r.reenvio,0);
+    return {title:"Abastecer no Full",text:`ABASTECER NO FULL${upd}${filt} — ${a.length} anúncios · ${t} un\n`+(a.map(r=>`• ${r.mlb} · ${cc(r)} · ${fl(r)} · ${nm(r)} → ENVIAR ${r.reenvio} un (estoque ${r.aptas}${r.aCaminho?`, a caminho ${r.aCaminho}`:""})`).join("\n")||"• (vazio)")};}
+  if(id==="stk-semvenda"||id==="stk-excesso"){const a=(id==="stk-semvenda"?L.semVenda:L.excesso).slice().sort((x,y)=>y.imob-x.imob);const t=a.reduce((s,r)=>s+r.imob,0);const ti=id==="stk-semvenda"?"Itens sem vendas 30d":"Giro lento — estoque em excesso";
+    return {title:ti,text:`${ti.toUpperCase()}${upd}${filt} — ${a.length} anúncios · ${brl(t)} parado\n`+(a.map(r=>`• ${r.mlb} · ${cc(r)} · ${fl(r)} · ${r.aptas} un · margem ${r.lucr!=null?pct(r.lucr):"—"} · ${brl(r.imob)} parado`).join("\n")||"• (vazio)")};}
+  if(id==="stk-consol"){const a=L.consolArr||[];const t=a.reduce((s,c)=>s+c.val,0);
+    return {title:"Consolidado por item (Protheus)",text:`CONSOLIDADO POR ITEM (PROTHEUS)${upd}${filt} — a custo\n`+(a.map(c=>`• ${c.code||"—"} · ${c.nome} · ${Math.round(c.un).toLocaleString("pt-BR")} un · ${brl(c.val)}${c.valPar?` (parado ${brl(c.valPar)})`:""}`).join("\n")||"• (vazio)")+`\nTOTAL: ${brl(t)}`};}
+  if(id==="stk-novos"){const a=L.novos||[];
+    return {title:"Novos / sem cadastro",text:`NOVOS / SEM CADASTRO${upd}${filt} — ${a.length} anúncios\n`+(a.map(r=>`• ${r.mlb} · ${fl(r)} · vendas30 ${r.vendas30} · aptas ${r.aptas}`).join("\n")||"• (vazio)")};}
+  if(id==="stk-comprar"){const a=L.comprar||[];
+    return {title:"Comprar / produzir pra repor",text:`COMPRAR / PRODUZIR PRA REPOR${upd}${filt}\n`+(a.map(([n,q])=>`• ${Math.round(q)}× ${n}`).join("\n")||"• (vazio)")};}
+  return null;
+}
+function openBlockSummary(id){const s=stockBlockSummary(id);if(s)openTextModal(s.title,s.text);else toast("Suba o relatório do Full primeiro");}
 function buildStockSummary(L){
   const fl=r=>skuFlavor(r.sku)||r.sku;
-  const nm=r=>(r.produto||r.sku||"").replace(/\s+/g," ").trim().slice(0,60);
+  const cc=r=>stockCompTxt(r)||"—";
+  const nm=r=>(r.produto||r.sku||"").replace(/\s+/g," ").trim().slice(0,50);
   const secs=[];
   const head=`RESUMO DE AÇÕES — Análise Full${L.updatedAt?` (${new Date(L.updatedAt).toLocaleDateString("pt-BR")})`:""}${L.filtro?` · filtro: ${L.filtro}`:""}`;
   const ab=L.rupt.filter(r=>r.reenvio>0).sort((a,b)=>b.reenvio-a.reenvio);
   const abTot=ab.reduce((s,r)=>s+r.reenvio,0);
   let t1=`ABASTECER NO FULL — ${ab.length} anúncios · ${abTot} un a enviar\n`;
-  t1+=ab.length?ab.map(r=>`• ${r.mlb} · ${fl(r)} · ${nm(r)} → ENVIAR ${r.reenvio} un (estoque ${r.aptas}${r.aCaminho?`, a caminho ${r.aCaminho}`:""})`).join("\n"):"• (nada a abastecer)";
+  t1+=ab.length?ab.map(r=>`• ${r.mlb} · ${cc(r)} · ${fl(r)} · ${nm(r)} → ENVIAR ${r.reenvio} un (estoque ${r.aptas}${r.aCaminho?`, a caminho ${r.aCaminho}`:""})`).join("\n"):"• (nada a abastecer)";
   secs.push({title:`📦 Abastecer no Full (${ab.length})`,text:t1});
   const par=L.semVenda.concat(L.excesso);
   const alav=par.filter(r=>r.lucr!=null&&r.lucr>=L.margMeta).sort((a,b)=>b.imob-a.imob);
   const alavR=alav.reduce((s,r)=>s+r.imob,0);
   let t2=`ALAVANCAR COM CAMPANHA — ${alav.length} anúncios · ${brl(alavR)} parado (margem boa)\n`;
-  t2+=alav.length?alav.map(r=>`• ${r.mlb} · ${fl(r)} · ${nm(r)} · ${r.aptas} un · margem ${pct(r.lucr)} · ${brl(r.imob)} parado`).join("\n"):"• (nenhum candidato)";
+  t2+=alav.length?alav.map(r=>`• ${r.mlb} · ${cc(r)} · ${fl(r)} · ${r.aptas} un · margem ${pct(r.lucr)} · ${brl(r.imob)} parado`).join("\n"):"• (nenhum candidato)";
   secs.push({title:`🚀 Alavancar com campanha (${alav.length})`,text:t2});
   const rev=par.filter(r=>!(r.lucr!=null&&r.lucr>=L.margMeta)).sort((a,b)=>b.imob-a.imob);
   const revR=rev.reduce((s,r)=>s+r.imob,0);
   let t3=`REVER / LIQUIDAR — ${rev.length} anúncios · ${brl(revR)} parado (margem fraca ou sem giro)\n`;
-  t3+=rev.length?rev.map(r=>`• ${r.mlb} · ${fl(r)} · ${nm(r)} · ${r.aptas} un · margem ${r.lucr!=null?pct(r.lucr):"—"} · ${brl(r.imob)} parado`).join("\n"):"• (nada a rever)";
+  t3+=rev.length?rev.map(r=>`• ${r.mlb} · ${cc(r)} · ${fl(r)} · ${r.aptas} un · margem ${r.lucr!=null?pct(r.lucr):"—"} · ${brl(r.imob)} parado`).join("\n"):"• (nada a rever)";
   secs.push({title:`🐢 Rever / liquidar (${rev.length})`,text:t3});
   return {head,secs};
 }
