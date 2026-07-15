@@ -471,7 +471,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 56</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 57</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2692,7 +2692,8 @@ async function onStockFile(file){
   }catch(e){console.error(e);toast("Falha ao ler o arquivo de estoque");}
 }
 function stockKitCost(rec){if(!rec)return 0;if(+rec.custoItens>0)return +rec.custoItens;return (rec.itens||[]).reduce((s,it)=>s+(+it.c||0)*(+it.q||0),0);}
-function stockMlbIndex(){const m={};Object.values(saved).forEach(rec=>{[rec.sku,rec.mlb].concat(rec.skusMeli||[]).forEach(k=>{if(k)m[String(k).trim()]=rec;});});return m;}
+function normMlb(v){return String(v==null?"":v).trim().toUpperCase().replace(/^MLB/,"");}
+function stockMlbIndex(){const m={};Object.values(saved).forEach(rec=>{[rec.sku,rec.mlb].concat(rec.skusMeli||[]).forEach(k=>{const d=normMlb(k);if(/^\d{6,}$/.test(d))m[d]=rec;});});return m;}
 async function openStock(){await ensureSalesMonths();renderStock();}
 function renderStock(){
   const body=$("#stockBody"),empty=$("#stockEmpty");
@@ -2701,7 +2702,7 @@ function renderStock(){
   const meta=+assumptions.stockMeta||45;
   const idx=stockMlbIndex();
   const rows=STOCK.rows.map(s=>{
-    const rec=idx[s.mlb]||null,cost=stockKitCost(rec);
+    const rec=idx[normMlb(s.mlb)]||null,cost=stockKitCost(rec);
     const vd=s.vendas30/30,cob=vd>0?s.aptas/vd:(s.aptas>0?9999:0);
     const alvo=vd*meta,reenvio=vd>0?Math.max(0,Math.ceil(alvo-s.aptas-s.aCaminho)):0;
     const imob=s.aptas*cost, precoMed=s.vendas30>0?s.receita30/s.vendas30:0;
