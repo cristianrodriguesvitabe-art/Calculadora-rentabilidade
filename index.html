@@ -179,6 +179,7 @@
   .metaline .comp{margin-left:8px}
   .complist{display:flex;flex-wrap:wrap;gap:8px 20px}
   .cmp{font-size:13.5px;color:var(--ink);min-width:160px}.cmp b{color:var(--forest);margin-right:4px}
+  .compcodes{font-family:var(--mono);font-size:11.5px;color:var(--forest)}
   .ustat.clk{cursor:pointer;transition:.12s;border:1px solid transparent}
   .ustat.clk:hover{border-color:var(--forest);transform:translateY(-1px)}
   .ustat.clk::after{content:"↓";float:right;color:var(--faint);font-size:12px;margin-top:-18px}
@@ -473,7 +474,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 60</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 61</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -482,7 +483,7 @@
       <span class="tabsep" aria-hidden="true"></span>
       <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
       <button class="tab" role="tab" aria-selected="false" data-view="sales">Fechamento</button>
-      <button class="tab" role="tab" aria-selected="false" data-view="stock">Estoque</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="stock">Análise Full</button>
       <button class="tab" role="tab" aria-selected="false" data-view="analytics">Análise</button>
       <span class="tabsep" aria-hidden="true"></span>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
@@ -690,7 +691,7 @@
 
   <section class="view" id="view-stock">
     <div class="head-actions">
-      <h2>Estoque Full &mdash; reposição e capital parado</h2>
+      <h2>Análise do estoque Full &mdash; reposição e capital parado</h2>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="file" id="stockFile" accept=".xlsx,.xls" style="display:none">
         <button class="btn btn-primary" id="stockPick">Subir relatório</button>
@@ -2779,6 +2780,17 @@ function skuFlavor(sku){const s=String(sku||"").toUpperCase();const hits=[];for(
 function normMlb(v){return String(v==null?"":v).trim().toUpperCase().replace(/^MLB/,"");}
 function stockMlbIndex(){const m={};Object.values(saved).forEach(rec=>{[rec.sku,rec.mlb].concat(rec.skusMeli||[]).forEach(k=>{const d=normMlb(k);if(/^\d{6,}$/.test(d))m[d]=rec;});});return m;}
 async function openStock(){await ensureSalesMonths();renderStock();}
+function stockCompItens(r){
+  if(!r||!r.rec)return [];
+  const fv=r.rec.fiscalVars;
+  if(Array.isArray(fv)&&fv.length){
+    const fl=skuFlavor(r.sku);
+    if(fl){const toks=fl.toUpperCase().split(" + ");const m=fv.find(v=>{const f=String(v.flavor||"").toUpperCase();return toks.some(t=>f.includes(t));});if(m&&m.itens&&m.itens.length)return m.itens;}
+    if(fv[0]&&fv[0].itens&&fv[0].itens.length)return fv[0].itens;
+  }
+  return r.rec.itens||[];
+}
+function stockCompTxt(r){const its=stockCompItens(r);if(!its.length)return "";return its.map(it=>`${it.cod||it.n}×${it.q}`).join(" · ");}
 function renderStock(){
   const body=$("#stockBody"),empty=$("#stockEmpty");
   if(!STOCK.rows.length){body.innerHTML="";empty.style.display="block";return;}
@@ -2808,7 +2820,7 @@ function renderStock(){
   const cobTxt=r=>r.cls==="zero"?`<span class="stk zero">zerado</span>`:(r.cob>=9999?`<span class="stk parado">sem giro</span>`:`<span class="stk ${r.cob<meta?"baixo":r.cob>meta*2?"parado":"ok"}">${Math.round(r.cob)}d</span>`);
   const openBtn=r=>`<button class="lk stkopen" data-open="${r.mlb}">${r.rec?"abrir":"cadastrar"}</button>`;
   const cadTag=r=>r.rec?"":" · <b style='color:var(--berry)'>sem cadastro</b>";
-  const subInfo=r=>{const fl=skuFlavor(r.sku);return `<div class="comp">${fl?`<b style="color:var(--ink)">${fl}</b> · `:""}${r.sku}</div><div class="comp">${r.mlb}${r.aCaminho?` · a caminho ${r.aCaminho}`:""}${cadTag(r)}</div>`;};
+  const subInfo=r=>{const fl=skuFlavor(r.sku),comp=stockCompTxt(r);return `<div class="comp">${fl?`<b style="color:var(--ink)">${fl}</b> · `:""}${r.sku}</div>${comp?`<div class="comp compcodes">${comp}</div>`:""}<div class="comp">${r.mlb}${cadTag(r)}</div>`;};
   const kpis=`<div class="ustats" style="margin-bottom:8px">
     <div class="ustat clk" data-goto="stk-reab"><div class="k">Em risco de ruptura</div><div class="v ${rupt.length?"warn":""}">${rupt.length}</div></div>
     <div class="ustat clk" data-goto="stk-reab"><div class="k">Perda/dia se romper</div><div class="v ${perdaDia?"warn":""}">${brl(perdaDia)}</div></div>
@@ -2818,7 +2830,7 @@ function renderStock(){
     <div class="ustat clk" data-goto="stk-novos"><div class="k">Novos / sem cadastro</div><div class="v ${novos.length?"warn":""}">${novos.length}</div></div></div>`;
   const metaCtl=`<div class="metaline">Meta de cobertura: <input id="stkMeta" type="number" min="7" max="180" value="${meta}"> dias <span class="comp">· ${rows.length} anúncios · vendas 30d: ${vend30Tot.toLocaleString("pt-BR")} un · receita 30d: ${brl(rec30Tot)} · atualizado ${STOCK.updatedAt?new Date(STOCK.updatedAt).toLocaleDateString("pt-BR"):"-"}</span></div>`;
   rupt.sort((a,b)=>(b.rDia-a.rDia)||(a.cob-b.cob));
-  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Cobertura</th><th class="r">Reenviar</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios têm cobertura acima de ${meta} dias.</div></div>`;
+  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Abastecer estoque</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios têm cobertura acima de ${meta} dias.</div></div>`;
   parado.sort((a,b)=>b.imob-a.imob);
   const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Cobertura</th><th class="r">Vendas 30d</th><th class="r">R$ parado</th><th></th></tr></thead><tbody>`+parado.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
   // consolidado por item (Protheus): explode aptas × composição → componentes físicos no Full
