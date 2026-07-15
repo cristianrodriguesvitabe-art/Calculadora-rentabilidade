@@ -181,6 +181,7 @@
   .cmp{font-size:13.5px;color:var(--ink);min-width:160px}.cmp b{color:var(--forest);margin-right:4px}
   .compcodes{font-family:var(--mono);font-size:11.5px;color:var(--forest)}
   table.stktbl thead th{position:sticky;top:84px;background:var(--surface,#fbfbf9);z-index:6;box-shadow:0 1px 0 var(--line)}
+  table.stktbl th.r,table.stktbl td.r{text-align:center}
   .stkfilters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 6px}
   .stkfilters input[type=text]{flex:1;min-width:220px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px}
   .stkfilters select{padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;background:#fff}
@@ -483,7 +484,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 62</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 63</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2867,7 +2868,7 @@ function renderStock(){
   const filters=`<div class="stkfilters"><input id="stkSearch" type="text" placeholder="Buscar título, SKU, MLB, código, sabor…" value="${(F.q||"").replace(/"/g,"&quot;")}"><select id="stkProd"><option value="">Todos os produtos</option>${opts}</select>${(F.q||F.prod)?`<button class="lk" id="stkClear">limpar filtros</button>`:""}<span class="comp">${frows.length} de ${rows.length} anúncios · vendas 30d: ${vend30Tot.toLocaleString("pt-BR")} un · receita 30d: ${brl(rec30Tot)}</span></div>`;
   const metaCtl=`<div class="metaline">Meta de cobertura: <input id="stkMeta" type="number" min="7" max="180" value="${meta}"> dias <span class="comp">· valores em R$ são a <b>custo do produto</b> (não é o preço de venda) · atualizado ${STOCK.updatedAt?new Date(STOCK.updatedAt).toLocaleDateString("pt-BR"):"-"}</span></div>`;
   rupt.sort((a,b)=>(b.rDia-a.rDia)||(a.cob-b.cob));
-  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Abastecer estoque</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios (do filtro atual) têm cobertura acima de ${meta} dias.</div></div>`;
+  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Estoque atual</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Abastecer estoque</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios (do filtro atual) têm cobertura acima de ${meta} dias.</div></div>`;
   parado.sort((a,b)=>b.imob-a.imob);
   const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Cobertura</th><th class="r">Vendas 30d</th><th class="r">R$ parado (custo)</th><th></th></tr></thead><tbody>`+parado.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio (do filtro atual) com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
   // consolidado por item (Protheus): explode aptas × composição POR SABOR → componentes físicos no Full
@@ -2892,7 +2893,7 @@ function renderStock(){
   const compHtml=compArr.length?`<div class="subh" style="margin:22px 0 10px">Comprar / produzir pra repor</div><div class="card"><div class="pad" style="padding:12px 16px"><div class="complist">`+compArr.map(([n,q])=>`<div class="cmp"><b class="u-mono">${Math.round(q)}×</b> ${n}</div>`).join("")+`</div>${semComp?`<p class="comp" style="margin:10px 0 0">${semComp} anúncio(s) a repor sem composição cadastrada — não entraram nesta conta.</p>`:""}</div></div>`:"";
   $("#stockBody").innerHTML=kpis+qbar+filters+metaCtl
     +`<div class="subh" id="stk-reab" style="margin:20px 0 10px">Reabastecer agora</div>`+reabHtml
-    +`<div class="subh" id="stk-parado" style="margin:24px 0 10px">Parado / encalhado — capital travado</div>`+parHtml
+    +`<div class="subh" id="stk-parado" style="margin:24px 0 10px">Parado / encalhado — capital travado</div><p class="comp" style="margin:-4px 0 10px">Um anúncio entra em <b>parado</b> quando tem estoque mas <b>não vendeu nada nos últimos 30 dias</b>, ou quando a <b>cobertura passa de ${meta*2} dias</b> (2× a meta de ${meta}d) no ritmo de venda atual.</p>`+parHtml
     +`<div class="subh" id="stk-consol" style="margin:24px 0 10px">Consolidado por item (Protheus) — estoque físico no Full</div>`+consolHtml
     +`<div class="subh" id="stk-novos" style="margin:24px 0 10px">Novos / sem cadastro — abrir na calculadora</div>`+novHtml
     +compHtml;
