@@ -467,7 +467,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 54</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 55</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2655,32 +2655,21 @@ async function openSales(){await ensureSalesMonths();renderFechamento();}
 function parseStockWB(wb){
   const wsName=wb.SheetNames.find(n=>/resumo/i.test(n))||wb.SheetNames[0];
   const mtx=sheetMatrix(wb.Sheets[wsName]);if(!mtx.length)return [];
-  // localiza linha de cabeçalho (a que tem "# Anúncio")
-  let hr=-1;for(let i=0;i<Math.min(mtx.length,20);i++){if((mtx[i]||[]).some(c=>typeof c==="string"&&/#\s*an[úu]ncio/i.test(c))){hr=i;break;}}
-  if(hr<0)return [];
-  const head=[mtx[hr]||[],mtx[hr+1]||[],mtx[hr+2]||[]];
-  const find=(pred)=>{for(let c=0;c<40;c++){for(const row of head){const v=row[c];if(typeof v==="string"&&pred(v.trim().toLowerCase()))return c;}}return -1;};
-  const iMlb=find(v=>/#\s*an[úu]ncio/.test(v));
-  const iSku=find(v=>v==="sku");
-  const iProd=find(v=>v==="produto");
-  const iTam=find(v=>v==="tamanho");
-  const iStat=find(v=>/status do an[úu]ncio/.test(v));
-  const iV30=find(v=>/vendas.*30 dias.*\(un/.test(v));
-  const iR30=find(v=>/vendas.*30 dias.*\(r\$?/.test(v));
-  const iEst=find(v=>/estoque m[ée]dio/.test(v));
-  const iCam=find(v=>/a caminho do full/.test(v));      // grupo: entrada pendente + em transferência
-  const iApt=find(v=>/unidades no full/.test(v));        // grupo cujo 1º sub é "Aptas para venda"
+  // Âncora robusta: a coluna do MLB (# Anúncio) é a única com inteiros de 9–11 dígitos.
+  // A ML às vezes exporta sem cabeçalho e sem a 1ª coluna vazia; ancorar no MLB dispensa cabeçalho.
+  const band={},NS=Math.min(mtx.length,200);
+  for(let i=0;i<NS;i++){const r=mtx[i]||[];for(let c=0;c<r.length;c++){if(/^\d{9,11}$/.test(String(r[c]==null?"":r[c]).trim()))band[c]=(band[c]||0)+1;}}
+  let mlbCol=-1,best=0;Object.entries(band).forEach(([c,n])=>{if(n>best){best=n;mlbCol=+c;}});
+  if(mlbCol<0||best<3)return [];
+  const O={sku:mlbCol-1,prod:mlbCol+2,tam:mlbCol+3,stat:mlbCol+5,v30:mlbCol+7,r30:mlbCol+8,est:mlbCol+9,ent:mlbCol+11,tra:mlbCol+12,apt:mlbCol+14};
+  const num=(r,i)=>i>=0&&i<r.length?(+r[i]||0):0, str=(r,i)=>i>=0&&i<r.length?String(r[i]==null?"":r[i]).trim():"";
   const agg={};
-  for(let i=hr+1;i<mtx.length;i++){
-    const r=mtx[i]||[];const mlb=r[iMlb];if(mlb==null)continue;
-    const mlbS=String(mlb).trim();if(!/^\d{6,}$/.test(mlbS))continue;   // linhas de dado têm MLB numérico
-    const num=idx=>idx>=0?(+r[idx]||0):0;
-    const entrada=num(iCam),transf=iCam>=0?(+r[iCam+1]||0):0;
-    const cur=agg[mlbS]||(agg[mlbS]={mlb:mlbS,sku:iSku>=0?String(r[iSku]||"").trim():"",produto:iProd>=0?String(r[iProd]||"").trim():"",
-      tamanho:iTam>=0?String(r[iTam]||"").trim():"",status:iStat>=0?String(r[iStat]||"").trim():"",
-      vendas30:0,receita30:0,estoqueMedio:0,aptas:0,aCaminho:0});
-    cur.vendas30+=num(iV30);cur.receita30+=num(iR30);cur.estoqueMedio+=num(iEst);cur.aptas+=num(iApt);cur.aCaminho+=entrada+transf;
-    if(!cur.produto&&iProd>=0)cur.produto=String(r[iProd]||"").trim();
+  for(let i=0;i<mtx.length;i++){
+    const r=mtx[i]||[];const mlbS=String(r[mlbCol]==null?"":r[mlbCol]).trim();
+    if(!/^\d{9,11}$/.test(mlbS))continue;
+    const cur=agg[mlbS]||(agg[mlbS]={mlb:mlbS,sku:str(r,O.sku),produto:str(r,O.prod),tamanho:str(r,O.tam),status:str(r,O.stat),vendas30:0,receita30:0,estoqueMedio:0,aptas:0,aCaminho:0});
+    cur.vendas30+=num(r,O.v30);cur.receita30+=num(r,O.r30);cur.estoqueMedio+=num(r,O.est);cur.aptas+=num(r,O.apt);cur.aCaminho+=num(r,O.ent)+num(r,O.tra);
+    if(!cur.produto)cur.produto=str(r,O.prod);
   }
   return Object.values(agg);
 }
