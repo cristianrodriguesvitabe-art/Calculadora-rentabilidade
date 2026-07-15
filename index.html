@@ -190,6 +190,18 @@
   .qbar>div{height:100%}
   .qleg{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--muted)}
   .qleg span{display:flex;align-items:center;gap:6px}.qleg i{width:11px;height:11px;border-radius:3px}
+  .stksect{margin:16px 0 0}
+  .secth{display:flex;align-items:center;gap:9px;cursor:pointer;padding:9px 4px;border-bottom:1px solid var(--line);user-select:none}
+  .secth:hover .stitle{color:var(--forest)}
+  .secth .stitle{font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink)}
+  .secth .scount{font-size:11.5px;color:var(--muted);background:var(--line2);border-radius:999px;padding:1px 9px;font-family:var(--mono)}
+  .secth .chev{transition:transform .18s;color:var(--muted);font-size:11px}
+  .stksect.col .chev{transform:rotate(-90deg)}
+  .stksect.col .sbody{display:none}
+  .sbody{padding-top:10px}
+  th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
+  th.sortable:hover{color:var(--ink)}
+  th.sortable.son{color:var(--forest)}
   .ustat.clk{cursor:pointer;transition:.12s;border:1px solid transparent}
   .ustat.clk:hover{border-color:var(--forest);transform:translateY(-1px)}
   .ustat.clk::after{content:"↓";float:right;color:var(--faint);font-size:12px;margin-top:-18px}
@@ -484,7 +496,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 63</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 64</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2802,6 +2814,11 @@ function stockCompItens(r){
 }
 function stockCompTxt(r){const its=stockCompItens(r);if(!its.length)return "";return its.map(it=>`${it.cod||it.n}×${it.q}`).join(" · ");}
 const STOCKFILTER={q:"",prod:"",_f:0};
+const STOCKUI={col:{},_init:0};
+const STOCKSORT={};
+function stkSortArr(arr,tid,defKey,defDir){const s=STOCKSORT[tid]||{key:defKey,dir:defDir};const k=s.key,dir=(s.dir||defDir)==="asc"?1:-1;return arr.slice().sort((a,b)=>{let x=a[k],y=b[k];if(typeof x==="string"||typeof y==="string")return String(x||"").localeCompare(String(y||""))*dir;return (((+x)||0)-((+y)||0))*dir;});}
+function stkTh(tid,key,label,defKey,defDir){const s=STOCKSORT[tid]||{key:defKey,dir:defDir};const on=s.key===key;const ar=on?(s.dir==="asc"?" ↑":" ↓"):"";return `<th class="r sortable${on?" son":""}" data-sort="${tid}:${key}">${label}${ar}</th>`;}
+function stkSect(id,title,count,body,openDef){const col=(id in STOCKUI.col)?STOCKUI.col[id]:!openDef;return `<div class="stksect${col?" col":""}"><div class="secth" data-toggle="${id}"><span class="chev">▾</span><span class="stitle">${title}</span>${count!=null?`<span class="scount">${count}</span>`:""}</div><div class="sbody" id="${id}">${body}</div></div>`;}
 function stockBaseProd(r){
   const its=stockCompItens(r);if(!its.length)return "";
   const val=its.filter(it=>!isFiscal(it.n));const anc=(val.length?val:its)[0];if(!anc)return "";
@@ -2867,10 +2884,10 @@ function renderStock(){
   const opts=prodOpts.map(p=>`<option value="${p.replace(/"/g,"&quot;")}"${F.prod===p?" selected":""}>${p}</option>`).join("");
   const filters=`<div class="stkfilters"><input id="stkSearch" type="text" placeholder="Buscar título, SKU, MLB, código, sabor…" value="${(F.q||"").replace(/"/g,"&quot;")}"><select id="stkProd"><option value="">Todos os produtos</option>${opts}</select>${(F.q||F.prod)?`<button class="lk" id="stkClear">limpar filtros</button>`:""}<span class="comp">${frows.length} de ${rows.length} anúncios · vendas 30d: ${vend30Tot.toLocaleString("pt-BR")} un · receita 30d: ${brl(rec30Tot)}</span></div>`;
   const metaCtl=`<div class="metaline">Meta de cobertura: <input id="stkMeta" type="number" min="7" max="180" value="${meta}"> dias <span class="comp">· valores em R$ são a <b>custo do produto</b> (não é o preço de venda) · atualizado ${STOCK.updatedAt?new Date(STOCK.updatedAt).toLocaleDateString("pt-BR"):"-"}</span></div>`;
-  rupt.sort((a,b)=>(b.rDia-a.rDia)||(a.cob-b.cob));
-  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Estoque atual</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Abastecer estoque</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios (do filtro atual) têm cobertura acima de ${meta} dias.</div></div>`;
-  parado.sort((a,b)=>b.imob-a.imob);
-  const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Cobertura</th><th class="r">Vendas 30d</th><th class="r">R$ parado (custo)</th><th></th></tr></thead><tbody>`+parado.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio (do filtro atual) com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
+  const rupts=stkSortArr(rupt,"reab","rDia","desc");
+  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th>${stkTh("reab","vendas30","Vendas 30d","rDia")}${stkTh("reab","vd","Venda/dia","rDia")}${stkTh("reab","aptas","Estoque atual","rDia")}${stkTh("reab","cob","Cobertura","rDia")}${stkTh("reab","aCaminho","A caminho","rDia")}${stkTh("reab","reenvio","Abastecer estoque","rDia")}${stkTh("reab","rDia","Perda/dia","rDia")}<th></th></tr></thead><tbody>`+rupts.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios (do filtro atual) têm cobertura acima de ${meta} dias.</div></div>`;
+  const parados=stkSortArr(parado,"parado","imob","desc");
+  const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th>${stkTh("parado","aptas","Aptas","imob")}${stkTh("parado","cob","Cobertura","imob")}${stkTh("parado","vendas30","Vendas 30d","imob")}${stkTh("parado","imob","R$ parado (custo)","imob")}<th></th></tr></thead><tbody>`+parados.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio (do filtro atual) com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
   // consolidado por item (Protheus): explode aptas × composição POR SABOR → componentes físicos no Full
   const consol={};let semConsol=0;
   frows.forEach(r=>{
@@ -2883,25 +2900,30 @@ function renderStock(){
       c.un+=u;c.val+=v;if(r.cls==="parado"){c.unPar+=u;c.valPar+=v;}
     });
   });
-  const consolArr=Object.values(consol).sort((a,b)=>b.val-a.val);
+  const consolArr=stkSortArr(Object.values(consol),"consol","val","desc");
   const cUnTot=consolArr.reduce((a,c)=>a+c.un,0),cValTot=consolArr.reduce((a,c)=>a+c.val,0),cValPar=consolArr.reduce((a,c)=>a+c.valPar,0);
-  const consolHtml=consolArr.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Item (Protheus)</th><th class="r">Un. no Full</th><th class="r">R$ no Full (custo)</th><th class="r">Un. parado</th><th class="r">R$ parado (custo)</th></tr></thead><tbody>`+consolArr.map(c=>`<tr><td><div class="sku-code">${c.code||"—"}</div><div class="sku-name">${c.nome}</div></td><td class="r u-mono">${Math.round(c.un).toLocaleString("pt-BR")}</td><td class="r u-mono">${brl(c.val)}</td><td class="r u-mono">${c.unPar?Math.round(c.unPar).toLocaleString("pt-BR"):"—"}</td><td class="r u-mono">${c.valPar?brl(c.valPar):"—"}</td></tr>`).join("")+`<tr class="totrow"><td><b>Total</b></td><td class="r u-mono"><b>${Math.round(cUnTot).toLocaleString("pt-BR")}</b></td><td class="r u-mono"><b>${brl(cValTot)}</b></td><td class="r u-mono">—</td><td class="r u-mono"><b>${brl(cValPar)}</b></td></tr></tbody></table></div>${semConsol?`<p class="comp" style="padding:0 16px 12px">${Math.round(semConsol).toLocaleString("pt-BR")} unidades em anúncios sem composição cadastrada não entraram no consolidado.</p>`:""}</div>`:`<div class="ualert"><div class="at">Sem composição pra consolidar</div><div class="comp">Importe o Dados Fiscais pra ver o estoque por item do Protheus.</div></div>`;
-  const novHtml=novos.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Aptas</th><th class="r">Preço médio</th><th></th></tr></thead><tbody>`+novos.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.aptas}</td><td class="r u-mono">${r.precoMed?brl(r.precoMed):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Todos os anúncios cadastrados</div><div class="comp">Todo anúncio (do filtro atual) está casado com um SKU seu.</div></div>`;
+  const consolHtml=consolArr.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Item (Protheus)</th>${stkTh("consol","un","Un. no Full","val")}${stkTh("consol","val","R$ no Full (custo)","val")}${stkTh("consol","unPar","Un. parado","val")}${stkTh("consol","valPar","R$ parado (custo)","val")}</tr></thead><tbody>`+consolArr.map(c=>`<tr><td><div class="sku-code">${c.code||"—"}</div><div class="sku-name">${c.nome}</div></td><td class="r u-mono">${Math.round(c.un).toLocaleString("pt-BR")}</td><td class="r u-mono">${brl(c.val)}</td><td class="r u-mono">${c.unPar?Math.round(c.unPar).toLocaleString("pt-BR"):"—"}</td><td class="r u-mono">${c.valPar?brl(c.valPar):"—"}</td></tr>`).join("")+`<tr class="totrow"><td><b>Total</b></td><td class="r u-mono"><b>${Math.round(cUnTot).toLocaleString("pt-BR")}</b></td><td class="r u-mono"><b>${brl(cValTot)}</b></td><td class="r u-mono">—</td><td class="r u-mono"><b>${brl(cValPar)}</b></td></tr></tbody></table></div>${semConsol?`<p class="comp" style="padding:0 16px 12px">${Math.round(semConsol).toLocaleString("pt-BR")} unidades em anúncios sem composição cadastrada não entraram no consolidado.</p>`:""}</div>`:`<div class="ualert"><div class="at">Sem composição pra consolidar</div><div class="comp">Importe o Dados Fiscais pra ver o estoque por item do Protheus.</div></div>`;
+  const novoss=stkSortArr(novos,"novos","vendas30","desc");
+  const novHtml=novos.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th>${stkTh("novos","vendas30","Vendas 30d","vendas30")}${stkTh("novos","aptas","Aptas","vendas30")}${stkTh("novos","precoMed","Preço médio","vendas30")}<th></th></tr></thead><tbody>`+novoss.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.aptas}</td><td class="r u-mono">${r.precoMed?brl(r.precoMed):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Todos os anúncios cadastrados</div><div class="comp">Todo anúncio (do filtro atual) está casado com um SKU seu.</div></div>`;
   const comp={};let semComp=0;
   rupt.forEach(r=>{if(!r.reenvio)return;const its=stockCompItens(r);if(!its.length){semComp++;return;}its.forEach(it=>{const k=it.cod||it.n;comp[k]=(comp[k]||0)+r.reenvio*(+it.q||0);});});
   const compArr=Object.entries(comp).sort((a,b)=>b[1]-a[1]);
-  const compHtml=compArr.length?`<div class="subh" style="margin:22px 0 10px">Comprar / produzir pra repor</div><div class="card"><div class="pad" style="padding:12px 16px"><div class="complist">`+compArr.map(([n,q])=>`<div class="cmp"><b class="u-mono">${Math.round(q)}×</b> ${n}</div>`).join("")+`</div>${semComp?`<p class="comp" style="margin:10px 0 0">${semComp} anúncio(s) a repor sem composição cadastrada — não entraram nesta conta.</p>`:""}</div></div>`:"";
+  const compBody=compArr.length?`<div class="card"><div class="pad" style="padding:12px 16px"><div class="complist">`+compArr.map(([n,q])=>`<div class="cmp"><b class="u-mono">${Math.round(q)}×</b> ${n}</div>`).join("")+`</div>${semComp?`<p class="comp" style="margin:10px 0 0">${semComp} anúncio(s) a repor sem composição cadastrada — não entraram nesta conta.</p>`:""}</div></div>`:"";
+  if(!STOCKUI._init){STOCKUI.col={"stk-reab":false,"stk-parado":false,"stk-consol":true,"stk-novos":true,"stk-comprar":true};STOCKUI._init=1;}
+  const paraNote=`<p class="comp" style="margin:0 0 10px">Um anúncio entra em <b>parado</b> quando tem estoque mas <b>não vendeu nada nos últimos 30 dias</b>, ou quando a <b>cobertura passa de ${meta*2} dias</b> (2× a meta de ${meta}d) no ritmo de venda atual.</p>`;
   $("#stockBody").innerHTML=kpis+qbar+filters+metaCtl
-    +`<div class="subh" id="stk-reab" style="margin:20px 0 10px">Reabastecer agora</div>`+reabHtml
-    +`<div class="subh" id="stk-parado" style="margin:24px 0 10px">Parado / encalhado — capital travado</div><p class="comp" style="margin:-4px 0 10px">Um anúncio entra em <b>parado</b> quando tem estoque mas <b>não vendeu nada nos últimos 30 dias</b>, ou quando a <b>cobertura passa de ${meta*2} dias</b> (2× a meta de ${meta}d) no ritmo de venda atual.</p>`+parHtml
-    +`<div class="subh" id="stk-consol" style="margin:24px 0 10px">Consolidado por item (Protheus) — estoque físico no Full</div>`+consolHtml
-    +`<div class="subh" id="stk-novos" style="margin:24px 0 10px">Novos / sem cadastro — abrir na calculadora</div>`+novHtml
-    +compHtml;
+    +stkSect("stk-reab","Reabastecer agora",rupt.length,reabHtml,true)
+    +stkSect("stk-parado","Parado / encalhado — capital travado",parado.length,paraNote+parHtml,true)
+    +stkSect("stk-consol","Consolidado por item (Protheus)",consolArr.length,consolHtml,false)
+    +stkSect("stk-novos","Novos / sem cadastro",novos.length,novHtml,false)
+    +(compArr.length?stkSect("stk-comprar","Comprar / produzir pra repor",compArr.length,compBody,false):"");
   const mi=$("#stkMeta");if(mi)mi.onchange=()=>{assumptions.stockMeta=Math.max(7,Math.min(180,+mi.value||45));saveConfig();renderStock();};
   const ss=$("#stkSearch");if(ss)ss.oninput=e=>{STOCKFILTER.q=e.target.value;STOCKFILTER._f=1;renderStock();};
   const sp=$("#stkProd");if(sp)sp.onchange=e=>{STOCKFILTER.prod=e.target.value;renderStock();};
   const sc=$("#stkClear");if(sc)sc.onclick=()=>{STOCKFILTER.q="";STOCKFILTER.prod="";renderStock();};
-  $("#stockBody").querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{const t=document.getElementById(el.dataset.goto);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});});
+  $("#stockBody").querySelectorAll("[data-toggle]").forEach(el=>el.onclick=()=>{const id=el.dataset.toggle;STOCKUI.col[id]=!STOCKUI.col[id];renderStock();});
+  $("#stockBody").querySelectorAll("[data-sort]").forEach(el=>el.onclick=()=>{const[tid,key]=el.dataset.sort.split(":");const s=STOCKSORT[tid];if(s&&s.key===key)s.dir=s.dir==="asc"?"desc":"asc";else STOCKSORT[tid]={key,dir:"desc"};renderStock();});
+  $("#stockBody").querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{const id=el.dataset.goto;if(id in STOCKUI.col)STOCKUI.col[id]=false;renderStock();const t=document.getElementById(id);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});});
   $("#stockBody").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openStockInCalc(byMlb[b.dataset.open]));
   if(STOCKFILTER._f){const s=$("#stkSearch");if(s){s.focus();const v=s.value;s.setSelectionRange(v.length,v.length);}STOCKFILTER._f=0;}
 }
