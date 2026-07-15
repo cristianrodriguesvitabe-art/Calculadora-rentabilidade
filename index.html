@@ -473,7 +473,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 59</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 60</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -610,6 +610,8 @@
       <div style="display:flex;gap:8px">
         <button class="btn" id="refreshBtn">Atualizar</button>
         <button class="btn" id="importMeli">Importar Meli</button>
+        <button class="btn btn-primary" id="importFiscal">Importar Dados Fiscais</button>
+        <input type="file" id="fiscalFile" accept=".xlsx,.xls" style="display:none">
         <button class="btn" id="importShopee">Importar Shopee</button>
         <button class="btn" id="pastePrices">Colar preços</button>
         <button class="btn" id="exportCsv">Exportar CSV</button>
@@ -1223,6 +1225,84 @@ async function saveSku(){
   saved[sku]=rec;loadedSku=sku;$("#skuDup").style.display="none";renderSaved();
   try{await DB.upsertSku(rec);toast(`SKU ${sku} salvo`+(SUPA_ON?" na nuvem":""));if(SUPA_ON)setSync("cloud");}
   catch(e){setSync("err");toast("Salvo localmente, mas falhou na nuvem");}
+}
+// ---------- Importar Dados Fiscais (Mercado Livre) ----------
+function parseFiscalWB(wb){
+  const sheets=wb.SheetNames.filter(n=>/produtos\s+[úu]nicos|kits/i.test(n));
+  if(!sheets.length)return [];
+  const parsed=[],codeFull={};
+  sheets.forEach(sn=>{
+    const mtx=sheetMatrix(wb.Sheets[sn]);if(!mtx.length)return;
+    let hr=-1;for(let i=0;i<8;i++){if((mtx[i]||[]).some(c=>String(c==null?"":c).trim()==="Código do anúncio")){hr=i;break;}}
+    if(hr<0)return;
+    const H=(mtx[hr]||[]).map(c=>String(c==null?"":c).trim().toLowerCase());
+    const col=pred=>H.findIndex(pred);
+    const first=(...ps)=>{for(const p of ps){const i=col(p);if(i>=0)return i;}return -1;};
+    const idx={mlb:col(h=>/^c[óo]digo do an[úu]ncio$/.test(h)),nome:col(h=>/^descri[çc][ãa]o do an[úu]ncio$/.test(h)),
+      price:col(h=>/pre[çc]o do an[úu]ncio/.test(h)),flavor:col(h=>h==="variedade"),vid:col(h=>h==="variation_id"),
+      code:col(h=>/^c[óo]digo do produto$/.test(h)),
+      idesc:first(h=>/descri[çc][ãa]o de cada item/.test(h),h=>/descri[çc][ãa]o do produto/.test(h)),
+      cost:first(h=>/custo unit[áa]rio do item do kit/.test(h),h=>/^custo do produto/.test(h)),
+      qty:col(h=>/quantidade deste item no kit/.test(h))};
+    if(idx.mlb<0||idx.code<0)return;
+    for(let i=hr+1;i<mtx.length;i++){const c=String((mtx[i]||[])[idx.code]||"").trim().toUpperCase();if(/^[A-Z]{2,5}\.\d+$/.test(c))codeFull[c.split(".").pop().replace(/^0+/,"")]=c;}
+    parsed.push({mtx,hr,idx});
+  });
+  const normCode=raw=>{const s=String(raw==null?"":raw).trim().toUpperCase();if(!s)return "";if(/^[A-Z]{2,5}\.\d+$/.test(s))return s;if(/^\d+$/.test(s))return codeFull[s.replace(/^0+/,"")]||s;return s;};
+  const out={};
+  parsed.forEach(({mtx,hr,idx})=>{
+    for(let i=hr+1;i<mtx.length;i++){
+      const r=mtx[i]||[];const mlbRaw=String(r[idx.mlb]==null?"":r[idx.mlb]).trim();
+      if(!/^MLB\d+/i.test(mlbRaw))continue;
+      const mlb=mlbRaw.toUpperCase();
+      const an=out[mlb]||(out[mlb]={mlb,nome:String(r[idx.nome]||"").trim(),price:null,vars:{}});
+      if(idx.price>=0&&+r[idx.price]>0&&!an.price)an.price=+r[idx.price];
+      const vid=String(r[idx.vid]==null?"":r[idx.vid]).trim()||"_";
+      const v=an.vars[vid]||(an.vars[vid]={flavor:String(r[idx.flavor]||"").trim(),itens:[]});
+      const code=normCode(r[idx.code]);
+      if(code){const q=idx.qty>=0?(+r[idx.qty]||1):1,c=idx.cost>=0?(+r[idx.cost]||0):0,n=String(r[idx.idesc]||"").trim()||code;v.itens.push({cod:code,c,q,n});}
+    }
+  });
+  return Object.values(out).map(an=>{
+    const va=Object.values(an.vars).filter(v=>v.itens.length);
+    const rep=va.slice().sort((a,b)=>b.itens.length-a.itens.length)[0]||{itens:[]};
+    return {mlb:an.mlb,nome:an.nome,price:an.price,itens:rep.itens,fiscalVars:va.map(v=>({flavor:v.flavor,itens:v.itens}))};
+  }).filter(a=>a.itens.length);
+}
+function fiscalBackup(){try{const blob=new Blob([JSON.stringify(saved,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="renova-be-skus-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();a.remove();}catch(e){}}
+async function onFiscalFile(file){
+  if(!file)return;
+  if(typeof XLSX==="undefined"){toast("A leitura de planilha não carregou (precisa de internet)");return;}
+  toast("Lendo Dados Fiscais…");
+  try{
+    if(!Object.keys(saved).length)await refreshSkus();
+    const wb=await readWorkbook(file);
+    const anuncios=parseFiscalWB(wb);
+    if(!anuncios.length){toast("Não reconheci o arquivo de Dados Fiscais do Mercado Livre");return;}
+    const byMlb={};Object.entries(saved).forEach(([k,rec])=>{const d=normMlb(rec.mlb||rec.sku||k);if(d)byMlb[d]=rec;});
+    let upd=0,nv=0;anuncios.forEach(a=>{(normMlb(a.mlb) in byMlb)?upd++:nv++;});
+    fiscalBackup();
+    if(!confirm(`Dados Fiscais do Mercado Livre: ${anuncios.length} anúncios.\n\n• ${upd} atualizam (composição, custo e preço substituídos pelos dados oficiais do Protheus)\n• ${nv} novos criados\n• Shopee e tudo que não está no arquivo: intacto (nada é apagado)\n\nUm backup dos seus SKUs atuais foi baixado. Aplicar agora?`))return;
+    const ch=mlClassico()||CHANNELS[0];let ok=0;
+    for(const a of anuncios){
+      const existing=byMlb[normMlb(a.mlb)];
+      const rec=existing?{...existing}:{};
+      rec.sku=a.mlb;rec.mlb=a.mlb;rec.plataforma="Mercado Livre";
+      rec.nome=a.nome||rec.nome||a.mlb;
+      rec.canal=(rec.canal&&/mercado livre/i.test(rec.canal))?rec.canal:((ch&&ch.n)||rec.canal||"");
+      rec.itens=a.itens.map(it=>({n:it.n,c:it.c,q:it.q,cod:it.cod}));
+      rec.fiscalVars=a.fiscalVars;rec.composicaoPendente=false;rec.fonte="fiscal";rec.origem=rec.origem||"";
+      rec.priceMode=rec.priceMode||"depor";
+      if(a.price>0){rec.pricePor=a.price;rec.price=a.price;}
+      rec.freight=rec.freight||((ch&&ch.fre)||0);rec.rebate=rec.rebate||0;
+      rec.atualizadoEm=Date.now();rec.atualizadoVia="fiscal";
+      if((+rec.pricePor||+rec.price||0)>0)recomputeSku(rec);else rec.custoItens=rec.itens.reduce((s,it)=>s+it.c*it.q,0);
+      if(existing&&existing.sku&&existing.sku!==a.mlb){delete saved[existing.sku];try{await DB.deleteSku(existing.sku);}catch(e){}}
+      saved[a.mlb]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
+    }
+    renderSaved();if(SUPA_ON)setSync("cloud");
+    toast(`${ok} anúncios importados dos Dados Fiscais`);switchView("saved");
+  }catch(e){console.error(e);toast("Falha ao importar Dados Fiscais");}
 }
 async function deleteSku(sku){delete saved[sku];renderSaved();try{await DB.deleteSku(sku);toast(`SKU ${sku} excluído`);}catch(e){setSync("err");toast("Falha ao excluir na nuvem");}}
 function loadSkuIntoCalc(sku){
@@ -3233,6 +3313,7 @@ $("#skuChips").addEventListener("click",e=>{const b=e.target.closest("[data-cont
 document.querySelector("#view-saved thead").addEventListener("click",e=>{const th=e.target.closest("th.sortable");if(th)setSort(th.dataset.sort);});
 $("#exportCsv").onclick=exportCsv;
 $("#importMeli").onclick=meliOpen;
+(function(){const f=$("#fiscalFile");$("#importFiscal")&&($("#importFiscal").onclick=()=>f&&f.click());f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onFiscalFile(file);e.target.value="";});})();
 $("#meliClose").onclick=meliCloseModal;
 $("#meliModal").addEventListener("click",e=>{if(e.target.id==="meliModal")meliCloseModal();});
 $("#meliAnalyze").onclick=meliAnalyze;
