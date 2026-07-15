@@ -172,6 +172,13 @@
   .fixtarget{margin-top:4px;font-size:12.5px;color:var(--ink);background:var(--line2);border-radius:8px;padding:5px 9px;display:inline-block}
   .fixtarget b{color:var(--forest);font-family:var(--mono)}
   @media(max-width:640px){.fixrow{grid-template-columns:64px 1fr}.fixnums{grid-column:1/-1;text-align:left;margin-top:4px}}
+  .stk{display:inline-block;font-size:12px;font-weight:600;font-family:var(--mono);padding:2px 8px;border-radius:999px}
+  .stk.ok{background:#e5f0e9;color:var(--pos)}.stk.baixo{background:#f6ecd9;color:#8a6d12}.stk.parado{background:var(--line2);color:var(--muted)}.stk.zero{background:var(--berry-soft);color:var(--berry)}
+  .metaline{font-size:13px;color:var(--ink);margin:6px 0 4px}
+  .metaline input{width:64px;font-family:var(--mono);font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;text-align:center}
+  .metaline .comp{margin-left:8px}
+  .complist{display:flex;flex-wrap:wrap;gap:8px 20px}
+  .cmp{font-size:13.5px;color:var(--ink);min-width:160px}.cmp b{color:var(--forest);margin-right:4px}
   .ualert{background:var(--berry-soft);border:1px solid #eccdd3;border-radius:var(--r);padding:16px 18px;margin-bottom:20px}
   .ualert.good{background:#e9f2ec;border-color:#cfe3d6}
   .ualert .at{font-weight:700;color:var(--berry);margin-bottom:6px}.ualert.good .at{color:var(--pos)}
@@ -460,7 +467,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 53</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 54</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -469,6 +476,7 @@
       <span class="tabsep" aria-hidden="true"></span>
       <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
       <button class="tab" role="tab" aria-selected="false" data-view="sales">Fechamento</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="stock">Estoque</button>
       <button class="tab" role="tab" aria-selected="false" data-view="analytics">Análise</button>
       <span class="tabsep" aria-hidden="true"></span>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
@@ -669,6 +677,23 @@
       <div class="big">Nenhum relatório carregado</div>
       <div>Suba o arquivo de <b>Vendas</b> do Mercado Livre para ver a rentabilidade de cada venda.</div>
       <button class="btn btn-primary" style="margin-top:18px" id="salesPick2">Subir relatório</button>
+    </div>
+  </section>
+
+  <section class="view" id="view-stock">
+    <div class="head-actions">
+      <h2>Estoque Full &mdash; reposição e capital parado</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="file" id="stockFile" accept=".xlsx,.xls" style="display:none">
+        <button class="btn btn-primary" id="stockPick">Subir relatório</button>
+      </div>
+    </div>
+    <p class="set-note" style="margin:8px 0 18px;max-width:760px">Suba o <b>Relatório geral de estoque</b> do Full (Mercado Livre). Eu cruzo com seus SKUs pra calcular cobertura em dias, o que reabastecer e quanto de capital está parado.</p>
+    <div id="stockBody"></div>
+    <div class="empty" id="stockEmpty">
+      <div class="big">Nenhum relatório de estoque carregado</div>
+      <div>Baixe o relatório geral de estoque do Full no Mercado Livre e suba aqui.</div>
+      <button class="btn btn-primary" style="margin-top:18px" id="stockPick2">Subir relatório</button>
     </div>
   </section>
 
@@ -2604,12 +2629,17 @@ function segTableHtml(title,arr){
   return `<div class="scard"><h4>${title}</h4><table class="stab"><thead><tr><th>&nbsp;</th><th class="r">Vendas</th><th class="r">Receita</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 function kpi(label,val,cls){return `<div class="skpi${cls?" "+cls:""}"><div class="sk-l">${label}</div><div class="sk-v">${val}</div></div>`;}
+const STOCK={loaded:false,rows:[],fileName:"",updatedAt:0};
+function stockPayload(){return {rows:STOCK.rows,fileName:STOCK.fileName,updatedAt:STOCK.updatedAt};}
 async function ensureSalesMonths(){
   if(SALES.monthsLoaded)return;
-  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};SALES.shp.months=(d&&d.shpMonths)||{};if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};SALES.shp.months={};}
+  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};SALES.shp.months=(d&&d.shpMonths)||{};
+    if(d&&d.stock){STOCK.rows=d.stock.rows||[];STOCK.fileName=d.stock.fileName||"";STOCK.updatedAt=d.stock.updatedAt||0;}
+    STOCK.loaded=true;if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};SALES.shp.months={};}
   SALES.monthsLoaded=true;
 }
-async function persistSalesMonths(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
+async function persistSalesMonths(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months,stock:stockPayload()});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
+async function persistStock(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months,stock:stockPayload()});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o estoque na nuvem");}}
 function monthKeyOf(rows){
   const ds=rows.filter(r=>r.valid&&r.date).map(r=>r.date).sort((a,b)=>a-b);
   const d=ds[0]||new Date();
@@ -2621,6 +2651,99 @@ function buildMonthSummary(rows,fileName,key,label){
   return {month:key,monthLabel:label,fileName,uploadedAt:Date.now(),A};
 }
 async function openSales(){await ensureSalesMonths();renderFechamento();}
+// ---------- Estoque Full ----------
+function parseStockWB(wb){
+  const wsName=wb.SheetNames.find(n=>/resumo/i.test(n))||wb.SheetNames[0];
+  const mtx=sheetMatrix(wb.Sheets[wsName]);if(!mtx.length)return [];
+  // localiza linha de cabeçalho (a que tem "# Anúncio")
+  let hr=-1;for(let i=0;i<Math.min(mtx.length,20);i++){if((mtx[i]||[]).some(c=>typeof c==="string"&&/#\s*an[úu]ncio/i.test(c))){hr=i;break;}}
+  if(hr<0)return [];
+  const head=[mtx[hr]||[],mtx[hr+1]||[],mtx[hr+2]||[]];
+  const find=(pred)=>{for(let c=0;c<40;c++){for(const row of head){const v=row[c];if(typeof v==="string"&&pred(v.trim().toLowerCase()))return c;}}return -1;};
+  const iMlb=find(v=>/#\s*an[úu]ncio/.test(v));
+  const iSku=find(v=>v==="sku");
+  const iProd=find(v=>v==="produto");
+  const iTam=find(v=>v==="tamanho");
+  const iStat=find(v=>/status do an[úu]ncio/.test(v));
+  const iV30=find(v=>/vendas.*30 dias.*\(un/.test(v));
+  const iR30=find(v=>/vendas.*30 dias.*\(r\$?/.test(v));
+  const iEst=find(v=>/estoque m[ée]dio/.test(v));
+  const iCam=find(v=>/a caminho do full/.test(v));      // grupo: entrada pendente + em transferência
+  const iApt=find(v=>/unidades no full/.test(v));        // grupo cujo 1º sub é "Aptas para venda"
+  const agg={};
+  for(let i=hr+1;i<mtx.length;i++){
+    const r=mtx[i]||[];const mlb=r[iMlb];if(mlb==null)continue;
+    const mlbS=String(mlb).trim();if(!/^\d{6,}$/.test(mlbS))continue;   // linhas de dado têm MLB numérico
+    const num=idx=>idx>=0?(+r[idx]||0):0;
+    const entrada=num(iCam),transf=iCam>=0?(+r[iCam+1]||0):0;
+    const cur=agg[mlbS]||(agg[mlbS]={mlb:mlbS,sku:iSku>=0?String(r[iSku]||"").trim():"",produto:iProd>=0?String(r[iProd]||"").trim():"",
+      tamanho:iTam>=0?String(r[iTam]||"").trim():"",status:iStat>=0?String(r[iStat]||"").trim():"",
+      vendas30:0,receita30:0,estoqueMedio:0,aptas:0,aCaminho:0});
+    cur.vendas30+=num(iV30);cur.receita30+=num(iR30);cur.estoqueMedio+=num(iEst);cur.aptas+=num(iApt);cur.aCaminho+=entrada+transf;
+    if(!cur.produto&&iProd>=0)cur.produto=String(r[iProd]||"").trim();
+  }
+  return Object.values(agg);
+}
+async function onStockFile(file){
+  if(!file)return;
+  if(typeof XLSX==="undefined"){toast("A leitura de planilha não carregou (precisa de internet)");return;}
+  toast("Lendo relatório de estoque…");
+  try{
+    const wb=await readWorkbook(file);const rows=parseStockWB(wb);
+    if(!rows.length){toast("Não reconheci o relatório de estoque do Full nesse arquivo");return;}
+    await ensureSalesMonths();
+    STOCK.rows=rows;STOCK.fileName=file.name;STOCK.updatedAt=Date.now();
+    await persistStock();
+    toast(rows.length.toLocaleString("pt-BR")+" anúncios de estoque carregados");
+    renderStock();
+  }catch(e){console.error(e);toast("Falha ao ler o arquivo de estoque");}
+}
+function stockKitCost(rec){if(!rec)return 0;if(+rec.custoItens>0)return +rec.custoItens;return (rec.itens||[]).reduce((s,it)=>s+(+it.c||0)*(+it.q||0),0);}
+function stockMlbIndex(){const m={};Object.values(saved).forEach(rec=>{[rec.sku,rec.mlb].concat(rec.skusMeli||[]).forEach(k=>{if(k)m[String(k).trim()]=rec;});});return m;}
+async function openStock(){await ensureSalesMonths();renderStock();}
+function renderStock(){
+  const body=$("#stockBody"),empty=$("#stockEmpty");
+  if(!STOCK.rows.length){body.innerHTML="";empty.style.display="block";return;}
+  empty.style.display="none";
+  const meta=+assumptions.stockMeta||45;
+  const idx=stockMlbIndex();
+  const rows=STOCK.rows.map(s=>{
+    const rec=idx[s.mlb]||null,cost=stockKitCost(rec);
+    const vd=s.vendas30/30,cob=vd>0?s.aptas/vd:(s.aptas>0?9999:0);
+    const alvo=vd*meta,reenvio=vd>0?Math.max(0,Math.ceil(alvo-s.aptas-s.aCaminho)):0;
+    const imob=s.aptas*cost;
+    let cls;
+    if(s.aptas<=0&&s.vendas30>0)cls="zero";
+    else if(cob<meta)cls="baixo";
+    else if((s.vendas30<=0&&s.aptas>0)||cob>meta*2)cls="parado";
+    else cls="ok";
+    return {...s,rec,cost,vd,cob,reenvio,imob,cls,matched:!!(rec&&cost>0)};
+  });
+  const rupt=rows.filter(r=>r.cls==="zero"||r.cls==="baixo");
+  const parado=rows.filter(r=>r.cls==="parado");
+  const imobTot=rows.reduce((a,r)=>a+r.imob,0),paradoTot=parado.reduce((a,r)=>a+r.imob,0);
+  const semCadastro=rows.filter(r=>!r.matched).length;
+  const cobTxt=r=>r.cls==="zero"?`<span class="stk zero">zerado</span>`:(r.cob>=9999?`<span class="stk parado">sem giro</span>`:`<span class="stk ${r.cob<meta?"baixo":r.cob>meta*2?"parado":"ok"}">${Math.round(r.cob)}d</span>`);
+  const kpis=`<div class="ustats" style="margin-bottom:8px">
+    <div class="ustat"><div class="k">Em risco de ruptura</div><div class="v ${rupt.length?"warn":""}">${rupt.length}</div></div>
+    <div class="ustat"><div class="k">Parado / encalhado</div><div class="v ${parado.length?"warn":""}">${parado.length}</div></div>
+    <div class="ustat"><div class="k">R$ imobilizado no Full</div><div class="v">${brl(imobTot)}</div></div>
+    <div class="ustat"><div class="k">R$ parado</div><div class="v ${paradoTot?"warn":""}">${brl(paradoTot)}</div></div></div>`;
+  const metaCtl=`<div class="metaline">Meta de cobertura: <input id="stkMeta" type="number" min="7" max="180" value="${meta}"> dias <span class="comp">· atualizado ${STOCK.updatedAt?new Date(STOCK.updatedAt).toLocaleDateString("pt-BR"):"-"} · ${rows.length} anúncios${semCadastro?` · ${semCadastro} sem custo/composição cadastrados`:""}</span></div>`;
+  // reabastecer
+  rupt.sort((a,b)=>a.cob-b.cob);
+  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Venda/dia</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Reenviar</th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div><div class="comp">${r.sku} · ${r.mlb}${r.matched?"":" · <b style='color:var(--berry)'>sem cadastro</b>"}</div></td><td class="r u-mono">${r.aptas}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios têm cobertura acima de ${meta} dias.</div></div>`;
+  // parado
+  parado.sort((a,b)=>b.imob-a.imob);
+  const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Cobertura</th><th class="r">Vendas 30d</th><th class="r">R$ parado</th></tr></thead><tbody>`+parado.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div><div class="comp">${r.sku} · ${r.mlb}</div></td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
+  // componentes a comprar (explode a reposição pela composição)
+  const comp={};let semComp=0;
+  rupt.forEach(r=>{if(!r.reenvio)return;if(!r.rec||!(r.rec.itens||[]).length){semComp++;return;}r.rec.itens.forEach(it=>{const k=it.n;comp[k]=(comp[k]||0)+r.reenvio*(+it.q||0);});});
+  const compArr=Object.entries(comp).sort((a,b)=>b[1]-a[1]);
+  const compHtml=compArr.length?`<div class="subh" style="margin:22px 0 10px">Comprar / produzir pra repor</div><div class="card"><div class="pad" style="padding:12px 16px"><div class="complist">`+compArr.map(([n,q])=>`<div class="cmp"><b class="u-mono">${Math.round(q)}×</b> ${n}</div>`).join("")+`</div>${semComp?`<p class="comp" style="margin:10px 0 0">${semComp} anúncio(s) a repor sem composição cadastrada — não entraram nesta conta.</p>`:""}</div></div>`:"";
+  $("#stockBody").innerHTML=kpis+metaCtl+`<div class="subh" style="margin:20px 0 10px">Reabastecer agora</div>`+reabHtml+`<div class="subh" style="margin:24px 0 10px">Parado / encalhado — capital travado</div>`+parHtml+compHtml;
+  const mi=$("#stkMeta");if(mi)mi.onchange=()=>{assumptions.stockMeta=Math.max(7,Math.min(180,+mi.value||45));saveConfig();renderStock();};
+}
 function monthTrend(keys){
   const bw=34,gap=14,x0=10,h=120,pad=24;
   const vals=keys.map(k=>SALES.months[k].A.K.lucro);
@@ -3001,10 +3124,11 @@ async function onSalesFiles(files){
 // ---------- Navegação ----------
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));
-  ["calc","dash","saved","unit","sales","analytics","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
+  ["calc","dash","saved","unit","sales","stock","analytics","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
   if(v==="saved")refreshSkus();
   if(v==="unit")renderUnitAnalysis();
   if(v==="sales")openSales();
+  if(v==="stock")openStock();
   if(v==="analytics")openAnalytics();
   if(v==="dash")openDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
@@ -3016,6 +3140,7 @@ $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView
 $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
 $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
 (function(){const f=$("#salesFile");const pick=()=>f&&f.click();$("#salesPick")&&($("#salesPick").onclick=pick);$("#salesPick2")&&($("#salesPick2").onclick=pick);f&&(f.onchange=e=>{const files=e.target.files;onSalesFiles(files);e.target.value="";});})();
+(function(){const f=$("#stockFile");const pick=()=>f&&f.click();$("#stockPick")&&($("#stockPick").onclick=pick);$("#stockPick2")&&($("#stockPick2").onclick=pick);f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onStockFile(file);e.target.value="";});})();
 document.querySelectorAll("#chseg .chbtn").forEach(b=>b.onclick=()=>{SALES.channel=b.dataset.ch;renderFechamento();});
 document.querySelectorAll("#anseg .chbtn").forEach(b=>b.onclick=()=>{SALES.anChannel=b.dataset.ch;renderAnalytics();});
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
