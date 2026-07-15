@@ -202,6 +202,10 @@
   th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
   th.sortable:hover{color:var(--ink)}
   th.sortable.son{color:var(--forest)}
+  .sumsec{margin-bottom:14px}
+  .sumhd{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+  .sumhd b{font-family:var(--display);font-size:14px;color:var(--ink)}
+  .sumpre{white-space:pre-wrap;word-break:break-word;font-size:11.5px;font-family:var(--mono);background:var(--line2);border-radius:8px;padding:10px 12px;max-height:230px;overflow:auto;color:var(--ink);margin:0}
   .ustat.clk{cursor:pointer;transition:.12s;border:1px solid transparent}
   .ustat.clk:hover{border-color:var(--forest);transform:translateY(-1px)}
   .ustat.clk::after{content:"↓";float:right;color:var(--faint);font-size:12px;margin-top:-18px}
@@ -496,7 +500,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 67</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 68</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -716,6 +720,7 @@
       <h2>Análise do estoque Full &mdash; reposição e capital parado</h2>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="file" id="stockFile" accept=".xlsx,.xls" style="display:none">
+        <button class="btn" id="stockSummary">Resumo de ações</button>
         <button class="btn btn-primary" id="stockPick">Subir relatório</button>
       </div>
     </div>
@@ -2918,6 +2923,7 @@ function renderStock(){
   if(!STOCKUI._init){STOCKUI.col={"stk-reab":false,"stk-semvenda":false,"stk-excesso":true,"stk-consol":true,"stk-novos":true,"stk-comprar":true};STOCKUI._init=1;}
   const semvNote=`<p class="comp" style="margin:0 0 10px">Anúncios com estoque no Full que <b>não venderam nenhuma unidade nos últimos 30 dias</b>.</p>`;
   const excNote=`<p class="comp" style="margin:0 0 10px">Anúncios que vendem, mas têm <b>mais de ${meta*2} dias de cobertura</b> (estoque bem acima do giro atual).</p>`;
+  STOCK._last={rupt,semVenda,excesso,meta,margMeta,filtro:(F.prod||(F.q?`"${F.q}"`:"")),updatedAt:STOCK.updatedAt};
   $("#stockBody").innerHTML=kpis+qbar+filters+metaCtl
     +stkSect("stk-reab","Reabastecer agora",rupt.length,reabHtml,true)
     +stkSect("stk-semvenda","Itens sem vendas nos últimos 30 dias",semVenda.length,semvNote+semVendaHtml,true)
@@ -2934,6 +2940,46 @@ function renderStock(){
   $("#stockBody").querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{const id=el.dataset.goto;if(id in STOCKUI.col)STOCKUI.col[id]=false;renderStock();const t=document.getElementById(id);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});});
   $("#stockBody").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openStockInCalc(byMlb[b.dataset.open]));
   if(STOCKFILTER._f){const s=$("#stkSearch");if(s){s.focus();const v=s.value;s.setSelectionRange(v.length,v.length);}STOCKFILTER._f=0;}
+}
+function buildStockSummary(L){
+  const fl=r=>skuFlavor(r.sku)||r.sku;
+  const nm=r=>(r.produto||r.sku||"").replace(/\s+/g," ").trim().slice(0,60);
+  const secs=[];
+  const head=`RESUMO DE AÇÕES — Análise Full${L.updatedAt?` (${new Date(L.updatedAt).toLocaleDateString("pt-BR")})`:""}${L.filtro?` · filtro: ${L.filtro}`:""}`;
+  const ab=L.rupt.filter(r=>r.reenvio>0).sort((a,b)=>b.reenvio-a.reenvio);
+  const abTot=ab.reduce((s,r)=>s+r.reenvio,0);
+  let t1=`ABASTECER NO FULL — ${ab.length} anúncios · ${abTot} un a enviar\n`;
+  t1+=ab.length?ab.map(r=>`• ${r.mlb} · ${fl(r)} · ${nm(r)} → ENVIAR ${r.reenvio} un (estoque ${r.aptas}${r.aCaminho?`, a caminho ${r.aCaminho}`:""})`).join("\n"):"• (nada a abastecer)";
+  secs.push({title:`📦 Abastecer no Full (${ab.length})`,text:t1});
+  const par=L.semVenda.concat(L.excesso);
+  const alav=par.filter(r=>r.lucr!=null&&r.lucr>=L.margMeta).sort((a,b)=>b.imob-a.imob);
+  const alavR=alav.reduce((s,r)=>s+r.imob,0);
+  let t2=`ALAVANCAR COM CAMPANHA — ${alav.length} anúncios · ${brl(alavR)} parado (margem boa)\n`;
+  t2+=alav.length?alav.map(r=>`• ${r.mlb} · ${fl(r)} · ${nm(r)} · ${r.aptas} un · margem ${pct(r.lucr)} · ${brl(r.imob)} parado`).join("\n"):"• (nenhum candidato)";
+  secs.push({title:`🚀 Alavancar com campanha (${alav.length})`,text:t2});
+  const rev=par.filter(r=>!(r.lucr!=null&&r.lucr>=L.margMeta)).sort((a,b)=>b.imob-a.imob);
+  const revR=rev.reduce((s,r)=>s+r.imob,0);
+  let t3=`REVER / LIQUIDAR — ${rev.length} anúncios · ${brl(revR)} parado (margem fraca ou sem giro)\n`;
+  t3+=rev.length?rev.map(r=>`• ${r.mlb} · ${fl(r)} · ${nm(r)} · ${r.aptas} un · margem ${r.lucr!=null?pct(r.lucr):"—"} · ${brl(r.imob)} parado`).join("\n"):"• (nada a rever)";
+  secs.push({title:`🐢 Rever / liquidar (${rev.length})`,text:t3});
+  return {head,secs};
+}
+function openStockSummary(){
+  const L=STOCK._last;
+  if(!L||!STOCK.rows.length){toast("Suba o relatório do Full primeiro");return;}
+  const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const {head,secs}=buildStockSummary(L);
+  const all=head+"\n\n"+secs.map(s=>s.text).join("\n\n");
+  const body=secs.map((s,i)=>`<div class="sumsec"><div class="sumhd"><b>${s.title}</b><button class="lk" data-copy="${i}">copiar</button></div><pre class="sumpre">${esc(s.text)}</pre></div>`).join("");
+  const bg=document.createElement("div");bg.className="modal-bg";bg.id="sumModal";
+  bg.innerHTML=`<div class="modal" style="max-width:660px"><div class="modal-h">Resumo de ações<button class="lk" id="sumClose">fechar</button></div><div class="pad" style="padding:14px 20px 20px"><div class="comp" style="margin-bottom:10px">${esc(head)}</div><div style="margin-bottom:14px"><button class="btn btn-primary" id="sumCopyAll">Copiar tudo</button></div>${body}</div></div>`;
+  document.body.appendChild(bg);
+  const close=()=>bg.remove();
+  bg.addEventListener("click",e=>{if(e.target===bg)close();});
+  bg.querySelector("#sumClose").onclick=close;
+  const copy=(txt)=>{try{navigator.clipboard.writeText(txt).then(()=>toast("Copiado"),()=>toast("Não consegui copiar"));}catch(e){toast("Não consegui copiar");}};
+  bg.querySelector("#sumCopyAll").onclick=()=>copy(all);
+  bg.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>copy(secs[+b.dataset.copy].text));
 }
 function openStockInCalc(row){
   if(!row)return;
@@ -3347,7 +3393,7 @@ $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView
 $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
 $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
 (function(){const f=$("#salesFile");const pick=()=>f&&f.click();$("#salesPick")&&($("#salesPick").onclick=pick);$("#salesPick2")&&($("#salesPick2").onclick=pick);f&&(f.onchange=e=>{const files=e.target.files;onSalesFiles(files);e.target.value="";});})();
-(function(){const f=$("#stockFile");const pick=()=>f&&f.click();$("#stockPick")&&($("#stockPick").onclick=pick);$("#stockPick2")&&($("#stockPick2").onclick=pick);f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onStockFile(file);e.target.value="";});})();
+(function(){const f=$("#stockFile");const pick=()=>f&&f.click();$("#stockPick")&&($("#stockPick").onclick=pick);$("#stockPick2")&&($("#stockPick2").onclick=pick);f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onStockFile(file);e.target.value="";});$("#stockSummary")&&($("#stockSummary").onclick=openStockSummary);})();
 document.querySelectorAll("#chseg .chbtn").forEach(b=>b.onclick=()=>{SALES.channel=b.dataset.ch;renderFechamento();});
 document.querySelectorAll("#anseg .chbtn").forEach(b=>b.onclick=()=>{SALES.anChannel=b.dataset.ch;renderAnalytics();});
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
