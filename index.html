@@ -496,7 +496,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 65</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 66</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2739,11 +2739,12 @@ function segTableHtml(title,arr){
 }
 function kpi(label,val,cls){return `<div class="skpi${cls?" "+cls:""}"><div class="sk-l">${label}</div><div class="sk-v">${val}</div></div>`;}
 const STOCK={loaded:false,rows:[],fileName:"",updatedAt:0};
-function stockPayload(){return {rows:STOCK.rows,fileName:STOCK.fileName,updatedAt:STOCK.updatedAt};}
+let _lastStock=null;
+function stockPayload(){if(STOCK.loaded&&STOCK.rows.length)return {rows:STOCK.rows,fileName:STOCK.fileName,updatedAt:STOCK.updatedAt};return _lastStock||{rows:STOCK.rows,fileName:STOCK.fileName,updatedAt:STOCK.updatedAt};}
 async function ensureSalesMonths(){
   if(SALES.monthsLoaded)return;
   try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};SALES.shp.months=(d&&d.shpMonths)||{};
-    if(d&&d.stock){STOCK.rows=d.stock.rows||[];STOCK.fileName=d.stock.fileName||"";STOCK.updatedAt=d.stock.updatedAt||0;}
+    if(d&&d.stock){STOCK.rows=d.stock.rows||[];STOCK.fileName=d.stock.fileName||"";STOCK.updatedAt=d.stock.updatedAt||0;_lastStock=d.stock;}
     STOCK.loaded=true;if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};SALES.shp.months={};}
   SALES.monthsLoaded=true;
 }
