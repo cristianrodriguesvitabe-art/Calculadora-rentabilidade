@@ -502,7 +502,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 70</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 71</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2944,15 +2944,16 @@ function renderStock(){
   $("#stockBody").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openStockInCalc(byMlb[b.dataset.open]));
   if(STOCKFILTER._f){const s=$("#stkSearch");if(s){s.focus();const v=s.value;s.setSelectionRange(v.length,v.length);}STOCKFILTER._f=0;}
 }
-function openTextModal(title,text){
+function openTextModal(title,text,xlsKind){
   const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const bg=document.createElement("div");bg.className="modal-bg";
-  bg.innerHTML=`<div class="modal" style="max-width:640px"><div class="modal-h">${esc(title)}<button class="lk" data-x>fechar</button></div><div class="pad" style="padding:14px 20px 20px"><div style="margin-bottom:10px"><button class="btn btn-primary" data-cp>Copiar</button></div><pre class="sumpre" style="max-height:62vh">${esc(text)}</pre></div>`;
+  bg.innerHTML=`<div class="modal" style="max-width:640px"><div class="modal-h">${esc(title)}<button class="lk" data-x>fechar</button></div><div class="pad" style="padding:14px 20px 20px"><div style="margin-bottom:10px;display:flex;gap:8px"><button class="btn btn-primary" data-cp>Copiar</button>${xlsKind?`<button class="btn" data-xls>Baixar Excel</button>`:""}</div><pre class="sumpre" style="max-height:62vh">${esc(text)}</pre></div>`;
   document.body.appendChild(bg);
   const close=()=>bg.remove();
   bg.addEventListener("click",e=>{if(e.target===bg)close();});
   bg.querySelector("[data-x]").onclick=close;
   bg.querySelector("[data-cp]").onclick=()=>{try{navigator.clipboard.writeText(text).then(()=>toast("Copiado"),()=>toast("Não consegui copiar"));}catch(e){toast("Não consegui copiar");}};
+  const xb=bg.querySelector("[data-xls]");if(xb)xb.onclick=()=>stockExcel(xlsKind);
 }
 function stockBlockSummary(id){
   const L=STOCK._last;if(!L)return null;
@@ -2971,7 +2972,37 @@ function stockBlockSummary(id){
     return {title:"Comprar / produzir pra repor",text:`COMPRAR / PRODUZIR PRA REPOR${upd}${filt}\n`+(a.map(([n,q])=>`• ${Math.round(q)}× ${n}`).join("\n")||"• (vazio)")};}
   return null;
 }
-function openBlockSummary(id){const s=stockBlockSummary(id);if(s)openTextModal(s.title,s.text);else toast("Suba o relatório do Full primeiro");}
+function openBlockSummary(id){const s=stockBlockSummary(id);if(s)openTextModal(s.title,s.text,id);else toast("Suba o relatório do Full primeiro");}
+function stockExcel(kind){
+  const L=STOCK._last;
+  if(typeof XLSX==="undefined"){toast("Excel indisponível (precisa de internet)");return;}
+  if(!L||!STOCK.rows.length){toast("Suba o relatório do Full primeiro");return;}
+  const fl=r=>skuFlavor(r.sku)||r.sku, cc=r=>stockCompTxt(r)||"", nm=r=>(r.produto||"").replace(/\s+/g," ").trim();
+  const n2=v=>Math.round((+v||0)*100)/100;
+  const abAoA=arr=>[["MLB","Composição (Protheus)","Sabor","Descrição","Enviar (un)","Estoque atual","A caminho","Perda/dia (R$)"],...arr.map(r=>[r.mlb,cc(r),fl(r),nm(r),r.reenvio,r.aptas,r.aCaminho,n2(r.rDia)])];
+  const parAoA=arr=>[["MLB","Composição (Protheus)","Sabor","Descrição","Un. paradas","Margem %","R$ parado (custo)","Cobertura (dias)"],...arr.map(r=>[r.mlb,cc(r),fl(r),nm(r),r.aptas,r.lucr!=null?n2(r.lucr*100):"",n2(r.imob),r.cob>=9999?"":Math.round(r.cob)])];
+  const consAoA=arr=>[["Código Protheus","Item","Un. no Full","R$ no Full (custo)","Un. parado","R$ parado (custo)"],...arr.map(c=>[c.code||"",c.nome,Math.round(c.un),n2(c.val),Math.round(c.unPar),n2(c.valPar)])];
+  const novAoA=arr=>[["MLB","Sabor/SKU","Vendas 30d","Aptas","Preço médio"],...arr.map(r=>[r.mlb,fl(r),r.vendas30,r.aptas,r.precoMed?n2(r.precoMed):""])];
+  const compAoA=arr=>[["Item","Quantidade a produzir/comprar"],...arr.map(([n,q])=>[n,Math.round(q)])];
+  const ab=L.rupt.filter(r=>r.reenvio>0).sort((a,b)=>b.reenvio-a.reenvio);
+  const par=L.semVenda.concat(L.excesso);
+  const alav=par.filter(r=>r.lucr!=null&&r.lucr>=L.margMeta).sort((a,b)=>b.imob-a.imob);
+  const rev=par.filter(r=>!(r.lucr!=null&&r.lucr>=L.margMeta)).sort((a,b)=>b.imob-a.imob);
+  const wb=XLSX.utils.book_new();
+  const add=(name,aoa)=>{const ws=XLSX.utils.aoa_to_sheet(aoa);ws["!cols"]=(aoa[0]||[]).map((h,i)=>({wch:i===3?42:i===1?22:Math.max(10,String(h).length+2)}));XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));};
+  if(kind==="all"){add("Abastecer",abAoA(ab));add("Alavancar",parAoA(alav));add("Rever-Liquidar",parAoA(rev));add("Consolidado",consAoA(L.consolArr||[]));if((L.comprar||[]).length)add("Comprar-produzir",compAoA(L.comprar));}
+  else if(kind==="stk-reab")add("Abastecer",abAoA(ab));
+  else if(kind==="stk-semvenda")add("Sem vendas 30d",parAoA(L.semVenda.slice().sort((a,b)=>b.imob-a.imob)));
+  else if(kind==="stk-excesso")add("Giro lento",parAoA(L.excesso.slice().sort((a,b)=>b.imob-a.imob)));
+  else if(kind==="stk-consol")add("Consolidado",consAoA(L.consolArr||[]));
+  else if(kind==="stk-novos")add("Novos",novAoA(L.novos||[]));
+  else if(kind==="stk-comprar")add("Comprar-produzir",compAoA(L.comprar||[]));
+  else return;
+  if(!wb.SheetNames.length){toast("Nada pra exportar neste bloco");return;}
+  const d=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`renova-be-full-${kind==="all"?"resumo":kind.replace("stk-","")}-${d}.xlsx`);
+  toast("Excel gerado");
+}
 function buildStockSummary(L){
   const fl=r=>skuFlavor(r.sku)||r.sku;
   const cc=r=>stockCompTxt(r)||"—";
@@ -3004,11 +3035,12 @@ function openStockSummary(){
   const all=head+"\n\n"+secs.map(s=>s.text).join("\n\n");
   const body=secs.map((s,i)=>`<div class="sumsec"><div class="sumhd"><b>${s.title}</b><button class="lk" data-copy="${i}">copiar</button></div><pre class="sumpre">${esc(s.text)}</pre></div>`).join("");
   const bg=document.createElement("div");bg.className="modal-bg";bg.id="sumModal";
-  bg.innerHTML=`<div class="modal" style="max-width:660px"><div class="modal-h">Resumo de ações<button class="lk" id="sumClose">fechar</button></div><div class="pad" style="padding:14px 20px 20px"><div class="comp" style="margin-bottom:10px">${esc(head)}</div><div style="margin-bottom:14px"><button class="btn btn-primary" id="sumCopyAll">Copiar tudo</button></div>${body}</div></div>`;
+  bg.innerHTML=`<div class="modal" style="max-width:660px"><div class="modal-h">Resumo de ações<button class="lk" id="sumClose">fechar</button></div><div class="pad" style="padding:14px 20px 20px"><div class="comp" style="margin-bottom:10px">${esc(head)}</div><div style="margin-bottom:14px;display:flex;gap:8px"><button class="btn btn-primary" id="sumCopyAll">Copiar tudo</button><button class="btn" id="sumXls">Baixar Excel</button></div>${body}</div></div>`;
   document.body.appendChild(bg);
   const close=()=>bg.remove();
   bg.addEventListener("click",e=>{if(e.target===bg)close();});
   bg.querySelector("#sumClose").onclick=close;
+  bg.querySelector("#sumXls").onclick=()=>stockExcel("all");
   const copy=(txt)=>{try{navigator.clipboard.writeText(txt).then(()=>toast("Copiado"),()=>toast("Não consegui copiar"));}catch(e){toast("Não consegui copiar");}};
   bg.querySelector("#sumCopyAll").onclick=()=>copy(all);
   bg.querySelectorAll("[data-copy]").forEach(b=>b.onclick=()=>copy(secs[+b.dataset.copy].text));
