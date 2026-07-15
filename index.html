@@ -180,6 +180,15 @@
   .complist{display:flex;flex-wrap:wrap;gap:8px 20px}
   .cmp{font-size:13.5px;color:var(--ink);min-width:160px}.cmp b{color:var(--forest);margin-right:4px}
   .compcodes{font-family:var(--mono);font-size:11.5px;color:var(--forest)}
+  table.stktbl thead th{position:sticky;top:84px;background:var(--surface,#fbfbf9);z-index:6;box-shadow:0 1px 0 var(--line)}
+  .stkfilters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 6px}
+  .stkfilters input[type=text]{flex:1;min-width:220px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px}
+  .stkfilters select{padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13px;background:#fff}
+  .qtitle{font-family:var(--display);font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px}
+  .qbar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--line2)}
+  .qbar>div{height:100%}
+  .qleg{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--muted)}
+  .qleg span{display:flex;align-items:center;gap:6px}.qleg i{width:11px;height:11px;border-radius:3px}
   .ustat.clk{cursor:pointer;transition:.12s;border:1px solid transparent}
   .ustat.clk:hover{border-color:var(--forest);transform:translateY(-1px)}
   .ustat.clk::after{content:"↓";float:right;color:var(--faint);font-size:12px;margin-top:-18px}
@@ -474,7 +483,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 61</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 62</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2791,6 +2800,13 @@ function stockCompItens(r){
   return r.rec.itens||[];
 }
 function stockCompTxt(r){const its=stockCompItens(r);if(!its.length)return "";return its.map(it=>`${it.cod||it.n}×${it.q}`).join(" · ");}
+const STOCKFILTER={q:"",prod:"",_f:0};
+function stockBaseProd(r){
+  const its=stockCompItens(r);if(!its.length)return "";
+  const val=its.filter(it=>!isFiscal(it.n));const anc=(val.length?val:its)[0];if(!anc)return "";
+  const code=String(anc.cod||"").toUpperCase();const pref=code.includes(".")?code.split(".")[0]:"";
+  return pref?unitProdLabel(pref,anc.n):(anc.n||"");
+}
 function renderStock(){
   const body=$("#stockBody"),empty=$("#stockEmpty");
   if(!STOCK.rows.length){body.innerHTML="";empty.style.display="block";return;}
@@ -2810,35 +2826,57 @@ function renderStock(){
     return {...s,rec,cost,vd,cob,reenvio,imob,precoMed,rDia,cls,matched:!!(rec&&cost>0)};
   });
   const byMlb={};rows.forEach(r=>byMlb[r.mlb]=r);
-  const rupt=rows.filter(r=>r.cls==="zero"||r.cls==="baixo");
-  const parado=rows.filter(r=>r.cls==="parado");
-  const novMap={};rows.filter(r=>!r.rec).forEach(r=>{if(!novMap[r.mlb]||r.vendas30>novMap[r.mlb].vendas30)novMap[r.mlb]=r;});
+  // filtros
+  const F=STOCKFILTER,q=(F.q||"").trim().toLowerCase();
+  const matchQ=r=>!q||[r.produto,r.sku,r.mlb,skuFlavor(r.sku),stockCompTxt(r)].some(x=>String(x||"").toLowerCase().includes(q));
+  const matchP=r=>!F.prod||stockBaseProd(r)===F.prod;
+  const frows=rows.filter(r=>matchQ(r)&&matchP(r));
+  const prodOpts=[...new Set(rows.map(stockBaseProd).filter(Boolean))].sort();
+  const rupt=frows.filter(r=>r.cls==="zero"||r.cls==="baixo");
+  const parado=frows.filter(r=>r.cls==="parado");
+  const novMap={};frows.filter(r=>!r.rec).forEach(r=>{if(!novMap[r.mlb]||r.vendas30>novMap[r.mlb].vendas30)novMap[r.mlb]=r;});
   const novos=Object.values(novMap).sort((a,b)=>b.vendas30-a.vendas30);
-  const imobTot=rows.reduce((a,r)=>a+r.imob,0),paradoTot=parado.reduce((a,r)=>a+r.imob,0);
+  const imobTot=frows.reduce((a,r)=>a+r.imob,0),paradoTot=parado.reduce((a,r)=>a+r.imob,0);
   const perdaDia=rupt.reduce((a,r)=>a+r.rDia,0);
-  const vend30Tot=rows.reduce((a,r)=>a+r.vendas30,0),rec30Tot=rows.reduce((a,r)=>a+r.receita30,0);
+  const vend30Tot=frows.reduce((a,r)=>a+r.vendas30,0),rec30Tot=frows.reduce((a,r)=>a+r.receita30,0);
   const cobTxt=r=>r.cls==="zero"?`<span class="stk zero">zerado</span>`:(r.cob>=9999?`<span class="stk parado">sem giro</span>`:`<span class="stk ${r.cob<meta?"baixo":r.cob>meta*2?"parado":"ok"}">${Math.round(r.cob)}d</span>`);
   const openBtn=r=>`<button class="lk stkopen" data-open="${r.mlb}">${r.rec?"abrir":"cadastrar"}</button>`;
   const cadTag=r=>r.rec?"":" · <b style='color:var(--berry)'>sem cadastro</b>";
   const subInfo=r=>{const fl=skuFlavor(r.sku),comp=stockCompTxt(r);return `<div class="comp">${fl?`<b style="color:var(--ink)">${fl}</b> · `:""}${r.sku}</div>${comp?`<div class="comp compcodes">${comp}</div>`:""}<div class="comp">${r.mlb}${cadTag(r)}</div>`;};
+  // qualidade do estoque (por R$ a custo)
+  const catR={ok:0,risco:0,parado:0},catU={ok:0,risco:0,parado:0};
+  frows.forEach(r=>{const k=r.cls==="ok"?"ok":(r.cls==="parado"?"parado":"risco");catR[k]+=r.imob;catU[k]+=r.aptas;});
+  const totR=catR.ok+catR.risco+catR.parado||1,totU=catU.ok+catU.risco+catU.parado;
+  const pctW=v=>Math.round(v/totR*100);
+  const qbar=`<div class="card"><div class="pad" style="padding:14px 16px">
+    <div class="qtitle">Qualidade do estoque <span class="comp">(R$ a custo do produto)</span></div>
+    <div class="qbar">${catR.ok?`<div style="width:${pctW(catR.ok)}%;background:var(--forest)" title="Saudável"></div>`:""}${catR.risco?`<div style="width:${pctW(catR.risco)}%;background:#C9A227" title="Em risco"></div>`:""}${catR.parado?`<div style="width:${pctW(catR.parado)}%;background:var(--berry)" title="Parado"></div>`:""}</div>
+    <div class="qleg"><span><i style="background:var(--forest)"></i>Saudável · ${brl(catR.ok)} · ${Math.round(catU.ok).toLocaleString("pt-BR")} un</span>
+      <span><i style="background:#C9A227"></i>Em risco · ${brl(catR.risco)} · ${Math.round(catU.risco).toLocaleString("pt-BR")} un</span>
+      <span><i style="background:var(--berry)"></i>Parado · ${brl(catR.parado)} · ${Math.round(catU.parado).toLocaleString("pt-BR")} un</span></div>
+    <div class="comp" style="margin-top:8px">Total imobilizado no Full: <b>${brl(totR===1?0:totR)}</b> a custo · ${Math.round(totU).toLocaleString("pt-BR")} unidades</div>
+  </div></div>`;
   const kpis=`<div class="ustats" style="margin-bottom:8px">
     <div class="ustat clk" data-goto="stk-reab"><div class="k">Em risco de ruptura</div><div class="v ${rupt.length?"warn":""}">${rupt.length}</div></div>
     <div class="ustat clk" data-goto="stk-reab"><div class="k">Perda/dia se romper</div><div class="v ${perdaDia?"warn":""}">${brl(perdaDia)}</div></div>
     <div class="ustat clk" data-goto="stk-parado"><div class="k">Parado / encalhado</div><div class="v ${parado.length?"warn":""}">${parado.length}</div></div>
-    <div class="ustat clk" data-goto="stk-parado"><div class="k">R$ parado</div><div class="v ${paradoTot?"warn":""}">${brl(paradoTot)}</div></div>
-    <div class="ustat clk" data-goto="stk-consol"><div class="k">R$ imobilizado no Full</div><div class="v">${brl(imobTot)}</div></div>
+    <div class="ustat clk" data-goto="stk-parado"><div class="k">R$ parado (custo)</div><div class="v ${paradoTot?"warn":""}">${brl(paradoTot)}</div></div>
+    <div class="ustat clk" data-goto="stk-consol"><div class="k">R$ imobilizado (custo)</div><div class="v">${brl(imobTot)}</div></div>
     <div class="ustat clk" data-goto="stk-novos"><div class="k">Novos / sem cadastro</div><div class="v ${novos.length?"warn":""}">${novos.length}</div></div></div>`;
-  const metaCtl=`<div class="metaline">Meta de cobertura: <input id="stkMeta" type="number" min="7" max="180" value="${meta}"> dias <span class="comp">· ${rows.length} anúncios · vendas 30d: ${vend30Tot.toLocaleString("pt-BR")} un · receita 30d: ${brl(rec30Tot)} · atualizado ${STOCK.updatedAt?new Date(STOCK.updatedAt).toLocaleDateString("pt-BR"):"-"}</span></div>`;
+  const opts=prodOpts.map(p=>`<option value="${p.replace(/"/g,"&quot;")}"${F.prod===p?" selected":""}>${p}</option>`).join("");
+  const filters=`<div class="stkfilters"><input id="stkSearch" type="text" placeholder="Buscar título, SKU, MLB, código, sabor…" value="${(F.q||"").replace(/"/g,"&quot;")}"><select id="stkProd"><option value="">Todos os produtos</option>${opts}</select>${(F.q||F.prod)?`<button class="lk" id="stkClear">limpar filtros</button>`:""}<span class="comp">${frows.length} de ${rows.length} anúncios · vendas 30d: ${vend30Tot.toLocaleString("pt-BR")} un · receita 30d: ${brl(rec30Tot)}</span></div>`;
+  const metaCtl=`<div class="metaline">Meta de cobertura: <input id="stkMeta" type="number" min="7" max="180" value="${meta}"> dias <span class="comp">· valores em R$ são a <b>custo do produto</b> (não é o preço de venda) · atualizado ${STOCK.updatedAt?new Date(STOCK.updatedAt).toLocaleDateString("pt-BR"):"-"}</span></div>`;
   rupt.sort((a,b)=>(b.rDia-a.rDia)||(a.cob-b.cob));
-  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Abastecer estoque</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios têm cobertura acima de ${meta} dias.</div></div>`;
+  const reabHtml=rupt.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Venda/dia</th><th class="r">Cobertura</th><th class="r">A caminho</th><th class="r">Abastecer estoque</th><th class="r">Perda/dia</th><th></th></tr></thead><tbody>`+rupt.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.vd.toFixed(1)}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.aCaminho||"—"}</td><td class="r u-mono"><b>${r.reenvio||"—"}</b></td><td class="r u-mono ${r.cls==="zero"?"neg":""}">${brl(r.rDia)}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada em risco de ruptura</div><div class="comp">Todos os anúncios (do filtro atual) têm cobertura acima de ${meta} dias.</div></div>`;
   parado.sort((a,b)=>b.imob-a.imob);
-  const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Cobertura</th><th class="r">Vendas 30d</th><th class="r">R$ parado</th><th></th></tr></thead><tbody>`+parado.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
-  // consolidado por item (Protheus): explode aptas × composição → componentes físicos no Full
+  const parHtml=parado.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Aptas</th><th class="r">Cobertura</th><th class="r">Vendas 30d</th><th class="r">R$ parado (custo)</th><th></th></tr></thead><tbody>`+parado.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.aptas}</td><td class="r">${cobTxt(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.matched?brl(r.imob):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Nada encalhado</div><div class="comp">Nenhum anúncio (do filtro atual) com cobertura acima de ${meta*2} dias ou sem giro.</div></div>`;
+  // consolidado por item (Protheus): explode aptas × composição POR SABOR → componentes físicos no Full
   const consol={};let semConsol=0;
-  rows.forEach(r=>{
-    if(!r.rec||!(r.rec.itens||[]).length){semConsol+=r.aptas;return;}
-    r.rec.itens.forEach(it=>{
-      const code=String(it.cod||cbn[String(it.n||"").trim().toLowerCase()]||"").trim().toUpperCase();
+  frows.forEach(r=>{
+    const its=stockCompItens(r);
+    if(!its.length){semConsol+=r.aptas;return;}
+    its.forEach(it=>{
+      const code=String(it.cod||"").trim().toUpperCase();
       const key=code||("N:"+it.n),u=r.aptas*(+it.q||0),v=u*(+it.c||0);
       const c=consol[key]||(consol[key]={code,nome:it.n,un:0,val:0,unPar:0,valPar:0});
       c.un+=u;c.val+=v;if(r.cls==="parado"){c.unPar+=u;c.valPar+=v;}
@@ -2846,22 +2884,25 @@ function renderStock(){
   });
   const consolArr=Object.values(consol).sort((a,b)=>b.val-a.val);
   const cUnTot=consolArr.reduce((a,c)=>a+c.un,0),cValTot=consolArr.reduce((a,c)=>a+c.val,0),cValPar=consolArr.reduce((a,c)=>a+c.valPar,0);
-  const consolHtml=consolArr.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Item (Protheus)</th><th class="r">Un. no Full</th><th class="r">R$ no Full</th><th class="r">Un. parado</th><th class="r">R$ parado</th></tr></thead><tbody>`+consolArr.map(c=>`<tr><td><div class="sku-code">${c.code||"—"}</div><div class="sku-name">${c.nome}</div></td><td class="r u-mono">${Math.round(c.un).toLocaleString("pt-BR")}</td><td class="r u-mono">${brl(c.val)}</td><td class="r u-mono">${c.unPar?Math.round(c.unPar).toLocaleString("pt-BR"):"—"}</td><td class="r u-mono">${c.valPar?brl(c.valPar):"—"}</td></tr>`).join("")+`<tr class="totrow"><td><b>Total</b></td><td class="r u-mono"><b>${Math.round(cUnTot).toLocaleString("pt-BR")}</b></td><td class="r u-mono"><b>${brl(cValTot)}</b></td><td class="r u-mono">—</td><td class="r u-mono"><b>${brl(cValPar)}</b></td></tr></tbody></table></div>${semConsol?`<p class="comp" style="padding:0 16px 12px">${Math.round(semConsol).toLocaleString("pt-BR")} unidades em anúncios sem composição cadastrada não entraram no consolidado.</p>`:""}</div>`:`<div class="ualert"><div class="at">Sem composição pra consolidar</div><div class="comp">Cadastre a composição dos kits pra ver o estoque por item do Protheus.</div></div>`;
-  // novos / sem cadastro → abrir na calculadora (preço já vem do Full)
-  const novHtml=novos.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Aptas</th><th class="r">Preço médio</th><th></th></tr></thead><tbody>`+novos.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.aptas}</td><td class="r u-mono">${r.precoMed?brl(r.precoMed):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Todos os anúncios cadastrados</div><div class="comp">Todo anúncio do Full está casado com um SKU seu.</div></div>`;
+  const consolHtml=consolArr.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Item (Protheus)</th><th class="r">Un. no Full</th><th class="r">R$ no Full (custo)</th><th class="r">Un. parado</th><th class="r">R$ parado (custo)</th></tr></thead><tbody>`+consolArr.map(c=>`<tr><td><div class="sku-code">${c.code||"—"}</div><div class="sku-name">${c.nome}</div></td><td class="r u-mono">${Math.round(c.un).toLocaleString("pt-BR")}</td><td class="r u-mono">${brl(c.val)}</td><td class="r u-mono">${c.unPar?Math.round(c.unPar).toLocaleString("pt-BR"):"—"}</td><td class="r u-mono">${c.valPar?brl(c.valPar):"—"}</td></tr>`).join("")+`<tr class="totrow"><td><b>Total</b></td><td class="r u-mono"><b>${Math.round(cUnTot).toLocaleString("pt-BR")}</b></td><td class="r u-mono"><b>${brl(cValTot)}</b></td><td class="r u-mono">—</td><td class="r u-mono"><b>${brl(cValPar)}</b></td></tr></tbody></table></div>${semConsol?`<p class="comp" style="padding:0 16px 12px">${Math.round(semConsol).toLocaleString("pt-BR")} unidades em anúncios sem composição cadastrada não entraram no consolidado.</p>`:""}</div>`:`<div class="ualert"><div class="at">Sem composição pra consolidar</div><div class="comp">Importe o Dados Fiscais pra ver o estoque por item do Protheus.</div></div>`;
+  const novHtml=novos.length?`<div class="card"><div class="pad" style="padding:8px 8px 4px"><table class="stktbl"><thead><tr><th>Anúncio</th><th class="r">Vendas 30d</th><th class="r">Aptas</th><th class="r">Preço médio</th><th></th></tr></thead><tbody>`+novos.map(r=>`<tr><td><div class="sku-name" style="font-weight:600;color:var(--ink)">${r.produto||r.sku}</div>${subInfo(r)}</td><td class="r u-mono">${r.vendas30}</td><td class="r u-mono">${r.aptas}</td><td class="r u-mono">${r.precoMed?brl(r.precoMed):"—"}</td><td class="r">${openBtn(r)}</td></tr>`).join("")+`</tbody></table></div></div>`:`<div class="ualert good"><div class="at">✓ Todos os anúncios cadastrados</div><div class="comp">Todo anúncio (do filtro atual) está casado com um SKU seu.</div></div>`;
   const comp={};let semComp=0;
-  rupt.forEach(r=>{if(!r.reenvio)return;if(!r.rec||!(r.rec.itens||[]).length){semComp++;return;}r.rec.itens.forEach(it=>{const k=it.n;comp[k]=(comp[k]||0)+r.reenvio*(+it.q||0);});});
+  rupt.forEach(r=>{if(!r.reenvio)return;const its=stockCompItens(r);if(!its.length){semComp++;return;}its.forEach(it=>{const k=it.cod||it.n;comp[k]=(comp[k]||0)+r.reenvio*(+it.q||0);});});
   const compArr=Object.entries(comp).sort((a,b)=>b[1]-a[1]);
   const compHtml=compArr.length?`<div class="subh" style="margin:22px 0 10px">Comprar / produzir pra repor</div><div class="card"><div class="pad" style="padding:12px 16px"><div class="complist">`+compArr.map(([n,q])=>`<div class="cmp"><b class="u-mono">${Math.round(q)}×</b> ${n}</div>`).join("")+`</div>${semComp?`<p class="comp" style="margin:10px 0 0">${semComp} anúncio(s) a repor sem composição cadastrada — não entraram nesta conta.</p>`:""}</div></div>`:"";
-  $("#stockBody").innerHTML=kpis+metaCtl
+  $("#stockBody").innerHTML=kpis+qbar+filters+metaCtl
     +`<div class="subh" id="stk-reab" style="margin:20px 0 10px">Reabastecer agora</div>`+reabHtml
     +`<div class="subh" id="stk-parado" style="margin:24px 0 10px">Parado / encalhado — capital travado</div>`+parHtml
     +`<div class="subh" id="stk-consol" style="margin:24px 0 10px">Consolidado por item (Protheus) — estoque físico no Full</div>`+consolHtml
     +`<div class="subh" id="stk-novos" style="margin:24px 0 10px">Novos / sem cadastro — abrir na calculadora</div>`+novHtml
     +compHtml;
   const mi=$("#stkMeta");if(mi)mi.onchange=()=>{assumptions.stockMeta=Math.max(7,Math.min(180,+mi.value||45));saveConfig();renderStock();};
+  const ss=$("#stkSearch");if(ss)ss.oninput=e=>{STOCKFILTER.q=e.target.value;STOCKFILTER._f=1;renderStock();};
+  const sp=$("#stkProd");if(sp)sp.onchange=e=>{STOCKFILTER.prod=e.target.value;renderStock();};
+  const sc=$("#stkClear");if(sc)sc.onclick=()=>{STOCKFILTER.q="";STOCKFILTER.prod="";renderStock();};
   $("#stockBody").querySelectorAll("[data-goto]").forEach(el=>el.onclick=()=>{const t=document.getElementById(el.dataset.goto);if(t)t.scrollIntoView({behavior:"smooth",block:"start"});});
   $("#stockBody").querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openStockInCalc(byMlb[b.dataset.open]));
+  if(STOCKFILTER._f){const s=$("#stkSearch");if(s){s.focus();const v=s.value;s.setSelectionRange(v.length,v.length);}STOCKFILTER._f=0;}
 }
 function openStockInCalc(row){
   if(!row)return;
