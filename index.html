@@ -210,6 +210,9 @@
   .simctl{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--muted)}
   .simctl select{padding:6px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;margin-left:6px}
   .simctl input{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit;width:56px;text-align:right;margin:0 4px}
+  .subtabs{display:flex;gap:6px;margin:12px 0 4px}
+  .subbtn{padding:6px 14px;border:1px solid var(--line);background:#fff;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
+  .subbtn.on{background:var(--forest);color:#fff;border-color:var(--forest)}
   .stksect.col .chev{transform:rotate(-90deg)}
   .stksect.col .sbody{display:none}
   .sbody{padding-top:10px}
@@ -514,7 +517,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 82</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 83</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -524,7 +527,6 @@
       <button class="tab" role="tab" aria-selected="false" data-view="dash">Resumo</button>
       <button class="tab" role="tab" aria-selected="false" data-view="sales">Fechamento</button>
       <button class="tab" role="tab" aria-selected="false" data-view="stock">Análise Full</button>
-      <button class="tab" role="tab" aria-selected="false" data-view="analytics">Análise</button>
       <span class="tabsep" aria-hidden="true"></span>
       <button class="tab" role="tab" aria-selected="false" data-view="settings">Ajustes</button>
     </nav>
@@ -637,6 +639,7 @@
         <button class="btn btn-primary" id="goCalc5">+ Novo SKU</button>
       </div>
     </div>
+    <p class="set-note" style="margin:2px 0 16px;max-width:760px">Potencial do <b>catálogo</b> (com base no cadastro dos SKUs) — não são vendas reais. Para o realizado do mês, veja o <b>Fechamento</b>.</p>
     <div id="dashBody"></div>
     <div class="empty" id="dashEmpty" style="display:none">
       <div class="big">Sem dados para o resumo ainda</div>
@@ -720,12 +723,21 @@
       <button class="chbtn" data-ch="shp">Shopee</button>
       <button class="chbtn" data-ch="both">Juntos</button>
     </div>
+    <div class="subtabs" id="fechSub">
+      <button class="subbtn on" data-fsub="num">Números</button>
+      <button class="subbtn" data-fsub="abc">Curva ABC &amp; tendência</button>
+    </div>
     <p class="set-note" id="salesNote" style="margin:8px 0 18px;max-width:760px"></p>
     <div id="salesBody"></div>
     <div class="empty" id="salesEmpty">
       <div class="big">Nenhum relatório carregado</div>
       <div>Suba o arquivo de <b>Vendas</b> do Mercado Livre para ver a rentabilidade de cada venda.</div>
       <button class="btn btn-primary" style="margin-top:18px" id="salesPick2">Subir relatório</button>
+    </div>
+    <div id="anBody" style="display:none"></div>
+    <div class="empty" id="anEmpty" style="display:none">
+      <div class="big">Nada para analisar ainda</div>
+      <div>Suba um relatório no <b>Fechamento</b> primeiro — a análise aparece aqui automaticamente.</div>
     </div>
   </section>
 
@@ -747,20 +759,7 @@
     </div>
   </section>
 
-  <section class="view" id="view-analytics">
-    <div class="head-actions"><h2>Análise de SKUs &mdash; curva ABC e tendências</h2></div>
-    <div class="chseg" id="anseg">
-      <button class="chbtn on" data-ch="ml">Mercado Livre</button>
-      <button class="chbtn" data-ch="shp">Shopee</button>
-      <button class="chbtn" data-ch="both">Juntos</button>
-    </div>
-    <p class="set-note" style="margin:8px 0 18px;max-width:760px">Usa os dados que você subiu no <b>Fechamento</b>. Mostra a curva ABC (quem puxa a receita), o Pareto, quem está em alta/queda vs. o mês anterior e, em Juntos, os kits que vendem bem nos dois canais (casados pela composição).</p>
-    <div id="anBody"></div>
-    <div class="empty" id="anEmpty">
-      <div class="big">Nada para analisar ainda</div>
-      <div>Suba um relatório no <b>Fechamento</b> primeiro — a análise aparece aqui automaticamente.</div>
-    </div>
-  </section>
+  <section class="view" id="view-analytics" style="display:none"></section>
 
   <!-- AJUSTES -->
   <section class="view" id="view-settings">
@@ -2482,7 +2481,7 @@ function restoreDefaults(){
 }
 
 // ---------- Vendas (rentabilidade real) ----------
-const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual",channel:"ml",shp:{months:{},view:""},anChannel:"ml",anView:{ml:"",shp:"",both:""}};
+const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual",channel:"ml",fsub:"num",shp:{months:{},view:""},anChannel:"ml",anView:{ml:"",shp:"",both:""}};
 const shpSort={key:"lucro",dir:-1};
 const salesFilters={conta:"",tipo:"",pub:""};
 const salesSort={key:"lucro",dir:-1};
@@ -2826,7 +2825,16 @@ function buildMonthSummary(rows,fileName,key,label){
   const prev=SALES.rows;SALES.rows=rows;const A=salesAgg();SALES.rows=prev;Object.assign(salesFilters,savedF);
   return {month:key,monthLabel:label,fileName,uploadedAt:Date.now(),A};
 }
-async function openSales(){await ensureSalesMonths();renderFechamento();}
+async function openSales(){await ensureSalesMonths();renderSalesTab();}
+function renderSalesTab(){
+  const abc=SALES.fsub==="abc";
+  document.querySelectorAll("#fechSub .subbtn").forEach(b=>b.classList.toggle("on",b.dataset.fsub===SALES.fsub));
+  const sb=$("#salesBody"),ab=$("#anBody");
+  if(sb)sb.style.display=abc?"none":"";
+  if(ab)ab.style.display=abc?"":"none";
+  if(abc){const se=$("#salesEmpty");if(se)se.style.display="none";SALES.anChannel=SALES.channel;renderAnalytics();}
+  else{const ae=$("#anEmpty");if(ae)ae.style.display="none";renderFechamento();}
+}
 // ---------- Estoque Full ----------
 function parseStockWB(wb){
   const wsName=wb.SheetNames.find(n=>/resumo/i.test(n))||wb.SheetNames[0];
@@ -3503,12 +3511,11 @@ async function onSalesFiles(files){
 // ---------- Navegação ----------
 function switchView(v){
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.view===v));
-  ["calc","dash","saved","unit","sales","stock","analytics","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
+  ["calc","dash","saved","unit","sales","stock","settings"].forEach(id=>$("#view-"+id).classList.toggle("on",id===v));
   if(v==="saved")refreshSkus();
   if(v==="unit")renderUnitAnalysis();
   if(v==="sales")openSales();
   if(v==="stock")openStock();
-  if(v==="analytics")openAnalytics();
   if(v==="dash")openDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -3520,8 +3527,8 @@ $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchVie
 $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
 (function(){const f=$("#salesFile");const pick=()=>f&&f.click();$("#salesPick")&&($("#salesPick").onclick=pick);$("#salesPick2")&&($("#salesPick2").onclick=pick);f&&(f.onchange=e=>{const files=e.target.files;onSalesFiles(files);e.target.value="";});})();
 (function(){const f=$("#stockFile");const pick=()=>f&&f.click();$("#stockPick")&&($("#stockPick").onclick=pick);$("#stockPick2")&&($("#stockPick2").onclick=pick);f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onStockFile(file);e.target.value="";});$("#stockSummary")&&($("#stockSummary").onclick=openStockSummary);})();
-document.querySelectorAll("#chseg .chbtn").forEach(b=>b.onclick=()=>{SALES.channel=b.dataset.ch;renderFechamento();});
-document.querySelectorAll("#anseg .chbtn").forEach(b=>b.onclick=()=>{SALES.anChannel=b.dataset.ch;renderAnalytics();});
+document.querySelectorAll("#chseg .chbtn").forEach(b=>b.onclick=()=>{SALES.channel=b.dataset.ch;renderSalesTab();});
+document.querySelectorAll("#fechSub .subbtn").forEach(b=>b.onclick=()=>{SALES.fsub=b.dataset.fsub;renderSalesTab();});
 $("#refreshUnit").onclick=async()=>{await refreshSkus();renderUnitAnalysis();};
 $("#refreshDash").onclick=async()=>{await refreshSkus();await ensureSalesMonths();renderDashboard();};
 $("#refreshBtn").onclick=refreshSkus;
