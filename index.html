@@ -207,6 +207,9 @@
   .abar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--line2)}.abar>div{height:100%}
   .aleg{display:flex;flex-wrap:wrap;gap:12px;margin-top:9px;font-size:11.5px;color:var(--muted)}
   .aleg span{display:flex;align-items:center;gap:5px}.aleg i{width:10px;height:10px;border-radius:3px}
+  .simctl{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+  .simctl select{padding:6px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;margin-left:6px}
+  .simctl input{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit;width:56px;text-align:right;margin:0 4px}
   .stksect.col .chev{transform:rotate(-90deg)}
   .stksect.col .sbody{display:none}
   .sbody{padding-top:10px}
@@ -511,7 +514,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 79</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 80</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -786,6 +789,12 @@
           <div><label>Base de cálculo %</label><div class="inwrap"><input type="number" id="a_irbase" step="1"><span class="suf">%</span></div><div class="set-hint">Quanto do lucro é tributável.</div></div>
           <div><label>Alíquota IR/CS %</label><div class="inwrap"><input type="number" id="a_irrate" step="1"><span class="suf">%</span></div><div class="set-hint">Imposto = base × alíquota. Só se houver lucro.</div></div>
         </div>
+        <div class="subh" style="border-top:1px solid var(--line2);padding-top:16px;margin-top:14px">Simulação por canal — R$100 consumido até o lucro</div>
+        <div class="simctl">
+          <label>Canal <select id="abChan"></select></label>
+          <label>Custo do produto <input type="number" id="abCost" step="1" min="0" value="25">% do preço</label>
+        </div>
+        <div id="assumpBarChan" class="assumpbar"></div>
       </div></div>
       <div class="card"><div class="pad">
         <p class="eyebrow">Tarifas por canal</p>
@@ -2338,6 +2347,20 @@ function drawAssumpBar(){
   const bar=segs.filter(s=>s[1]>0).map(s=>`<div style="width:${s[1]}%;background:${s[2]}" title="${s[0]} ${fmt(s[1])}%"></div>`).join("")+`<div style="width:${rest}%;background:var(--line2)" title="Comissão + IR + lucro"></div>`;
   const leg=segs.filter(s=>s[1]>0).map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${fmt(s[1])}%</span>`).join("")+`<span><i style="background:var(--line2)"></i>Comissão do canal + IR + lucro (~${fmt(rest)}%)</span>`;
   el.innerHTML=`<div class="cap">Numa venda de R$100, quanto cada custo geral consome — comissão, IR e lucro variam por canal:</div><div class="abar">${bar}</div><div class="aleg">${leg}</div>`;
+  drawAssumpBarChan();
+}
+function drawAssumpBarChan(){
+  const el=$("#assumpBarChan");if(!el)return;
+  const sel=$("#abChan");if(sel&&!sel.options.length&&CHANNELS.length)sel.innerHTML=CHANNELS.map((c,i)=>`<option value="${i}">${c.n}</option>`).join("");
+  const idx=sel?(+sel.value||0):0, ch=CHANNELS[idx]||CHANNELS[0];if(!ch){el.innerHTML="";return;}
+  const costPct=Math.max(0,+(($("#abCost")&&$("#abCost").value))||0), N=costPct;
+  const f=financials({L:100,N,ch,catIdx:0,freight:+ch.fre||0,rebate:0});
+  const fmt=v=>(+v).toLocaleString("pt-BR",{maximumFractionDigits:1});
+  const segs=[["Custo produto",f.N,"#234B3E"],["Comissão",f.U,"#A6394F"],["IR/CS",f.X,"#C67B30"],["Deduções",f.P,"#8A6BA6"],["ROI",f.R,"#3E6B8A"],["Frete",f.T,"#5C8A72"],["Frete+dev",f.Fr,"#6E9A86"],["Despesas",f.S,"#B08968"],["Desp. fin.",f.V,"#7A8A5C"],["Outros",f.O,"#9AA79E"],["Taxa fixa",f.F,"#C99BA3"]].filter(s=>s[1]>0.05);
+  const lucro=f.Y, lucroCol=lucro>=0?"#2E7D5B":"#A6394F";
+  const bar=segs.map(s=>`<div style="width:${Math.max(0,s[1])}%;background:${s[2]}" title="${s[0]} ${fmt(s[1])}%"></div>`).join("")+(lucro>0?`<div style="width:${lucro}%;background:${lucroCol}" title="Lucro ${fmt(lucro)}%"></div>`:"");
+  const leg=segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${fmt(s[1])}%</span>`).join("")+`<span><i style="background:${lucroCol}"></i><b>Lucro ${fmt(lucro)}%</b></span>`;
+  el.innerHTML=`<div class="cap">Canal <b>${ch.n}</b> · custo do produto ${fmt(costPct)}% do preço · resultado: <b style="color:${lucroCol}">${fmt(f.Z*100)}% de lucro</b></div><div class="abar">${bar}</div><div class="aleg">${leg}</div>`;
 }
 function renderChanTable(){
   $("#chanTable").innerHTML=CHANNELS.map((ch,i)=>{
@@ -3586,6 +3609,7 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
   await loadConfig();
   loadAssumpInputs();renderChanTable();ensureCatalogCodes();fillCodeDatalist();renderProdTable();renderAcctTable();buildSelects();applyPriceMode();renderKit();calc();
   {const ps=$("#prodSearch");if(ps)ps.addEventListener("input",e=>renderProdTable(e.target.value));}
+  {const ac=$("#abChan");if(ac)ac.addEventListener("change",drawAssumpBarChan);const ax=$("#abCost");if(ax)ax.addEventListener("input",drawAssumpBarChan);}
   await refreshSkus();
 })();
 </script>
