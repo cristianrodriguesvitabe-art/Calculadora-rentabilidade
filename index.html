@@ -529,7 +529,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 86</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 87</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -872,11 +872,11 @@
   <div class="modal" style="max-width:860px;width:100%">
     <div class="modal-h"><span>Importar planilhas do Mercado Livre</span><button class="modal-x" id="meliClose" aria-label="Fechar">×</button></div>
     <div class="modal-b">
-      <div class="set-note" style="margin-bottom:14px">Abra as planilhas exportadas do Meli. O app cruza tudo pelo <b>MLB</b> (código do anúncio): <b>Anúncios</b> traz preço, tipo (Clássico/Premium) e situação; <b>Fichas técnicas</b> traz os SKUs e títulos; e <b>Dados fiscais</b> (opcional) preenche a <b>composição dos kits</b> — cada item com custo e quantidade. Sem a fiscal, a composição entra pendente.</div>
+      <div class="set-note" style="margin-bottom:14px">O app cruza tudo pelo <b>MLB</b>. Só a de <b>Anúncios</b> é obrigatória (traz preço, tipo e situação) — <b>pra atualizar só preço, suba apenas ela</b>. <b>Fichas técnicas</b> (opcional) traz SKUs/títulos e <b>Dados fiscais</b> (opcional) preenche a composição. O que você não subir é <b>preservado</b> nos SKUs que já existem (nada é apagado).</div>
       <div style="display:grid;gap:12px;grid-template-columns:1fr 1fr 1fr">
-        <label class="mfield"><span>1. Fichas técnicas <small>(.xlsx)</small></span><input type="file" id="meliFichas" accept=".xlsx"></label>
-        <label class="mfield"><span>2. Anúncios <small>(.xlsx)</small></span><input type="file" id="meliAnuncios" accept=".xlsx"></label>
-        <label class="mfield"><span>3. Dados fiscais <small>(opcional)</small></span><input type="file" id="meliFiscal" accept=".xlsx"></label>
+        <label class="mfield"><span>Anúncios <small>(.xlsx · obrigatória)</small></span><input type="file" id="meliAnuncios" accept=".xlsx"></label>
+        <label class="mfield"><span>Fichas técnicas <small>(opcional)</small></span><input type="file" id="meliFichas" accept=".xlsx"></label>
+        <label class="mfield"><span>Dados fiscais <small>(opcional)</small></span><input type="file" id="meliFiscal" accept=".xlsx"></label>
       </div>
       <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-top:12px">
         <label class="mfield" style="max-width:180px"><span>Conta / origem</span><select id="meliAcct"></select></label>
@@ -1915,11 +1915,11 @@ function crossReference(){
 async function meliAnalyze(){
   const ff=$("#meliFichas").files[0],af=$("#meliAnuncios").files[0],xf=$("#meliFiscal").files[0];
   const st=$("#meliStatus");st.style.display="block";st.textContent="Lendo planilhas…";
-  if(!ff||!af){st.textContent="Selecione ao menos Fichas técnicas e Anúncios.";return;}
+  if(!af){st.textContent="Selecione ao menos a planilha de Anúncios (é a que traz o preço).";return;}
   try{
-    const jobs=[readWorkbook(ff),readWorkbook(af),xf?readWorkbook(xf):Promise.resolve(null)];
+    const jobs=[ff?readWorkbook(ff):Promise.resolve(null),readWorkbook(af),xf?readWorkbook(xf):Promise.resolve(null)];
     const [wbF,wbA,wbX]=await Promise.all(jobs);
-    MELI.fichas=parseFichas(wbF);MELI.anuncios=parseAnuncios(wbA);MELI.fiscal=wbX?parseFiscal(wbX):null;
+    MELI.fichas=wbF?parseFichas(wbF):{};MELI.anuncios=parseAnuncios(wbA);MELI.fiscal=wbX?parseFiscal(wbX):null;
     const rows=crossReference();
     renderMeliPreview();$("#meliPreviewWrap").style.display="block";
     const nNew=rows.filter(r=>!r.existing).length;
@@ -2068,21 +2068,29 @@ async function meliImport(){
   for(const r of chosen){
     const ch=/premium/i.test(r.canal)?prem:clas;
     const temComp=r.itens&&r.itens.length>0;
-    const rec={sku:r.id,mlb:r.mlb,skusMeli:r.skus,gtins:r.gtins,
-      nome:r.title,canal:(ch&&ch.n)||r.canal,origem:r.conta||"",
-      mlCatName:null,categoriaMeli:r.domain,
-      itens:temComp?r.itens.map(it=>({n:it.n,c:it.c,q:it.q})):[],
-      composicaoPendente:!temComp, compFonte:r.compFonte||null, variaCusto:!!r.variaCusto,
-      priceMode:"depor",priceDe:null,pricePor:r.price||null,price:r.price||null,
-      freight:(ch&&ch.fre)||0,rebate:0,
-      status:r.status,statusMeli:r.status,fonte:"meli",ts:Date.now(),atualizadoEm:Date.now(),atualizadoVia:"planilha"};
-    if(temComp)recomputeSku(rec);
+    const prev=saved[r.id]||(r.mlb&&Object.values(saved).find(x=>x.mlb&&x.mlb===r.mlb))||null;
+    const rec=prev?{...prev}:{};
+    rec.sku=r.id;rec.mlb=r.mlb||rec.mlb||"";
+    if(r.skus&&r.skus.length)rec.skusMeli=r.skus;else rec.skusMeli=rec.skusMeli||[];
+    if(r.gtins&&r.gtins.length)rec.gtins=r.gtins;else rec.gtins=rec.gtins||[];
+    if(r.title)rec.nome=r.title;else rec.nome=rec.nome||r.mlb;
+    rec.canal=(ch&&ch.n)||r.canal;
+    if(r.domain)rec.categoriaMeli=r.domain;
+    rec.origem=r.conta||rec.origem||"";
+    if(temComp){rec.itens=r.itens.map(it=>({n:it.n,c:it.c,q:it.q}));rec.composicaoPendente=false;rec.compFonte=r.compFonte||rec.compFonte||null;rec.variaCusto=!!r.variaCusto;}
+    else{rec.itens=rec.itens||[];rec.composicaoPendente=!(rec.itens&&rec.itens.length);}
+    rec.priceMode=rec.priceMode||"depor";
+    if(r.price!=null){rec.pricePor=r.price;rec.price=r.price;}
+    rec.freight=(rec.freight!=null?rec.freight:((ch&&ch.fre)||0));rec.rebate=rec.rebate||0;
+    rec.status=r.status;rec.statusMeli=r.status;
+    rec.fonte="meli";rec.ts=rec.ts||Date.now();rec.atualizadoEm=Date.now();rec.atualizadoVia="planilha";
+    if((+rec.pricePor||+rec.price||0)>0&&rec.itens&&rec.itens.length)recomputeSku(rec);
     const oldKey=r.mlb&&Object.keys(saved).find(k=>k!==r.id&&saved[k].mlb===r.mlb);
     if(oldKey){delete saved[oldKey];try{await DB.deleteSku(oldKey);}catch(e){}}
     saved[r.id]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
   }
   renderSaved();if(SUPA_ON)setSync("cloud");meliCloseModal();
-  toast(`${ok} registro(s) importado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");
+  toast(`${ok} registro(s) atualizado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");
 }
 // ================= Colar preços da tela (Editor em massa) =================
 const PASTE={rows:[]};
