@@ -202,6 +202,11 @@
   .pgrid .subh{grid-column:1/-1;margin:16px 0 2px;padding-top:16px;border-top:1px solid var(--line2)}
   .pgrid .subh:first-child{border-top:none;padding-top:0;margin-top:0}
   .pgrid .set-lead{grid-column:1/-1;font-size:12px;color:var(--muted);margin:0 0 10px;line-height:1.4}.pgrid .set-lead b{color:var(--ink)}
+  .assumpbar{margin:2px 0 16px}
+  .assumpbar .cap{font-size:11.5px;color:var(--muted);margin-bottom:7px;line-height:1.4}
+  .abar{display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--line2)}.abar>div{height:100%}
+  .aleg{display:flex;flex-wrap:wrap;gap:12px;margin-top:9px;font-size:11.5px;color:var(--muted)}
+  .aleg span{display:flex;align-items:center;gap:5px}.aleg i{width:10px;height:10px;border-radius:3px}
   .stksect.col .chev{transform:rotate(-90deg)}
   .stksect.col .sbody{display:none}
   .sbody{padding-top:10px}
@@ -506,7 +511,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 78</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 79</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -761,6 +766,7 @@
     <div class="set-grid">
       <div class="card set-full"><div class="pad">
         <p class="eyebrow">Percentuais gerais &amp; IR/CS</p>
+        <div id="assumpBar" class="assumpbar"></div>
         <div class="pgrid">
           <div class="subh">Aplicados a todos os canais</div>
           <p class="set-lead">Descontados do preço de venda de cada kit (preço × %).</p>
@@ -798,8 +804,9 @@
         </div>
       </div></div>
       <div class="card"><div class="pad">
-        <p class="eyebrow">Custos dos produtos</p>
-        <p class="set-note" style="margin:-6px 0 12px">Editar o <b>nome</b> ou o <b>código (Protheus)</b> aqui é seguro: os kits já cadastrados guardam a própria composição e <b>não são alterados</b>. O código também serve pra buscar o item na calculadora.</p>
+        <p class="eyebrow">Produtos, custos e códigos</p>
+        <p class="set-note" style="margin:-6px 0 10px">Fonte única dos <b>custos</b> e do <b>código (Protheus)</b> de cada produto. Editar aqui é seguro: os kits já salvos guardam a própria composição e não mudam.</p>
+        <input type="text" id="prodSearch" placeholder="Buscar por produto ou código..." style="width:100%;max-width:420px;margin-bottom:10px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--paper)">
         <table class="etable"><thead><tr><th>Produto</th><th style="width:170px">Código (Protheus)</th><th class="r" style="width:120px">Custo R$</th><th style="width:34px"></th></tr></thead><tbody id="prodTable"></tbody></table>
         <datalist id="codeList"></datalist>
         <div class="addprod">
@@ -807,12 +814,6 @@
           <div class="inwrap money"><span class="pre">R$</span><input type="number" id="npCusto" placeholder="custo" step="0.01" min="0"></div>
           <button class="btn" id="npAdd">Adicionar</button>
         </div>
-      </div></div>
-      <div class="card"><div class="pad">
-        <p class="eyebrow">Códigos dos produtos</p>
-        <p class="set-note" style="margin:-6px 0 12px">Referência <b>código → descrição</b> usada para exibir os itens dos kits nas telas. É só exibição — não altera a composição salva dos kits.</p>
-        <input type="text" id="codeRefSearch" placeholder="Buscar por código ou descrição..." style="width:100%;max-width:420px;margin-bottom:12px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;background:var(--paper)">
-        <table class="etable"><thead><tr><th style="width:132px">Código</th><th>Descrição</th></tr></thead><tbody id="codeRefTable"></tbody></table>
       </div></div>
       <div class="card"><div class="pad">
         <p class="eyebrow">Contas / origens</p>
@@ -2327,6 +2328,16 @@ function loadAssumpInputs(){
   $("#a_desp").value=assumptions.desp;$("#a_fin").value=assumptions.fin;$("#a_meta").value=assumptions.meta;
   $("#a_frete").value=assumptions.freteP??0;$("#a_midiaInv").value=assumptions.midiaInv??0;$("#a_site").value=assumptions.site??0;
   $("#a_irbase").value=assumptions.irbase;$("#a_irrate").value=assumptions.irrate;
+  drawAssumpBar();
+}
+function drawAssumpBar(){
+  const el=$("#assumpBar");if(!el)return;const a=assumptions;
+  const segs=[["Outros",+a.outros||0,"#9AA79E"],["Deduções",+a.ded||0,"#8A6BA6"],["ROI",+a.roi||0,"#3E6B8A"],["Despesas",+a.desp||0,"#B08968"],["Desp. fin.",+a.fin||0,"#7A8A5C"],["Frete+dev",+a.freteP||0,"#6E9A86"]];
+  const sum=segs.reduce((s,x)=>s+x[1],0),rest=Math.max(0,100-sum);
+  const fmt=v=>(+v).toLocaleString("pt-BR",{maximumFractionDigits:1});
+  const bar=segs.filter(s=>s[1]>0).map(s=>`<div style="width:${s[1]}%;background:${s[2]}" title="${s[0]} ${fmt(s[1])}%"></div>`).join("")+`<div style="width:${rest}%;background:var(--line2)" title="Comissão + IR + lucro"></div>`;
+  const leg=segs.filter(s=>s[1]>0).map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${fmt(s[1])}%</span>`).join("")+`<span><i style="background:var(--line2)"></i>Comissão do canal + IR + lucro (~${fmt(rest)}%)</span>`;
+  el.innerHTML=`<div class="cap">Numa venda de R$100, quanto cada custo geral consome — comissão, IR e lucro variam por canal:</div><div class="abar">${bar}</div><div class="aleg">${leg}</div>`;
 }
 function renderChanTable(){
   $("#chanTable").innerHTML=CHANNELS.map((ch,i)=>{
@@ -2388,13 +2399,15 @@ function onShopeeChange(e){
     else sh.bands[i].fee=v;
     saveConfig();calc();}
 }
-function renderProdTable(){
+function renderProdTable(q){
   const esc=s=>String(s==null?"":s).replace(/"/g,"&quot;");
-  $("#prodTable").innerHTML=CATALOG.map((it,i)=>`<tr>
+  q=(q||"").trim().toLowerCase();
+  const rows=CATALOG.map((it,i)=>({it,i})).filter(({it})=>!q||String(it.n||"").toLowerCase().includes(q)||String(it.cod||"").toLowerCase().includes(q));
+  $("#prodTable").innerHTML=rows.map(({it,i})=>`<tr>
     <td><input type="text" class="celltext" data-pn="${i}" value="${esc(it.n)}"></td>
     <td><input type="text" class="celltext code" data-pc="${i}" list="codeList" value="${esc(it.cod)}" placeholder="—"></td>
     <td class="r"><input type="number" class="cellnum" data-pi="${i}" step="0.01" value="${it.c}"></td>
-    <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("");
+    <td class="r"><button class="rm" data-pdel="${i}" title="Remover">×</button></td></tr>`).join("")||`<tr><td colspan="4" style="color:var(--faint);padding:14px">Nada encontrado.</td></tr>`;
 }
 function fillCodeDatalist(){const el=$("#codeList");if(el)el.innerHTML=Object.keys(PROD_COD).sort().map(c=>`<option value="${c}">${PROD_COD[c]}</option>`).join("");}
 function ensureCatalogCodes(){let ch=false;CATALOG.forEach(it=>{if(!it.cod&&!it.codManual&&it.n){const g=shopeeGuess(it.n,"");if(g.codigos.length===1){it.cod=g.codigos[0].c;ch=true;}}});return ch;}
@@ -2421,7 +2434,7 @@ function delAccount(i){const a=ACCOUNTS[i];if(!confirm(`Remover a conta "${a}"? 
 function onAssumpChange(){
   assumptions={...assumptions, outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
     fin:+$("#a_fin").value||0,freteP:+$("#a_frete").value||0,midiaInv:+$("#a_midiaInv").value||0,site:+$("#a_site").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
-  saveConfig();calc();renderSaved();
+  saveConfig();calc();renderSaved();drawAssumpBar();
 }
 function onChanChange(e){const t=e.target;if(t.dataset.ci==null)return;const i=+t.dataset.ci,v=+t.value||0;
   if(t.dataset.f==="com")CHANNELS[i].com=v/100;else CHANNELS[i].fre=v;saveConfig();showChannelFees(false);calc();}
@@ -3571,8 +3584,8 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
   setSync(SUPA_ON?"cloud":"local");
   if(!SUPA_ON){const b=$("#cloudBanner");b.style.display="block";b.innerHTML="<b>Modo local.</b> Para sincronizar entre pessoas, preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do arquivo.";}
   await loadConfig();
-  loadAssumpInputs();renderChanTable();ensureCatalogCodes();fillCodeDatalist();renderProdTable();renderAcctTable();renderCodeRef();buildSelects();applyPriceMode();renderKit();calc();
-  {const cs=$("#codeRefSearch");if(cs)cs.addEventListener("input",e=>renderCodeRef(e.target.value));}
+  loadAssumpInputs();renderChanTable();ensureCatalogCodes();fillCodeDatalist();renderProdTable();renderAcctTable();buildSelects();applyPriceMode();renderKit();calc();
+  {const ps=$("#prodSearch");if(ps)ps.addEventListener("input",e=>renderProdTable(e.target.value));}
   await refreshSkus();
 })();
 </script>
