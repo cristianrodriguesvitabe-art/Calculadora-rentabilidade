@@ -95,6 +95,12 @@
   .badge.ok{background:var(--pos-soft);color:var(--pos)}.badge.no{background:var(--neg-soft);color:var(--neg)}
   .badge .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
   .mc-strip{display:flex;justify-content:space-between;align-items:center;margin:10px 20px 0;padding:9px 14px;background:var(--paper);border:1px solid var(--line2);border-radius:10px}
+  .mmrow{display:flex;gap:10px;margin:12px 20px 0}
+  .mmitem{flex:1;background:var(--paper);border:1px solid var(--line2);border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+  .mmitem .k{font-size:11px;color:var(--muted);font-weight:600}
+  .mmitem .v{font-family:var(--mono);font-weight:600;font-size:15px;color:var(--forest)}
+  .casc-toggle{display:flex;align-items:center;gap:6px;margin:12px 20px 0;background:none;border:0;color:var(--forest);font-weight:600;font-size:12.5px;padding:4px 0;cursor:pointer}
+  .casc-toggle .chev{transition:transform .18s}.casc-toggle.open .chev{transform:rotate(180deg)}
   .mc-strip .k{font-size:12.5px;color:var(--muted);font-weight:600}.mc-strip .v{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--forest)}
   .casc{padding:12px 20px 6px}
   .casc-h{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
@@ -517,7 +523,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 83</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 84</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -620,8 +626,12 @@
             <div class="reco-txt">Mínimo para bater a rentabilidade (<b id="recoMeta">10%</b>): <b id="recoPrice">R$ 0,00</b><span id="recoPote"></span></div>
             <button class="btn" id="recoUse" type="button">Usar mínimo</button>
           </div>
-          <div class="mc-strip"><span class="k">Margem de contribuição</span><span class="v" id="mcVal">0,0%</span></div>
-          <div class="casc"><div class="casc-h">Para onde vai cada real</div><div id="cascade"></div></div>
+          <div class="mmrow">
+            <div class="mmitem"><span class="k">Margem bruta</span><span class="v" id="mbVal">0,0%</span></div>
+            <div class="mmitem"><span class="k">Margem de contribuição</span><span class="v" id="mcVal">0,0%</span></div>
+          </div>
+          <button class="casc-toggle" id="cascToggle" type="button" aria-expanded="false">Ver para onde vai cada real <span class="chev">▾</span></button>
+          <div class="casc" id="cascWrap" style="display:none"><div id="cascade"></div></div>
           <div class="save-bar"><button class="btn btn-primary" id="saveBtn">Salvar SKU</button><button class="btn" id="clearBtn">Limpar</button></div>
           <div class="hint" id="saveHint">Preencha o SKU e adicione itens para salvar.</div>
         </div>
@@ -1223,6 +1233,7 @@ function calc(){
   else if(r.Z>=meta){badge.className="badge ok";txt.textContent=`Acima da meta de ${assumptions.meta}%`;}
   else{badge.className="badge no";txt.textContent=`Abaixo da meta de ${assumptions.meta}%`;}
   $("#mcVal").textContent=pct(r.mc);
+  {const mb=$("#mbVal");if(mb)mb.textContent=r.L>0?pct((r.L-r.N)/r.L):"0,0%";}
   // leitura de desconto e rebate
   const ro=$("#priceReadout");const parts=[];
   if(priceMode==="depor"&&r.priceDe>0){parts.push(`<span>Desconto: <b style="color:var(--berry);font-family:var(--mono)">${pct(r.descPct)}</b></span>`);parts.push(`<span style="color:var(--faint)">Economia: <b style="font-family:var(--mono)">${brl(r.priceDe-r.pricePor)}</b></span>`);}
@@ -3522,6 +3533,7 @@ function switchView(v){
 
 // ---------- Eventos ----------
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>switchView(t.dataset.view));
+{const ct=$("#cascToggle");if(ct)ct.onclick=()=>{const w=$("#cascWrap"),open=w.style.display!=="none";w.style.display=open?"none":"";ct.setAttribute("aria-expanded",String(!open));ct.classList.toggle("open",!open);ct.firstChild.textContent=open?"Ver para onde vai cada real ":"Ocultar detalhamento ";};}
 $("#goCalc").onclick=()=>switchView("calc");$("#goCalc2").onclick=()=>switchView("calc");
 $("#goCalc3").onclick=()=>switchView("calc");$("#goCalc4").onclick=()=>switchView("calc");
 $("#goCalc5").onclick=()=>switchView("calc");$("#goCalc6").onclick=()=>switchView("calc");
