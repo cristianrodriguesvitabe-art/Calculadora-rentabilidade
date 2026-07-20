@@ -198,6 +198,7 @@
   .secth .scount{font-size:11.5px;color:var(--muted);background:var(--line2);border-radius:999px;padding:1px 9px;font-family:var(--mono)}
   .secth .chev{transition:transform .18s;color:var(--muted);font-size:11px}
   .secsum{margin-left:auto;font-size:12px}
+  .set-hint{font-size:11px;color:var(--muted);margin:4px 0 0;line-height:1.35}.set-hint b{color:var(--ink);font-weight:600}
   .stksect.col .chev{transform:rotate(-90deg)}
   .stksect.col .sbody{display:none}
   .sbody{padding-top:10px}
@@ -502,7 +503,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 71</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 74</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -759,15 +760,17 @@
         <p class="eyebrow">Percentuais gerais &amp; IR/CS</p>
         <div class="pgrid">
           <div class="subh">Aplicados a todos os canais</div>
-          <div><label>Outros custos %</label><div class="inwrap"><input type="number" id="a_outros" step="0.1"><span class="suf">%</span></div></div>
-          <div><label>Deduções / impostos %</label><div class="inwrap"><input type="number" id="a_ded" step="0.1"><span class="suf">%</span></div></div>
-          <div><label>ROI %</label><div class="inwrap"><input type="number" id="a_roi" step="0.1"><span class="suf">%</span></div></div>
-          <div><label>Despesas %</label><div class="inwrap"><input type="number" id="a_desp" step="0.1"><span class="suf">%</span></div></div>
-          <div><label>Desp. financeira %</label><div class="inwrap"><input type="number" id="a_fin" step="0.1"><span class="suf">%</span></div></div>
-          <div><label>Meta mínima de lucratividade %</label><div class="inwrap"><input type="number" id="a_meta" step="1"><span class="suf">%</span></div></div>
+          <div><label>Outros custos %</label><div class="inwrap"><input type="number" id="a_outros" step="0.1"><span class="suf">%</span></div><div class="set-hint">Incide sobre o preço de venda: <b>preço × %</b>. Ex.: embalagem, perdas, brindes.</div></div>
+          <div><label>Deduções / impostos %</label><div class="inwrap"><input type="number" id="a_ded" step="0.1"><span class="suf">%</span></div><div class="set-hint">Impostos sobre o faturamento: <b>preço × %</b> (ex.: Simples sobre a venda).</div></div>
+          <div><label>ROI %</label><div class="inwrap"><input type="number" id="a_roi" step="0.1"><span class="suf">%</span></div><div class="set-hint">Reserva de retorno sobre o capital: <b>preço × %</b>. Abatida antes do lucro.</div></div>
+          <div><label>Despesas %</label><div class="inwrap"><input type="number" id="a_desp" step="0.1"><span class="suf">%</span></div><div class="set-hint">Despesas operacionais rateadas: <b>preço × %</b>.</div></div>
+          <div><label>Desp. financeira %</label><div class="inwrap"><input type="number" id="a_fin" step="0.1"><span class="suf">%</span></div><div class="set-hint">Custo financeiro (antecipação de recebíveis, taxas): <b>preço × %</b>.</div></div>
+          <div><label>Frete + devolução %</label><div class="inwrap"><input type="number" id="a_frete" step="0.1"><span class="suf">%</span></div><div class="set-hint">Alvo total de frete+devolução como % do preço (~11%, blended do fechamento). O app conta o <b>Frete R$ fixo do canal</b> e adiciona só a <b>diferença</b> até atingir esse %, sem contar frete duas vezes.</div></div>
+          <div><label>Investimento site (ROI e-commerce) %</label><div class="inwrap"><input type="number" id="a_site" step="0.1"><span class="suf">%</span></div><div class="set-hint">Rateio do investimento em mídia/site que não aparece por venda: <b>preço × %</b> (~15%). Custo "invisível" do e-commerce atribuído a cada kit.</div></div>
+          <div><label>Meta mínima de lucratividade %</label><div class="inwrap"><input type="number" id="a_meta" step="1"><span class="suf">%</span></div><div class="set-hint">Alvo de <b>lucro final ÷ preço</b>. Só referência — pinta verde/vermelho e sugere o preço-alvo; <b>não</b> entra na conta do lucro.</div></div>
           <div class="subh">IR / CS</div>
-          <div><label>Base de cálculo %</label><div class="inwrap"><input type="number" id="a_irbase" step="1"><span class="suf">%</span></div></div>
-          <div><label>Alíquota IR/CS %</label><div class="inwrap"><input type="number" id="a_irrate" step="1"><span class="suf">%</span></div></div>
+          <div><label>Base de cálculo %</label><div class="inwrap"><input type="number" id="a_irbase" step="1"><span class="suf">%</span></div><div class="set-hint">Parte do lucro que é tributável. <b>Base = (preço − custo − Outros − Deduções − ROI − Despesas − Desp. financeira − comissão − frete − taxa fixa) × %</b>.</div></div>
+          <div><label>Alíquota IR/CS %</label><div class="inwrap"><input type="number" id="a_irrate" step="1"><span class="suf">%</span></div><div class="set-hint">Imposto = <b>base × %</b>. Só incide quando há lucro (base positiva).</div></div>
         </div>
       </div></div>
       <div class="card"><div class="pad">
@@ -949,7 +952,7 @@ const DEF_CHANNELS = [
   {n:"Shopee",com:0.14,fre:0,bands:[{max:79.99,com:0.20,fee:4},{max:99.99,com:0.14,fee:16},{max:199.99,com:0.14,fee:20},{max:499.99,com:0.14,fee:26},{max:999999,com:0.14,fee:26}]},
   {n:"Amazon",com:0.145,fre:22},{n:"Magalu",com:0.18,fre:22},{n:"TikTok",com:0.06,fre:22},
 ];
-const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, irbase:70, irrate:34, meta:10};
+const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, freteP:11, site:15, irbase:70, irrate:34, meta:10};
 const DEF_ACCOUNTS = ["MG","GRU"];
 
 // ===== Tabelas de códigos de produto (referência; não alteram a composição salva) =====
@@ -1149,14 +1152,15 @@ function financials({L,N,ch,catIdx,freight,rebate}){
   const a=assumptions;
   const O=L*a.outros/100,P=L*a.ded/100, mc=L>0?(L-N-O-P)/L:0;
   const R=L*a.roi/100,S=L*a.desp/100,T=freight||0,V=L*a.fin/100;
+  const Fr=Math.max(0,L*(a.freteP||0)/100-(T||0)), Si=L*(a.site||0)/100;
   let comRate=ch.com, F=0;
   if(ch.categories&&ch.categories.length){const c=ch.categories[catIdx]||ch.categories[0];if(c)comRate=c.com;}
   if(ch.bands&&ch.bands.length){const b=ch.bands.find(b=>L<=b.max)||ch.bands[ch.bands.length-1];
     if(b){if(b.com!=null)comRate=b.com;F=b.fee||0;}}
   const U=L*comRate-(rebate||0);
-  const base=(L-N-O-P-R-S-T-U-V-F)*a.irbase/100, X=base>0?base*a.irrate/100:0;
-  const Y=L-N-O-R-S-P-V-X-T-U-F, Z=L>0?Y/L:0;
-  return {L,N,O,P,mc,R,S,T,U,V,F,comRate,X,Y,Z};
+  const base=(L-N-O-P-R-S-T-U-V-F-Fr-Si)*a.irbase/100, X=base>0?base*a.irrate/100:0;
+  const Y=L-N-O-R-S-P-V-X-T-U-F-Fr-Si, Z=L>0?Y/L:0;
+  return {L,N,O,P,mc,R,S,T,U,V,F,Fr,Si,comRate,X,Y,Z};
 }
 // resolve o preço que atinge uma margem-alvo (bisseção), usando canal/categoria/frete/rebate atuais
 function financialsAt(L){
@@ -1210,11 +1214,15 @@ function calc(){
   if(parts.length){ro.style.display="flex";ro.innerHTML=parts.join("");}else{ro.style.display="none";}
   const rows=[
     {name:"Valor de venda",op:"",amt:r.L,kind:"start"},
-    {name:"Custo dos itens",op:"−",amt:r.N,kind:"cost"},{name:"Outros custos",op:"−",amt:r.O,kind:"cost"},
+    {name:"Custo dos itens",op:"−",amt:r.N,kind:"cost"},
+    {name:"Margem bruta",op:"=",amt:r.L-r.N,kind:"mile"},
+    {name:"Outros custos",op:"−",amt:r.O,kind:"cost"},
     {name:"Deduções / impostos",op:"−",amt:r.P,kind:"cost"},
     {name:"Margem de contribuição",op:"=",amt:r.L-r.N-r.O-r.P,kind:"mile"},
     {name:"ROI",op:"−",amt:r.R,kind:"cost"},{name:"Despesas",op:"−",amt:r.S,kind:"cost"},
     {name:"Frete",op:"−",amt:r.T,kind:"cost"},{name:"Comissão do canal",op:"−",amt:r.U,kind:"cost"},
+    ...(r.Fr>0?[{name:"Frete + devolução (compl.)",op:"−",amt:r.Fr,kind:"cost"}]:[]),
+    ...(r.Si>0?[{name:"Investimento site (ROI e-comm)",op:"−",amt:r.Si,kind:"cost"}]:[]),
     ...(r.F>0?[{name:"Taxa fixa do canal",op:"−",amt:r.F,kind:"cost"}]:[]),
     {name:"Despesa financeira",op:"−",amt:r.V,kind:"cost"},{name:"IR / CS",op:"−",amt:r.X,kind:"cost"},
     {name:"Resultado líquido",op:"=",amt:r.Y,kind:"final"},
@@ -1225,7 +1233,7 @@ function calc(){
     if(row.kind==="final"){const c=row.amt>=0?"pos":"neg";return `<div class="cl final"><div class="cl-top"><span class="op">=</span><span class="name">${row.name}</span><span class="pct">${pct(row.amt/base)}</span><span class="amt ${c}">${brl(row.amt)}</span></div></div>`;}
     const isC=row.kind==="cost",w=Math.min(100,Math.abs(row.amt)/base*100);
     return `<div class="cl ${isC?'cost':''}"><div class="cl-top"><span class="op">${row.op}</span><span class="name">${row.name}</span><span class="pct">${pct(row.amt/base)}</span><span class="amt">${isC?"−":""}${brl(Math.abs(row.amt))}</span></div>${isC?`<div class="track"><div class="bar" style="width:${w}%"></div></div>`:""}</div>`;
-  }).join("");
+  }).join("")+`<div class="comp" style="margin-top:10px;line-height:1.45"><b>Margem bruta</b> = preço − custo do produto. <b>Margem de contribuição</b> = margem bruta − outros custos − deduções/impostos. O <b>resultado líquido</b> ainda desconta ROI, despesas, frete, comissão, taxa fixa, financeira e IR/CS.</div>`;
   const canSave=$("#sku").value.trim()&&kit.length&&r.L>0;
   $("#saveBtn").disabled=!canSave;
   $("#saveHint").textContent=canSave?"Salvar guarda a composição, o canal, o preço, o frete e a margem."+(SUPA_ON?" (visível para a equipe)":""):(!$("#sku").value.trim()?"Informe um SKU para salvar.":!kit.length?"Adicione ao menos um item.":"Informe o preço de venda.");
@@ -1400,7 +1408,7 @@ function skuSplit(rec){
   const N=(rec.itens||[]).reduce((s,it)=>s+it.c*it.q,0);
   const L=+rec.pricePor||+rec.price||0;
   const f=financials({L,N,ch,catIdx,freight:+rec.freight||0,rebate:+rec.rebate||0});
-  return {L,com:f.U+f.F,fre:f.T,out:f.N+f.O+f.P+f.R+f.S+f.V+f.X,liq:f.Y};
+  return {L,com:f.U+f.F,fre:f.T+f.Fr,out:f.N+f.O+f.P+f.R+f.S+f.V+f.X+f.Si,liq:f.Y};
 }
 function bkInner(rec){
   const s=skuSplit(rec),L=s.L||1;
@@ -2247,9 +2255,9 @@ function renderDashboard(){
   const meta=(assumptions.meta||10)/100;
   const avg=list.reduce((s,r)=>s+(r.lucratividade||0),0)/list.length;
   const below=list.filter(r=>(r.lucratividade||0)<meta).length;
-  const agg={L:0,N:0,O:0,P:0,R:0,S:0,T:0,U:0,V:0,F:0,X:0,Y:0},byChannel={};
+  const agg={L:0,N:0,O:0,P:0,R:0,S:0,T:0,U:0,V:0,F:0,Fr:0,Si:0,X:0,Y:0},byChannel={};
   list.forEach(r=>{
-    const b=breakdownOf(r);["L","N","O","P","R","S","T","U","V","F","X","Y"].forEach(k=>agg[k]+=b[k]||0);
+    const b=breakdownOf(r);["L","N","O","P","R","S","T","U","V","F","Fr","Si","X","Y"].forEach(k=>agg[k]+=b[k]||0);
     const key=resolveChannel(r.canal).n+(r.origem?" · "+r.origem:""),g=(byChannel[key]=byChannel[key]||{n:key,count:0,sumZ:0});
     g.count++;g.sumZ+=r.lucratividade||0;
   });
@@ -2284,6 +2292,7 @@ function renderDashboard(){
     {k:"ROI",v:agg.R,c:"#3E6B8A"},{k:"Frete",v:agg.T,c:"#5C8A72"},
     {k:"Despesas",v:agg.S,c:"#B08968"},{k:"Desp. financeira",v:agg.V,c:"#7A8A5C"},
     {k:"Outros custos",v:agg.O,c:"#9AA79E"},{k:"Taxa fixa",v:agg.F,c:"#C99BA3"},
+    {k:"Frete + devolução %",v:agg.Fr,c:"#6E9A86"},{k:"Investimento site",v:agg.Si,c:"#8A5CA6"},
     {k:"Lucro líquido",v:agg.Y,c:"#2E7D5B"},
   ].filter(s=>s.v>0.005);
   const stack=segs.map(s=>`<span style="width:${Math.max(0,s.v/tot*100)}%;background:${s.c}" title="${s.k}"></span>`).join("");
@@ -2308,6 +2317,7 @@ function renderDashboard(){
 function loadAssumpInputs(){
   $("#a_outros").value=assumptions.outros;$("#a_ded").value=assumptions.ded;$("#a_roi").value=assumptions.roi;
   $("#a_desp").value=assumptions.desp;$("#a_fin").value=assumptions.fin;$("#a_meta").value=assumptions.meta;
+  $("#a_frete").value=assumptions.freteP??0;$("#a_site").value=assumptions.site??0;
   $("#a_irbase").value=assumptions.irbase;$("#a_irrate").value=assumptions.irrate;
 }
 function renderChanTable(){
@@ -2401,8 +2411,8 @@ function addAccount(){const n=$("#naNome").value.trim();if(!n){toast("Informe o 
 function delAccount(i){const a=ACCOUNTS[i];if(!confirm(`Remover a conta "${a}"? Os SKUs já marcados com ela mantêm o registro.`))return;
   ACCOUNTS.splice(i,1);if(selAcct===a)selAcct="";saveConfig();renderAcctTable();buildAcctSelect();toast("Conta removida");}
 function onAssumpChange(){
-  assumptions={outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
-    fin:+$("#a_fin").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
+  assumptions={...assumptions, outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
+    fin:+$("#a_fin").value||0,freteP:+$("#a_frete").value||0,site:+$("#a_site").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
   saveConfig();calc();renderSaved();
 }
 function onChanChange(e){const t=e.target;if(t.dataset.ci==null)return;const i=+t.dataset.ci,v=+t.value||0;
@@ -3532,7 +3542,7 @@ $("#pasteApply").onclick=pasteApply;
 $("#pasteClear").onclick=()=>{PASTE.rows=[];$("#pastePreviewWrap").style.display="none";$("#pasteStatus").textContent="Acumulado limpo.";};
 $("#pasteAll").addEventListener("change",e=>{PASTE.rows.forEach(r=>{if(r.achado)r.sel=e.target.checked;});renderPastePreview();$("#pasteAll").checked=e.target.checked;});
 $("#pastePreviewBody").addEventListener("change",e=>{const cb=e.target.closest("[data-psel]");if(cb){PASTE.rows[+cb.dataset.psel].sel=cb.checked;updatePasteCounts();}});
-["a_outros","a_ded","a_roi","a_desp","a_fin","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
+["a_outros","a_ded","a_roi","a_desp","a_fin","a_frete","a_site","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
 $("#chanTable").addEventListener("input",onChanChange);
 $("#mlCfg").addEventListener("input",onMLChange);
 $("#shopeeCfg").addEventListener("input",onShopeeChange);
