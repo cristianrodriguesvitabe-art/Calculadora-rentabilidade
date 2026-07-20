@@ -219,6 +219,12 @@
   .subtabs{display:flex;gap:6px;margin:12px 0 4px}
   .subbtn{padding:6px 14px;border:1px solid var(--line);background:#fff;border-radius:999px;font-size:12.5px;font-weight:600;color:var(--muted);cursor:pointer}
   .subbtn.on{background:var(--forest);color:#fff;border-color:var(--forest)}
+  .cfgblock{margin-top:14px;border-top:1px solid var(--line2);padding-top:12px}
+  .cfgblock>summary{cursor:pointer;list-style:none;font-family:var(--display);font-size:14px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:8px}
+  .cfgblock>summary::-webkit-details-marker{display:none}
+  .cfgblock>summary::before{content:"▸";color:var(--muted);font-size:11px;transition:transform .18s}
+  .cfgblock[open]>summary::before{transform:rotate(90deg)}
+  .cfgbody{padding-top:12px}
   .stksect.col .chev{transform:rotate(-90deg)}
   .stksect.col .sbody{display:none}
   .sbody{padding-top:10px}
@@ -523,7 +529,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 85</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 86</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -808,18 +814,23 @@
       <div class="card"><div class="pad">
         <p class="eyebrow">Tarifas por canal</p>
         <table class="etable"><thead><tr><th>Canal</th><th class="r">Comissão %</th><th class="r">Frete R$</th></tr></thead><tbody id="chanTable"></tbody></table>
-        <div id="mlCfg" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line2)">
-          <div class="subh" style="margin:0 0 10px">Mercado Livre — comissão por categoria</div>
+        <details id="mlCfg" class="cfgblock">
+          <summary>Mercado Livre — comissão por categoria &amp; taxa fixa</summary>
+          <div class="cfgbody">
+          <div class="subh" style="margin:0 0 10px">Comissão por categoria</div>
           <table class="etable"><thead><tr><th>Categoria</th><th class="r">Clássico %</th><th class="r">Premium %</th></tr></thead><tbody id="mlCats"></tbody></table>
           <div class="subh" style="margin:16px 0 10px">Taxa fixa por unidade (só abaixo de R$79)</div>
           <table class="etable"><thead><tr><th>Faixa de preço (até R$)</th><th class="r">Taxa fixa R$</th></tr></thead><tbody id="mlBands"></tbody></table>
           <p class="set-note" style="margin-top:8px">Acima de R$79 não há taxa fixa. Desde março/2026 o ML calcula esse custo por peso e dimensões — os valores abaixo são a referência anterior por faixa e servem de aproximação. A taxa fixa vale igual para Clássico e Premium.</p>
-        </div>
-        <div id="shopeeCfg" style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line2)">
-          <div class="subh" style="margin:0 0 10px">Shopee — comissão e taxa fixa por faixa</div>
+          </div>
+        </details>
+        <details id="shopeeCfg" class="cfgblock">
+          <summary>Shopee — comissão e taxa fixa por faixa</summary>
+          <div class="cfgbody">
           <table class="etable"><thead><tr><th>Faixa de preço (até R$)</th><th class="r">Comissão %</th><th class="r">Taxa fixa R$</th></tr></thead><tbody id="shBands"></tbody></table>
           <p class="set-note" style="margin-top:8px">A última faixa vale para tudo acima da faixa anterior. O Subsídio Pix é pago pela Shopee e não sai do seu repasse, por isso não entra no cálculo.</p>
-        </div>
+          </div>
+        </details>
       </div></div>
       <div class="card"><div class="pad">
         <p class="eyebrow">Produtos, custos e códigos</p>
