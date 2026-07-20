@@ -529,7 +529,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 87</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 88</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -673,6 +673,8 @@
         <button class="btn btn-primary" id="importFiscal">Importar Dados Fiscais</button>
         <input type="file" id="fiscalFile" accept=".xlsx,.xls" style="display:none">
         <button class="btn" id="importShopee">Importar Shopee</button>
+        <button class="btn" id="importShopeeComp">Composição Shopee</button>
+        <input type="file" id="shopeeCompFile" accept=".csv,.xlsx,.xls" style="display:none">
         <button class="btn" id="pastePrices">Colar preços</button>
         <button class="btn" id="exportCsv">Exportar CSV</button>
         <button class="btn btn-primary" id="goCalc">+ Novo SKU</button>
@@ -1380,6 +1382,57 @@ async function onFiscalFile(file){
     renderSaved();if(SUPA_ON)setSync("cloud");
     toast(`${ok} anúncios importados dos Dados Fiscais`);switchView("saved");
   }catch(e){console.error(e);toast("Falha ao importar Dados Fiscais");}
+}
+// ---------- Importar Composição Shopee ----------
+function parseShopeeComp(text){
+  const lines=String(text||"").split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return {};
+  const delim=(lines[0].split(";").length>lines[0].split(",").length)?";":",";
+  const hdr=lines[0].split(delim).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,""));
+  const col=re=>hdr.findIndex(h=>re.test(h));
+  const ci={sku:col(/c[óo]digo da composi/),cod:col(/c[óo]digo do componente/),q:col(/quantidade/),n:col(/descri[çc][ãa]o do componente/),cost:col(/custo/)};
+  if(ci.sku<0||ci.cod<0)return {};
+  const cell=(arr,i)=>i>=0?String(arr[i]==null?"":arr[i]).trim().replace(/^"|"$/g,""):"";
+  const out={};
+  for(let i=1;i<lines.length;i++){
+    const c=lines[i].split(delim);
+    const sku=cell(c,ci.sku), cod=cell(c,ci.cod).toUpperCase();
+    if(!sku||!cod)continue;
+    const q=parseFloat(cell(c,ci.q).replace(/\./g,"").replace(",","."))||1;
+    const cRaw=cell(c,ci.cost).replace(/\./g,"").replace(",","."),cst=parseFloat(cRaw)||0;
+    const n=cell(c,ci.n)||cod, key=sku.toUpperCase();
+    (out[key]=out[key]||{sku,itens:[]}).itens.push({cod,q,c:cst,n});
+  }
+  return out;
+}
+async function onShopeeCompFile(file){
+  if(!file)return;
+  toast("Lendo composição da Shopee…");
+  try{
+    if(!Object.keys(saved).length)await refreshSkus();
+    const text=await file.text();
+    const kits=parseShopeeComp(text);
+    const codes=Object.keys(kits);
+    if(!codes.length){toast("Não reconheci a planilha de composição da Shopee");return;}
+    const costOf={};CATALOG.forEach(it=>{if(it.cod)costOf[String(it.cod).trim().toUpperCase()]=+it.c||0;});
+    const idx={};Object.values(saved).forEach(r=>{(r.skusShopee||[]).forEach(s=>{if(s)idx[String(s).trim().toUpperCase()]=r;});if(r.sku&&!idx[String(r.sku).trim().toUpperCase()])idx[String(r.sku).trim().toUpperCase()]=r;});
+    let match=0,miss=0;codes.forEach(k=>{idx[k]?match++:miss++;});
+    fiscalBackup();
+    if(!confirm(`Composição Shopee: ${codes.length} kits no arquivo.\n\n• ${match} casaram com SKUs da Shopee no app (composição será preenchida)\n• ${miss} não acharam SKU correspondente (ficam de fora)\n\nO custo de cada item vem do seu catálogo pelo código do Protheus. Um backup dos seus SKUs foi baixado. Aplicar agora?`))return;
+    let ok=0;
+    for(const k of codes){
+      const rec0=idx[k];if(!rec0)continue;
+      const rec={...rec0};
+      rec.itens=kits[k].itens.map(it=>({n:it.n,c:(it.c>0?it.c:(costOf[it.cod]||0)),q:it.q,cod:it.cod}));
+      rec.composicaoPendente=false;rec.fonte=rec.fonte||"shopee-comp";
+      rec.custoItens=rec.itens.reduce((s,it)=>s+it.c*it.q,0);
+      rec.atualizadoEm=Date.now();rec.atualizadoVia="composição shopee";
+      if((+rec.pricePor||+rec.price||0)>0)recomputeSku(rec);
+      saved[rec.sku]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
+    }
+    renderSaved();if(SUPA_ON)setSync("cloud");
+    toast(`${ok} kits da Shopee com composição atualizada`);switchView("saved");
+  }catch(e){console.error(e);toast("Falha ao importar composição da Shopee");}
 }
 async function deleteSku(sku){delete saved[sku];renderSaved();try{await DB.deleteSku(sku);toast(`SKU ${sku} excluído`);}catch(e){setSync("err");toast("Falha ao excluir na nuvem");}}
 function loadSkuIntoCalc(sku){
@@ -3612,6 +3665,7 @@ document.querySelector("#view-saved thead").addEventListener("click",e=>{const t
 $("#exportCsv").onclick=exportCsv;
 $("#importMeli").onclick=meliOpen;
 (function(){const f=$("#fiscalFile");$("#importFiscal")&&($("#importFiscal").onclick=()=>f&&f.click());f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onFiscalFile(file);e.target.value="";});})();
+(function(){const f=$("#shopeeCompFile");$("#importShopeeComp")&&($("#importShopeeComp").onclick=()=>f&&f.click());f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onShopeeCompFile(file);e.target.value="";});})();
 $("#meliClose").onclick=meliCloseModal;
 $("#meliModal").addEventListener("click",e=>{if(e.target.id==="meliModal")meliCloseModal();});
 $("#meliAnalyze").onclick=meliAnalyze;
