@@ -523,7 +523,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 84</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 85</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -988,7 +988,7 @@ const KIT_CODES={"MLB5198358902":["COL2.0221","BALM.0279","AMOS.0007","BALM.0284
 let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = clone(DEF_ASSUMP), ACCOUNTS = clone(DEF_ACCOUNTS), FISCAL = {};
 let kit = [], saved = {};
 let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "", skuFilter = "";
-let skuSearch = "", skuConta = "", skuCanal = "", skuStatus = "", skuPlat = "", skuSort = {key:"upd",dir:-1};
+let skuSearch = "", skuConta = "", skuCanal = "", skuStatus = "", skuPlat = "", skuGap = "", skuSort = {key:"upd",dir:-1};
 const platOf=r=>(/shopee/i.test(r.canal||"")||r.plataforma==="Shopee")?"Shopee":"Mercado Livre";
 const dispSku=r=>(r.plataforma==="Shopee")?("SHP-"+(r.shopeePid||String(r.sku||"").replace(/^SHP-/,"").split("-")[0])):r.sku;
 
@@ -1452,8 +1452,8 @@ function bkInner(rec){
     <span><i class="liq"></i>Líquido ${liqTxt} <em>${p(s.liq)}</em></span>
   </div>`;
 }
-function clearSkuFilters(){skuFilter="";skuConta="";skuCanal="";skuStatus="";skuPlat="";skuSearch="";const s=$("#skuSearch");if(s)s.value="";renderSaved();}
-function anySkuFilter(){return !!(skuFilter||skuConta||skuCanal||skuStatus||skuPlat||(skuSearch&&skuSearch.trim()));}
+function clearSkuFilters(){skuFilter="";skuConta="";skuCanal="";skuStatus="";skuPlat="";skuGap="";skuSearch="";const s=$("#skuSearch");if(s)s.value="";renderSaved();}
+function anySkuFilter(){return !!(skuFilter||skuConta||skuCanal||skuStatus||skuPlat||skuGap||(skuSearch&&skuSearch.trim()));}
 function visibleSkus(){
   const meta=(assumptions.meta||10)/100;
   let list=Object.values(saved);
@@ -1463,6 +1463,8 @@ function visibleSkus(){
   if(skuPlat)list=list.filter(r=>platOf(r)===skuPlat);
   if(skuCanal)list=list.filter(r=>(r.canal||"").includes(skuCanal));
   if(skuStatus)list=list.filter(r=>(r.statusMeli||"Ativo")===skuStatus);
+  if(skuGap==="semPreco")list=list.filter(r=>!((+r.pricePor||+r.price||0)>0));
+  else if(skuGap==="semComp")list=list.filter(r=>r.composicaoPendente||!((r.itens||[]).length));
   const q=(skuSearch||"").trim().toLowerCase();
   if(q)list=list.filter(r=>(r.sku||"").toLowerCase().includes(q)||(r.nome||"").toLowerCase().includes(q)||(r.skusMeli||[]).some(s=>String(s).toLowerCase().includes(q))||(r.skusShopee||[]).some(s=>String(s).toLowerCase().includes(q)));
   const key=skuSort.key,dir=skuSort.dir;
@@ -1483,7 +1485,8 @@ function renderSkuChips(){
   const canal=["Clássico","Premium"].map(c=>chip(skuCanal===c,"canal",c,c)).join("");
   const status=["Ativo","Inativo"].map(s=>chip(skuStatus===s,"status",s,s)).join("");
   const plat=["Mercado Livre","Shopee"].map(p=>chip(skuPlat===p,"plat",p,p)).join("");
-  $("#skuChips").innerHTML=`<span class="fclabel">Plataforma</span>${plat}<span class="fclabel" style="margin-left:8px">Conta</span>${conta}<span class="fclabel" style="margin-left:8px">Canal</span>${canal}<span class="fclabel" style="margin-left:8px">Status</span>${status}`;
+  const gap=[["semPreco","Sem preço"],["semComp","Sem composição"]].map(([v,l])=>chip(skuGap===v,"gap",v,l)).join("");
+  $("#skuChips").innerHTML=`<span class="fclabel">Plataforma</span>${plat}<span class="fclabel" style="margin-left:8px">Conta</span>${conta}<span class="fclabel" style="margin-left:8px">Canal</span>${canal}<span class="fclabel" style="margin-left:8px">Status</span>${status}<span class="fclabel" style="margin-left:8px">Dados</span>${gap}`;
 }
 function updateSortArrows(){
   document.querySelectorAll("th.sortable").forEach(th=>{
@@ -3579,11 +3582,12 @@ $("#tbody").addEventListener("input",onSkuInline);
 $("#summary").addEventListener("click",e=>{const b=e.target.closest("[data-filter]");if(b)setSkuFilter(b.dataset.filter);});
 $("#skuFilterBar").addEventListener("click",e=>{if(e.target.id==="clearFilter")clearSkuFilters();});
 $("#skuSearch").addEventListener("input",e=>{skuSearch=e.target.value;renderSaved();});
-$("#skuChips").addEventListener("click",e=>{const b=e.target.closest("[data-conta],[data-canal],[data-status],[data-plat]");if(!b)return;
+$("#skuChips").addEventListener("click",e=>{const b=e.target.closest("[data-conta],[data-canal],[data-status],[data-plat],[data-gap]");if(!b)return;
   if(b.dataset.conta!=null)skuConta=(skuConta===b.dataset.conta?"":b.dataset.conta);
   else if(b.dataset.plat!=null)skuPlat=(skuPlat===b.dataset.plat?"":b.dataset.plat);
   else if(b.dataset.canal!=null)skuCanal=(skuCanal===b.dataset.canal?"":b.dataset.canal);
   else if(b.dataset.status!=null)skuStatus=(skuStatus===b.dataset.status?"":b.dataset.status);
+  else if(b.dataset.gap!=null)skuGap=(skuGap===b.dataset.gap?"":b.dataset.gap);
   renderSaved();});
 document.querySelector("#view-saved thead").addEventListener("click",e=>{const th=e.target.closest("th.sortable");if(th)setSort(th.dataset.sort);});
 $("#exportCsv").onclick=exportCsv;
