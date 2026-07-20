@@ -529,7 +529,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 88</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 90</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -674,7 +674,7 @@
         <input type="file" id="fiscalFile" accept=".xlsx,.xls" style="display:none">
         <button class="btn" id="importShopee">Importar Shopee</button>
         <button class="btn" id="importShopeeComp">Composição Shopee</button>
-        <input type="file" id="shopeeCompFile" accept=".csv,.xlsx,.xls" style="display:none">
+        <input type="file" id="shopeeCompFile" accept=".csv,.xlsx,.xls" multiple style="display:none">
         <button class="btn" id="pastePrices">Colar preços</button>
         <button class="btn" id="exportCsv">Exportar CSV</button>
         <button class="btn btn-primary" id="goCalc">+ Novo SKU</button>
@@ -908,10 +908,10 @@
   <div class="modal" style="max-width:900px;width:100%">
     <div class="modal-h"><span>Importar planilha da Shopee</span><button class="modal-x" id="shopeeClose" aria-label="Fechar">×</button></div>
     <div class="modal-b">
-      <div class="set-note" style="margin-bottom:14px">Abra o arquivo <b>"mass update sales info"</b> exportado da Shopee. Como a Shopee não traz a composição, o app <b>deduz os itens (códigos)</b> a partir do título e do nome da variação, com um <b>selo de confiança</b> em cada linha — você valida e ajusta o que precisar. Nada aqui altera os kits do Mercado Livre já cadastrados.</div>
+      <div class="set-note" style="margin-bottom:14px">Abra o arquivo <b>"mass update sales info"</b> (anúncios) e/ou a planilha de <b>preços/descontos</b>. <b>Pra atualizar só preço, suba apenas a de Preços</b> — o app casa pela variação e mexe só no De/Por, preservando composição e o resto. O que você não subir é mantido; nada dos kits do Mercado Livre é alterado.</div>
       <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
-        <label class="mfield" style="flex:1;min-width:220px"><span>1. Anúncios <small>(mass update, .xlsx)</small></span><input type="file" id="shopeeFile" accept=".xlsx"></label>
-        <label class="mfield" style="flex:1;min-width:220px"><span>2. Preços <small>(discount, opcional)</small></span><input type="file" id="shopeePriceFile" accept=".xlsx"></label>
+        <label class="mfield" style="flex:1;min-width:220px"><span>Anúncios <small>(mass update, opcional)</small></span><input type="file" id="shopeeFile" accept=".xlsx"></label>
+        <label class="mfield" style="flex:1;min-width:220px"><span>Preços <small>(discount — sozinha atualiza só preço)</small></span><input type="file" id="shopeePriceFile" accept=".xlsx"></label>
         <label class="mfield" style="max-width:160px"><span>Conta / origem</span><select id="shopeeAcct"></select></label>
         <button class="btn btn-primary" id="shopeeAnalyze">Analisar</button>
       </div>
@@ -1405,20 +1405,24 @@ function parseShopeeComp(text){
   }
   return out;
 }
-async function onShopeeCompFile(file){
-  if(!file)return;
+async function onShopeeCompFile(files){
+  if(!files||!files.length)return;
   toast("Lendo composição da Shopee…");
   try{
     if(!Object.keys(saved).length)await refreshSkus();
-    const text=await file.text();
-    const kits=parseShopeeComp(text);
+    const kits={};
+    for(const file of Array.from(files)){
+      const text=await file.text();
+      const part=parseShopeeComp(text);
+      Object.entries(part).forEach(([k,v])=>{const tgt=kits[k]||(kits[k]={sku:v.sku,itens:[]});v.itens.forEach(it=>{if(!tgt.itens.some(x=>x.cod===it.cod))tgt.itens.push(it);});});
+    }
     const codes=Object.keys(kits);
     if(!codes.length){toast("Não reconheci a planilha de composição da Shopee");return;}
     const costOf={};CATALOG.forEach(it=>{if(it.cod)costOf[String(it.cod).trim().toUpperCase()]=+it.c||0;});
     const idx={};Object.values(saved).forEach(r=>{(r.skusShopee||[]).forEach(s=>{if(s)idx[String(s).trim().toUpperCase()]=r;});if(r.sku&&!idx[String(r.sku).trim().toUpperCase()])idx[String(r.sku).trim().toUpperCase()]=r;});
     let match=0,miss=0;codes.forEach(k=>{idx[k]?match++:miss++;});
     fiscalBackup();
-    if(!confirm(`Composição Shopee: ${codes.length} kits no arquivo.\n\n• ${match} casaram com SKUs da Shopee no app (composição será preenchida)\n• ${miss} não acharam SKU correspondente (ficam de fora)\n\nO custo de cada item vem do seu catálogo pelo código do Protheus. Um backup dos seus SKUs foi baixado. Aplicar agora?`))return;
+    if(!confirm(`Composição Shopee: ${codes.length} kits em ${files.length} arquivo(s).\n\n• ${match} casaram com SKUs da Shopee no app (composição será preenchida)\n• ${miss} não acharam SKU correspondente (ficam de fora)\n\nO custo de cada item vem do seu catálogo pelo código do Protheus. Um backup dos seus SKUs foi baixado. Aplicar agora?`))return;
     let ok=0;
     for(const k of codes){
       const rec0=idx[k];if(!rec0)continue;
@@ -2039,24 +2043,34 @@ function shopeeGuess(title,varName){
 }
 function parseShopeeDiscount(wb){
   const ws=wb.Sheets[wb.SheetNames[0]];if(!ws)throw new Error("Planilha de preços vazia");
-  const mtx=sheetMatrix(ws);const byVid={},bySku={};
+  const mtx=sheetMatrix(ws);const byVid={},bySku={},rows=[];
   for(const r of mtx){
     if(!Array.isArray(r))continue;const pid=r[0];
     const isData=(typeof pid==="number"&&pid>100000)||(typeof pid==="string"&&/^\d{6,}$/.test(pid.trim()));
     if(!isData)continue;
-    const vid=r[3]!=null?String(r[3]).trim():"",sku=(r[5]||"").toString().trim();
+    const pidS=String(pid).trim(),vid=r[3]!=null?String(r[3]).trim():"",sku=(r[5]||"").toString().trim();
     const de=numDot(r[6]),por=numDot(r[7]);
     const o={de,por};if(vid)byVid[vid]=o;if(sku)bySku[sku]=o;
+    rows.push({pid:pidS,vid,sku,title:(r[1]||"").toString().trim(),varName:(r[4]||"").toString().trim(),de,por});
   }
-  return {byVid,bySku};
+  return {byVid,bySku,rows};
 }
 async function shopeeAnalyze(){
   const f=$("#shopeeFile").files[0],pf=$("#shopeePriceFile").files[0],st=$("#shopeeStatus");st.style.display="block";st.textContent="Lendo planilha…";
-  if(!f){st.textContent="Selecione ao menos a planilha de anúncios (mass update).";return;}
+  if(!f&&!pf){st.textContent="Selecione a planilha de anúncios (mass update) ou a de preços/descontos.";return;}
   try{
-    const [wb,wbP]=await Promise.all([readWorkbook(f),pf?readWorkbook(pf):Promise.resolve(null)]);
-    const raw=parseShopeeWB(wb);const conta=$("#shopeeAcct").value||"";
-    const prices=wbP?parseShopeeDiscount(wbP):null;let matched=0;
+    const [wb,wbP]=await Promise.all([f?readWorkbook(f):Promise.resolve(null),pf?readWorkbook(pf):Promise.resolve(null)]);
+    const conta=$("#shopeeAcct").value||"";
+    const prices=wbP?parseShopeeDiscount(wbP):null;
+    if(!f){
+      SHOPEE.rows=prices.rows.map(r=>{const key="SHP-"+r.pid+(r.vid?"-"+r.vid:"");
+        return {pid:r.pid,vid:r.vid,sku:r.sku,title:r.title,varName:r.varName,gtin:"",key,codigos:[],conf:"r",conta,existing:!!saved[key],priceDe:r.de,pricePor:(r.por!=null?r.por:null),price:null,priceOnly:true,sel:true};});
+      renderShopeePreview();$("#shopeePreviewWrap").style.display="block";
+      const nEx=SHOPEE.rows.filter(r=>r.existing).length;
+      st.textContent=`${SHOPEE.rows.length} variações na planilha de preços · ${nEx} já no app (só o preço De/Por será atualizado; composição preservada).`;
+      return;
+    }
+    const raw=parseShopeeWB(wb);let matched=0;
     SHOPEE.rows=raw.map(r=>{const g=shopeeGuess(r.title,r.varName);const key="SHP-"+r.pid+(r.vid?"-"+r.vid:"");
       let de=null,por=null;
       if(prices){const p=prices.byVid[r.vid]||(r.sku&&prices.bySku[r.sku]);if(p){de=p.de;por=p.por;matched++;}}
@@ -2087,18 +2101,28 @@ async function shopeeImport(){
   const chosen=SHOPEE.rows.filter(r=>r.sel);if(!chosen.length){toast("Nada selecionado");return;}
   const sh=CHANNELS.find(c=>/shopee/i.test(c.n));let ok=0;
   for(const r of chosen){
-    const rec={sku:r.key,plataforma:"Shopee",mlb:null,shopeePid:r.pid,shopeeVid:r.vid,
-      skusShopee:r.sku?[r.sku]:[],skusMeli:[],gtins:r.gtin?[r.gtin]:[],
-      nome:r.title+(r.varName?" · "+r.varName:""),canal:"Shopee",origem:r.conta||"",
-      codigos:r.codigos,confianca:r.conf,codigosAuto:true,
-      itens:[],composicaoPendente:true,custoItens:0,
-      priceMode:"depor",priceDe:(r.priceDe!=null?r.priceDe:null),pricePor:(r.pricePor!=null?r.pricePor:(r.price||null)),price:(r.pricePor!=null?r.pricePor:(r.price||null)),
-      freight:(sh&&sh.fre)||0,rebate:0,
-      status:"Ativo",statusMeli:"Ativo",fonte:"shopee",ts:Date.now(),atualizadoEm:Date.now(),atualizadoVia:"planilha"};
+    const prev=saved[r.key]||null;
+    const rec=prev?{...prev}:{};
+    rec.sku=r.key;rec.plataforma="Shopee";rec.mlb=null;rec.shopeePid=r.pid;rec.shopeeVid=r.vid;
+    if(r.sku)rec.skusShopee=[r.sku];else rec.skusShopee=rec.skusShopee||[];
+    rec.skusMeli=rec.skusMeli||[];
+    if(r.gtin)rec.gtins=[r.gtin];else rec.gtins=rec.gtins||[];
+    if(r.title)rec.nome=r.title+(r.varName?" · "+r.varName:"");else rec.nome=rec.nome||r.key;
+    rec.canal="Shopee";rec.origem=r.conta||rec.origem||"";
+    if(!r.priceOnly&&r.codigos&&r.codigos.length&&!(rec.itens&&rec.itens.length)){rec.codigos=r.codigos;rec.confianca=r.conf;rec.codigosAuto=true;}
+    rec.itens=rec.itens||[];rec.composicaoPendente=!(rec.itens&&rec.itens.length);
+    rec.priceMode=rec.priceMode||"depor";
+    if(r.priceDe!=null)rec.priceDe=r.priceDe;
+    if(r.pricePor!=null){rec.pricePor=r.pricePor;rec.price=r.pricePor;}
+    else if(r.price!=null){rec.pricePor=r.price;rec.price=r.price;}
+    rec.freight=(rec.freight!=null?rec.freight:((sh&&sh.fre)||0));rec.rebate=rec.rebate||0;
+    rec.status=rec.status||"Ativo";rec.statusMeli=rec.statusMeli||"Ativo";
+    rec.fonte="shopee";rec.ts=rec.ts||Date.now();rec.atualizadoEm=Date.now();rec.atualizadoVia="planilha";
+    if((+rec.pricePor||+rec.price||0)>0&&rec.itens&&rec.itens.length)recomputeSku(rec);
     saved[r.key]=rec;try{await DB.upsertSku(rec);ok++;}catch(e){}
   }
   renderSaved();if(SUPA_ON)setSync("cloud");shopeeCloseModal();
-  toast(`${ok} anúncio(s) da Shopee importado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");skuPlat="Shopee";renderSaved();
+  toast(`${ok} anúncio(s) da Shopee atualizado(s)`+(SUPA_ON?" na nuvem":""));switchView("saved");skuPlat="Shopee";renderSaved();
 }
 function renderMeliPreview(){
   $("#meliPreviewBody").innerHTML=MELI.rows.map((r,i)=>`<tr>
@@ -3665,7 +3689,7 @@ document.querySelector("#view-saved thead").addEventListener("click",e=>{const t
 $("#exportCsv").onclick=exportCsv;
 $("#importMeli").onclick=meliOpen;
 (function(){const f=$("#fiscalFile");$("#importFiscal")&&($("#importFiscal").onclick=()=>f&&f.click());f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onFiscalFile(file);e.target.value="";});})();
-(function(){const f=$("#shopeeCompFile");$("#importShopeeComp")&&($("#importShopeeComp").onclick=()=>f&&f.click());f&&(f.onchange=e=>{const file=e.target.files&&e.target.files[0];onShopeeCompFile(file);e.target.value="";});})();
+(function(){const f=$("#shopeeCompFile");$("#importShopeeComp")&&($("#importShopeeComp").onclick=()=>f&&f.click());f&&(f.onchange=e=>{const files=e.target.files;onShopeeCompFile(files);e.target.value="";});})();
 $("#meliClose").onclick=meliCloseModal;
 $("#meliModal").addEventListener("click",e=>{if(e.target.id==="meliModal")meliCloseModal();});
 $("#meliAnalyze").onclick=meliAnalyze;
