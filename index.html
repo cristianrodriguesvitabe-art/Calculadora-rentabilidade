@@ -503,7 +503,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 76</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 77</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -766,10 +766,10 @@
           <div><label>Despesas %</label><div class="inwrap"><input type="number" id="a_desp" step="0.1"><span class="suf">%</span></div><div class="set-hint">Despesas operacionais rateadas: <b>preço × %</b>.</div></div>
           <div><label>Desp. financeira %</label><div class="inwrap"><input type="number" id="a_fin" step="0.1"><span class="suf">%</span></div><div class="set-hint">Custo financeiro (antecipação de recebíveis, taxas): <b>preço × %</b>.</div></div>
           <div><label>Frete + devolução %</label><div class="inwrap"><input type="number" id="a_frete" step="0.1"><span class="suf">%</span></div><div class="set-hint">Alvo total de frete+devolução como % do preço (~11%, blended do fechamento). O app conta o <b>Frete R$ fixo do canal</b> e adiciona só a <b>diferença</b> até atingir esse %, sem contar frete duas vezes.</div></div>
-          <div><label>Investimento em mídia no e-commerce (R$)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="a_midiaInv" step="1" min="0"></div><div class="set-hint">Total gasto em anúncios do e-commerce no período.</div></div>
-          <div><label>Faturamento do período (R$)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="a_midiaFat" step="1" min="0"></div><div class="set-hint">Base pra converter a mídia em % do preço. Mídia = <b id="midiaPctOut">0%</b> do faturamento.</div></div>
-          <div><label>% da mídia que vira custo (ROI invisível)</label><div class="inwrap"><input type="number" id="a_site" step="0.1"><span class="suf">%</span></div><div class="set-hint">Fatia do investimento em mídia lançada como custo: <b>custo = preço × (mídia % acima) × (esta %)</b>. Ex.: mídia 20% × 15% = 3% do preço.</div></div>
           <div><label>Meta mínima de lucratividade %</label><div class="inwrap"><input type="number" id="a_meta" step="1"><span class="suf">%</span></div><div class="set-hint">Alvo de <b>lucro final ÷ preço</b>. Só referência — pinta verde/vermelho e sugere o preço-alvo; <b>não</b> entra na conta do lucro.</div></div>
+          <div class="subh">Mídia do e-commerce (entra no Resultado do mês, não no kit)</div>
+          <div><label>Investimento em mídia (R$)</label><div class="inwrap money"><span class="pre">R$</span><input type="number" id="a_midiaInv" step="1" min="0"></div><div class="set-hint">Total gasto em anúncios do e-commerce no mês.</div></div>
+          <div><label>% da mídia que vira custo</label><div class="inwrap"><input type="number" id="a_site" step="0.1"><span class="suf">%</span></div><div class="set-hint">No Resumo (Fechamento · ambos os canais) eu subtraio <b>esta % × o investimento em mídia</b> do resultado do mês. Ex.: 15% de R$10.000 = R$1.500. <b>Não</b> afeta o preço do kit.</div></div>
           <div class="subh">IR / CS</div>
           <div><label>Base de cálculo %</label><div class="inwrap"><input type="number" id="a_irbase" step="1"><span class="suf">%</span></div><div class="set-hint">Parte do lucro que é tributável. <b>Base = (preço − custo − Outros − Deduções − ROI − Despesas − Desp. financeira − comissão − frete − taxa fixa) × %</b>.</div></div>
           <div><label>Alíquota IR/CS %</label><div class="inwrap"><input type="number" id="a_irrate" step="1"><span class="suf">%</span></div><div class="set-hint">Imposto = <b>base × %</b>. Só incide quando há lucro (base positiva).</div></div>
@@ -954,7 +954,7 @@ const DEF_CHANNELS = [
   {n:"Shopee",com:0.14,fre:0,bands:[{max:79.99,com:0.20,fee:4},{max:99.99,com:0.14,fee:16},{max:199.99,com:0.14,fee:20},{max:499.99,com:0.14,fee:26},{max:999999,com:0.14,fee:26}]},
   {n:"Amazon",com:0.145,fre:22},{n:"Magalu",com:0.18,fre:22},{n:"TikTok",com:0.06,fre:22},
 ];
-const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, freteP:11, midiaInv:0, midiaFat:0, site:15, irbase:70, irrate:34, meta:10};
+const DEF_ASSUMP = {outros:2.8, ded:19.9, roi:8.3, desp:4.3, fin:3.2, freteP:11, midiaInv:0, site:15, irbase:70, irrate:34, meta:10};
 const DEF_ACCOUNTS = ["MG","GRU"];
 
 // ===== Tabelas de códigos de produto (referência; não alteram a composição salva) =====
@@ -1154,7 +1154,7 @@ function financials({L,N,ch,catIdx,freight,rebate}){
   const a=assumptions;
   const O=L*a.outros/100,P=L*a.ded/100, mc=L>0?(L-N-O-P)/L:0;
   const R=L*a.roi/100,S=L*a.desp/100,T=freight||0,V=L*a.fin/100;
-  const mp=(a.midiaFat>0?(+a.midiaInv||0)/a.midiaFat:0), Fr=Math.max(0,L*(a.freteP||0)/100-(T||0)), Si=L*mp*(a.site||0)/100;
+  const Fr=Math.max(0,L*(a.freteP||0)/100-(T||0)), Si=0;
   let comRate=ch.com, F=0;
   if(ch.categories&&ch.categories.length){const c=ch.categories[catIdx]||ch.categories[0];if(c)comRate=c.com;}
   if(ch.bands&&ch.bands.length){const b=ch.bands.find(b=>L<=b.max)||ch.bands[ch.bands.length-1];
@@ -2319,8 +2319,7 @@ function renderDashboard(){
 function loadAssumpInputs(){
   $("#a_outros").value=assumptions.outros;$("#a_ded").value=assumptions.ded;$("#a_roi").value=assumptions.roi;
   $("#a_desp").value=assumptions.desp;$("#a_fin").value=assumptions.fin;$("#a_meta").value=assumptions.meta;
-  $("#a_frete").value=assumptions.freteP??0;$("#a_midiaInv").value=assumptions.midiaInv??0;$("#a_midiaFat").value=assumptions.midiaFat??0;$("#a_site").value=assumptions.site??0;
-  {const mo=$("#midiaPctOut");if(mo)mo.textContent=pct(assumptions.midiaFat>0?(+assumptions.midiaInv||0)/assumptions.midiaFat:0);}
+  $("#a_frete").value=assumptions.freteP??0;$("#a_midiaInv").value=assumptions.midiaInv??0;$("#a_site").value=assumptions.site??0;
   $("#a_irbase").value=assumptions.irbase;$("#a_irrate").value=assumptions.irrate;
 }
 function renderChanTable(){
@@ -2415,8 +2414,7 @@ function delAccount(i){const a=ACCOUNTS[i];if(!confirm(`Remover a conta "${a}"? 
   ACCOUNTS.splice(i,1);if(selAcct===a)selAcct="";saveConfig();renderAcctTable();buildAcctSelect();toast("Conta removida");}
 function onAssumpChange(){
   assumptions={...assumptions, outros:+$("#a_outros").value||0,ded:+$("#a_ded").value||0,roi:+$("#a_roi").value||0,desp:+$("#a_desp").value||0,
-    fin:+$("#a_fin").value||0,freteP:+$("#a_frete").value||0,midiaInv:+$("#a_midiaInv").value||0,midiaFat:+$("#a_midiaFat").value||0,site:+$("#a_site").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
-  {const mo=$("#midiaPctOut");if(mo)mo.textContent=pct(assumptions.midiaFat>0?(+assumptions.midiaInv||0)/assumptions.midiaFat:0);}
+    fin:+$("#a_fin").value||0,freteP:+$("#a_frete").value||0,midiaInv:+$("#a_midiaInv").value||0,site:+$("#a_site").value||0,meta:+$("#a_meta").value||0,irbase:+$("#a_irbase").value||0,irrate:+$("#a_irrate").value||0};
   saveConfig();calc();renderSaved();
 }
 function onChanChange(e){const t=e.target;if(t.dataset.ci==null)return;const i=+t.dataset.ci,v=+t.value||0;
@@ -3316,11 +3314,14 @@ function renderCombined(){
   const row=(name,rec,getK)=>{if(!rec)return {name,has:false};const K=getK(rec),ad=effAdSpend(rec),ex=monthExtras(rec),outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);return {name,has:true,receita:K.receita,custo:K.custo,lucro:K.lucro,ad,outros,res:K.lucro-ad-outros};};
   const chans=[row("Mercado Livre",ml,r=>r.A.K),row("Shopee",shp,r=>r.A.K)].filter(c=>c.has);
   const T={receita:0,custo:0,lucro:0,ad:0,outros:0,res:0};chans.forEach(c=>{T.receita+=c.receita;T.custo+=c.custo;T.lucro+=c.lucro;T.ad+=c.ad;T.outros+=c.outros;T.res+=c.res;});
+  const midiaCost=(+assumptions.midiaInv||0)*(+assumptions.site||0)/100;
+  const resFinal=T.res-midiaCost;
   const strip=keys.map(k=>{const has=(SALES.months[k]?1:0)+(SALES.shp.months[k]?1:0),on=k===sel,lbl=(SALES.months[k]||SALES.shp.months[k]).monthLabel;return `<button class="mchip${on?" on":""}" data-bothmonth="${k}">${lbl}<span class="mc-l">${has} canal${has>1?"is":""}</span></button>`;}).join("");
   const hist=`<div class="scard histcard"><h4>Meses</h4><div class="mstrip">${strip}</div></div>`;
-  const kpis=`<div class="skpis">${kpi("Receita l\u00edq.",brl(T.receita))}${kpi("Custo produtos",brl(T.custo))}${kpi("Lucro vendas",brl(T.lucro),T.lucro<0?"neg":"pos")}${kpi("Ads",brl(T.ad))}${kpi("Outros custos",brl(T.outros))}${kpi("Resultado final",brl(T.res),T.res<0?"neg":"pos")}</div>`;
+  const kpis=`<div class="skpis">${kpi("Receita l\u00edq.",brl(T.receita))}${kpi("Lucro vendas",brl(T.lucro),T.lucro<0?"neg":"pos")}${kpi("Ads",brl(T.ad))}${kpi("Outros custos",brl(T.outros))}${midiaCost>0?kpi("M\u00eddia e-comm ("+ (+assumptions.site||0) +"%)",brl(midiaCost)):""}${kpi("Resultado final",brl(resFinal),resFinal<0?"neg":"pos")}</div>`;
   const fr=c=>`<tr><td>${c.name}</td><td class="r">${brl(c.receita)}</td><td class="r sec">${brl(c.custo)}</td><td class="r">${brl(c.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r sec">${brl(c.outros)}</td><td class="r"><b class="${c.res<0?'neg':''}">${brl(c.res)}</b></td></tr>`;
-  const table=`<div class="scard"><h4>Por canal \u2014 ${(ml||shp).monthLabel}</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Canal</th><th class="r">Receita l\u00edq.</th><th class="r">Custo</th><th class="r">Lucro vendas</th><th class="r">Ads</th><th class="r">Outros</th><th class="r">Resultado</th></tr></thead><tbody>${chans.map(fr).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${brl(T.receita)}</b></td><td class="r">${brl(T.custo)}</td><td class="r"><b>${brl(T.lucro)}</b></td><td class="r">${brl(T.ad)}</td><td class="r">${brl(T.outros)}</td><td class="r"><b class="${T.res<0?'neg':''}">${brl(T.res)}</b></td></tr></tbody></table></div><div class="sec" style="margin-top:8px">Para ajustar Ads/custos de um canal, abra o canal espec\u00edfico.</div></div>`;
+  const midiaRow=midiaCost>0?`<div class="sec" style="margin-top:8px">Resultado dos canais: <b>${brl(T.res)}</b> − mídia do e-commerce (${(+assumptions.site||0)}% de ${brl(+assumptions.midiaInv||0)}) <b>${brl(midiaCost)}</b> = <b class="${resFinal<0?'neg':''}">${brl(resFinal)}</b>. Ajuste o investimento de mídia em Ajustes.</div>`:"";
+  const table=`<div class="scard"><h4>Por canal \u2014 ${(ml||shp).monthLabel}</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Canal</th><th class="r">Receita l\u00edq.</th><th class="r">Custo</th><th class="r">Lucro vendas</th><th class="r">Ads</th><th class="r">Outros</th><th class="r">Resultado</th></tr></thead><tbody>${chans.map(fr).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${brl(T.receita)}</b></td><td class="r">${brl(T.custo)}</td><td class="r"><b>${brl(T.lucro)}</b></td><td class="r">${brl(T.ad)}</td><td class="r">${brl(T.outros)}</td><td class="r"><b class="${T.res<0?'neg':''}">${brl(T.res)}</b></td></tr></tbody></table></div>${midiaRow}<div class="sec" style="margin-top:8px">Para ajustar Ads/custos de um canal, abra o canal espec\u00edfico.</div></div>`;
   body.innerHTML=hist+kpis+table;
   body.querySelectorAll("[data-bothmonth]").forEach(c=>c.onclick=()=>{SALES._bothView=c.dataset.bothmonth;renderCombined();});
 }
@@ -3546,7 +3547,7 @@ $("#pasteApply").onclick=pasteApply;
 $("#pasteClear").onclick=()=>{PASTE.rows=[];$("#pastePreviewWrap").style.display="none";$("#pasteStatus").textContent="Acumulado limpo.";};
 $("#pasteAll").addEventListener("change",e=>{PASTE.rows.forEach(r=>{if(r.achado)r.sel=e.target.checked;});renderPastePreview();$("#pasteAll").checked=e.target.checked;});
 $("#pastePreviewBody").addEventListener("change",e=>{const cb=e.target.closest("[data-psel]");if(cb){PASTE.rows[+cb.dataset.psel].sel=cb.checked;updatePasteCounts();}});
-["a_outros","a_ded","a_roi","a_desp","a_fin","a_frete","a_midiaInv","a_midiaFat","a_site","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
+["a_outros","a_ded","a_roi","a_desp","a_fin","a_frete","a_midiaInv","a_site","a_meta","a_irbase","a_irrate"].forEach(id=>$("#"+id).addEventListener("input",onAssumpChange));
 $("#chanTable").addEventListener("input",onChanChange);
 $("#mlCfg").addEventListener("input",onMLChange);
 $("#shopeeCfg").addEventListener("input",onShopeeChange);
