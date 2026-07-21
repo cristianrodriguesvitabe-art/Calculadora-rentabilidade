@@ -119,10 +119,10 @@
   .cl.final .amt.pos{color:var(--pos)}.cl.final .amt.neg{color:var(--neg)}
   .save-bar{padding:12px 20px 16px;display:flex;gap:10px}.save-bar .btn-primary{flex:1}
   .hint{font-size:12px;color:var(--faint);padding:0 20px 14px;margin-top:-6px}
-  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+  .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
   @media(max-width:640px){.summary{grid-template-columns:1fr}}
-  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;box-shadow:var(--sh)}
-  .stat .k{font-size:12px;font-weight:600;color:var(--muted)}.stat .v{font-family:var(--disp);font-weight:600;font-size:34px;margin-top:6px;letter-spacing:-.01em}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:11px 14px;box-shadow:var(--sh)}
+  .stat .k{font-size:11.5px;font-weight:600;color:var(--muted)}.stat .v{font-family:var(--disp);font-weight:600;font-size:24px;margin-top:2px;letter-spacing:-.01em}
   table{width:100%;border-collapse:collapse}
   thead th{text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:700;padding:0 14px 12px}
   thead th.r{text-align:right}
@@ -511,12 +511,17 @@
   .stat-link.on{font-weight:700}
   .filterbar{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:13px;color:var(--ink)}
   .filterbar .clear{background:none;border:1px solid var(--line);border-radius:20px;padding:3px 10px;cursor:pointer;font:inherit;font-size:12px;color:var(--ink)}
-  .sku-controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;margin:0 0 12px}
-  .sku-search{flex:1;min-width:220px;border:1px solid var(--line);border-radius:9px;padding:8px 12px;font:inherit;font-size:13px;background:var(--paper);color:var(--ink)}
+  .sku-controls{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:0 0 10px}
+  .sku-search{flex:1;min-width:220px;border:1px solid var(--line);border-radius:9px;padding:6px 11px;font:inherit;font-size:13px;background:var(--paper);color:var(--ink)}
+  .pricecell{white-space:nowrap;line-height:1.22}
+  .pc-main{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--ink)}
+  .pc-main.pc-empty{color:var(--faint);font-weight:600}
+  .pc-de{display:block;font-size:11px;color:var(--faint);text-decoration:line-through;font-family:var(--mono)}
+  .pc-meta{display:block;font-size:10.5px;color:var(--muted);font-family:var(--mono);margin-top:1px}
   .sku-search:focus{outline:none;border-color:var(--forest);box-shadow:0 0 0 2px rgba(35,75,62,.12)}
   .sku-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
   .fclabel{font-size:11px;color:var(--faint);margin-right:2px}
-  .fchip{border:1px solid var(--line);background:var(--paper);border-radius:20px;padding:4px 11px;font:inherit;font-size:12px;color:var(--ink);cursor:pointer}
+  .fchip{border:1px solid var(--line);background:var(--paper);border-radius:20px;padding:2px 9px;font:inherit;font-size:11.5px;color:var(--ink);cursor:pointer}
   .fchip.on{background:var(--forest);color:#fff;border-color:var(--forest)}
   th.sortable{cursor:pointer;user-select:none;white-space:nowrap}
   th.sortable:hover{color:var(--forest)}
@@ -530,7 +535,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 91</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 92</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -689,14 +694,11 @@
     <div id="skuFilterBar"></div>
     <div class="card" id="tableCard"><div class="pad" style="padding:8px 8px 4px;overflow-x:auto">
       <table id="skuTable"><colgroup>
-        <col style="width:226px"><col style="width:106px"><col style="width:114px"><col style="width:114px"><col style="width:102px"><col style="width:102px"><col style="width:90px"><col style="width:102px"><col style="width:90px"><col style="width:138px">
+        <col style="width:300px"><col style="width:120px"><col style="width:152px"><col style="width:110px"><col style="width:118px"><col style="width:96px"><col style="width:150px">
       </colgroup><thead><tr>
         <th class="sortable" data-sort="sku">SKU<span class="sarr"></span></th>
         <th class="sortable" data-sort="canal">Canal<span class="sarr"></span></th>
-        <th class="r sortable" data-sort="de">De<span class="sarr"></span></th>
-        <th class="r sortable" data-sort="por">Por<span class="sarr"></span></th>
-        <th class="r sortable" data-sort="rebate">Rebate<span class="sarr"></span></th>
-        <th class="r sortable" data-sort="frete">Frete<span class="sarr"></span></th>
+        <th class="r sortable" data-sort="por">Preço<span class="sarr"></span></th>
         <th class="r sortable" data-sort="custo">Custo itens<span class="sarr"></span></th>
         <th class="r sortable" data-sort="liq">Result. líq.<span class="sarr"></span></th>
         <th class="r sortable" data-sort="lucrat">Lucrat.<span class="sarr"></span></th>
@@ -1592,7 +1594,7 @@ function meliChildrenHtml(r){
     const cc=(ov!=null)?ov:siglaCodes(sk,r.nome).map(x=>x.c).join(", ");
     const codeHtml=cc?`<span class="ch-code">${cc}</span>`:'<span class="ch-code" style="color:var(--faint)">— (definir)</span>';
     const key=r.sku+"||"+sk;
-    return `<tr class="childrow meli-child"><td colspan="10" class="childcell">
+    return `<tr class="childrow meli-child"><td colspan="7" class="childcell">
       <span class="ch-arrow">\u21b3</span> <span class="ch-sku">${sk}</span>
       <span class="ch-codewrap" data-vwrap="${key}">${codeHtml}</span>
       <button class="ch-edit" data-editvar="${key}" title="Editar c\u00f3digo desta varia\u00e7\u00e3o">\u270e editar</button></td></tr>`;
@@ -1616,7 +1618,15 @@ function shopeeParentHtml(pid,kids){
   const nome=(kids[0].nome||"").split(" \u00b7 ")[0];
   const pors=kids.map(k=>+k.pricePor||+k.price||0).filter(v=>v>0);
   const faixa=pors.length?(Math.min(...pors)===Math.max(...pors)?brl(Math.min(...pors)):brl(Math.min(...pors))+"\u2013"+brl(Math.max(...pors))):"\u2014";
-  return `<tr class="grouprow"><td colspan="10"><span class="gcode">SHP-${pid}</span> <b>${nome}</b> <span class="gmeta">${kids.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></td></tr>`;
+  return `<tr class="grouprow"><td colspan="7"><span class="gcode">SHP-${pid}</span> <b>${nome}</b> <span class="gmeta">${kids.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></td></tr>`;
+}
+function priceCellHtml(de,por,rebate,frete){
+  const p=+por||0,d=+de||0,rb=+rebate||0,fr=+frete||0;
+  const main=p>0?`<b class="pc-main">${brl(p)}</b>`:`<span class="pc-main pc-empty">\u2014</span>`;
+  const deHtml=(d>0&&d>p)?`<span class="pc-de">de ${brl(d)}</span>`:"";
+  let meta="";
+  if(rb>0||fr>0){meta=`<span class="pc-meta">${rb>0?`reb ${brl(rb)}`:""}${(rb>0&&fr>0)?" \u00b7 ":""}${fr>0?`frete ${brl(fr)}`:""}</span>`;}
+  return `<td class="r pricecell">${main}${deHtml}${meta}</td>`;
 }
 function skuRowHtml(r,meta,child,hideCodes){
   const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
@@ -1633,28 +1643,19 @@ function skuRowHtml(r,meta,child,hideCodes){
   const codeLine=child?`<div class="sku-code sub" title="${nmTitle}">${varLabel||dispSku(r)}</div>`:`<div class="sku-code" title="${nmTitle}">${dispSku(r)}</div>`;
   const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${updHtml(r)}</td>`;
   if(r.composicaoPendente){
-    const por2=(r.pricePor||r.price||0).toFixed(2);
     return `<tr class="${child?"childrow":""}">${cellHead}
       <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composi\u00e7\u00e3o pendente</span>'}</td>
-      <td class="r">\u2014</td>
-      <td class="r">${pf("por",por2)}</td>
-      <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
-      <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td><td class="r">\u2014</td><td class="r">\u2014</td><td class="r">\u2014</td>
+      ${priceCellHtml(0,r.pricePor||r.price||0,r.rebate,r.freight)}<td class="r">\u2014</td><td class="r">\u2014</td><td class="r">\u2014</td>
       <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
   }
   const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
-  const de=(r.priceDe&&r.priceDe>0)?(+r.priceDe).toFixed(2):"";
-  const por=(r.pricePor||r.price||0).toFixed(2);
   return `<tr class="${child?"childrow":""}">${cellHead}
     <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}${confHtml}</td>
-    <td class="r">${pf("de",de,"\u2014")}</td>
-    <td class="r">${pf("por",por)}</td>
-    <td class="r">${pf("rebate",(+r.rebate||0).toFixed(2))}</td>
-    <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td>
+    ${priceCellHtml(r.priceDe,r.pricePor||r.price,r.rebate,r.freight)}
     <td class="r sec">${brl(r.custoItens)}</td>
     <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
     <td><div class="tacts"><button class="iact bkt" data-bkt="${r.sku}" title="Ver para onde vai cada real">custos ▾</button><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
-    <tr class="bkrow" data-bkrow="${r.sku}" style="display:none"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;
+    <tr class="bkrow" data-bkrow="${r.sku}" style="display:none"><td colspan="7" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;
 }
 function vpf(sku,i,which,val,ph){return `<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-vedit="${sku}" data-vidx="${i}" data-vf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;}
 function getVars(r){
@@ -1684,31 +1685,23 @@ function meliBlockHtml(r,meta){
   const pors=vars.map(v=>+v.pricePor||0).filter(x=>x>0);
   const faixa=pors.length?(Math.min(...pors)===Math.max(...pors)?brl(Math.min(...pors)):brl(Math.min(...pors))+"\u2013"+brl(Math.max(...pors))):"\u2014";
   const codeOf=v=>(r.varCodes&&r.varCodes[v.sku]!=null)?r.varCodes[v.sku]:siglaCodes(v.sku,r.nome).map(x=>x.c).join("+");
-  let h=`<tr class="grouprow meliblock"><td colspan="10"><div class="ghead">
+  const faixaPor=faixa;
+  let h=`<tr class="grouprow meliblock"><td colspan="7"><div class="ghead">
     <button class="blktoggle" data-toggleblk="${r.sku}" title="Mostrar/ocultar varia\u00e7\u00f5es">${open?"\u25be":"\u25b8"}</button>
-    <div class="gtitle"><span class="gcode">${dispSku(r)}</span> <b>${nome}</b> <span class="gmeta">${vars.length} varia\u00e7\u00f5es \u00b7 ${faixa}</span></div>
-    <div class="bulkset"><span class="bulklab">pre\u00e7o de todas:</span>
-      <span class="pricefield sm"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" data-bulk="de" data-bsku="${r.sku}" value="${de}" placeholder="De"></span>
-      <span class="pricefield sm"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" data-bulk="por" data-bsku="${r.sku}" value="${por}" placeholder="Por"></span>
-      <button class="iact bulkbtn" data-bulkapply="${r.sku}">aplicar a todas</button></div>
+    <div class="gtitle"><span class="gcode">${dispSku(r)}</span> <b>${nome}</b> <span class="gmeta">${vars.length} varia\u00e7\u00f5es \u00b7 ${faixaPor}</span></div>
     <div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div>
   </div></td></tr>`;
   const legend=vars.map(v=>{const cc=codeOf(v);return `<span class="legchip"><span class="legsku">${v.sku}</span>${cc?` <span class="legcode">${cc}</span>`:'<span class="legcode" style="color:var(--faint)">\u2014</span>'}</span>`;}).join("");
-  h+=`<tr class="legendrow" data-blk="${r.sku}"${open?' style="display:none"':""}><td colspan="10"><div class="legwrap"><span class="leglab">SKUs deste kit:</span> ${legend}</div></td></tr>`;
+  h+=`<tr class="legendrow" data-blk="${r.sku}"${open?"":' style="display:none"'}><td colspan="7"><div class="legwrap"><span class="leglab">SKUs deste kit:</span> ${legend}</div></td></tr>`;
   h+=vars.map((v,i)=>{
     const fin=varFin(r,v),cls=fin.marg>=meta?"ok":fin.marg>=0?"mid":"no";
     const cc=codeOf(v);
     const codeHtml=cc?`<span class="ch-code">${cc}</span>`:'<span class="ch-code" style="color:var(--faint)">\u2014 (definir)</span>';
     const key=r.sku+"||"+v.sku;
-    const vde=(+v.priceDe>0)?(+v.priceDe).toFixed(2):"";
-    const vpor=(+v.pricePor||0)?(+v.pricePor).toFixed(2):"";
     return `<tr class="childrow varrow" data-blk="${r.sku}"${open?"":' style="display:none"'}>
       <td class="childcell"><span class="ch-arrow">\u21b3</span> <span class="ch-sku">${v.sku}</span> <span class="ch-codewrap" data-vwrap="${key}">${codeHtml}</span> <button class="ch-edit" data-editvar="${key}" title="Editar c\u00f3digo desta varia\u00e7\u00e3o">\u270e</button></td>
       <td></td>
-      <td class="r">${vpf(r.sku,i,"de",vde,"\u2014")}</td>
-      <td class="r">${vpf(r.sku,i,"por",vpor)}</td>
-      <td class="r">${vpf(r.sku,i,"rebate",(+v.rebate||0).toFixed(2))}</td>
-      <td class="r">${vpf(r.sku,i,"frete",(+v.frete||0).toFixed(2))}</td>
+      ${priceCellHtml(v.priceDe,v.pricePor,v.rebate,v.frete)}
       <td class="r sec">${brl(fin.custo)}</td>
       <td class="r"><b class="liqval${fin.liq<0?" neg":""}" data-vliq>${brl(fin.liq)}</b></td>
       <td class="r"><span class="marg ${cls}" data-vmarg>${pct(fin.marg)}</span></td>
@@ -1726,7 +1719,7 @@ function renderSaved(){
   const fb=$("#skuFilterBar");
   if(anySkuFilter()){fb.style.display="";fb.className="filterbar";fb.innerHTML=`<span><b>${list.length}</b> de ${all.length} SKUs (filtro ativo)</span><button class="clear" id="clearFilter">✕ limpar filtros</button>`;}
   else{fb.style.display="none";fb.innerHTML="";}
-  if(!list.length){$("#tbody").innerHTML=`<tr><td colspan="10" style="text-align:center;color:var(--faint);padding:24px">Nenhum SKU nesse filtro.</td></tr>`;return;}
+  if(!list.length){$("#tbody").innerHTML=`<tr><td colspan="7" style="text-align:center;color:var(--faint);padding:24px">Nenhum SKU nesse filtro.</td></tr>`;return;}
   const meliList=list.filter(r=>platOf(r)!=="Shopee");
   const shopList=list.filter(r=>platOf(r)==="Shopee");
   const groups=new Map();
@@ -1786,7 +1779,7 @@ function toggleBlock(sku){
   const open=openBlocks.has(sku);if(open)openBlocks.delete(sku);else openBlocks.add(sku);
   const now=!open;
   document.querySelectorAll('.varrow[data-blk="'+sku+'"]').forEach(el=>{el.style.display=now?"":"none";});
-  const leg=document.querySelector('.legendrow[data-blk="'+sku+'"]');if(leg)leg.style.display=now?"none":"";
+  const leg=document.querySelector('.legendrow[data-blk="'+sku+'"]');if(leg)leg.style.display=now?"":"none";
   const btn=document.querySelector('[data-toggleblk="'+sku+'"]');if(btn)btn.textContent=now?"\u25be":"\u25b8";
 }
 async function applyBulk(sku){
