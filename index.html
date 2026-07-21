@@ -490,6 +490,7 @@
   .meli-child .ch-input{font-family:var(--mono);font-size:12px;padding:3px 7px;border:1px solid var(--forest);border-radius:6px;background:var(--paper);min-width:220px;text-transform:uppercase}
   .bkrow td{padding:0 10px 15px!important}
   .bkbar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--line2);max-width:680px}
+  .iact.bkt{color:var(--muted);font-weight:600}.iact.bkt.open{color:var(--forest)}
   .bkseg{height:100%}
   .bkseg.com{background:#C99BA3}.bkseg.fre{background:#E4C08A}.bkseg.out{background:#9AA79E}.bkseg.liq{background:var(--forest)}
   .bkleg{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:7px;font-size:11.5px;color:var(--muted)}
@@ -529,7 +530,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 90</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 91</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1652,8 +1653,8 @@ function skuRowHtml(r,meta,child,hideCodes){
     <td class="r">${pf("frete",(+r.freight||0).toFixed(2))}</td>
     <td class="r sec">${brl(r.custoItens)}</td>
     <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
-    <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
-    <tr class="bkrow"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;
+    <td><div class="tacts"><button class="iact bkt" data-bkt="${r.sku}" title="Ver para onde vai cada real">custos ▾</button><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>
+    <tr class="bkrow" data-bkrow="${r.sku}" style="display:none"><td colspan="10" data-bk="${r.sku}">${bkInner(r)}</td></tr>`;
 }
 function vpf(sku,i,which,val,ph){return `<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-vedit="${sku}" data-vidx="${i}" data-vf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;}
 function getVars(r){
@@ -3671,7 +3672,7 @@ $("#dupClose").onclick=closeDupModal;
 $("#dupModal").addEventListener("click",e=>{if(e.target.id==="dupModal")closeDupModal();});
 $("#dupList").addEventListener("click",e=>{const b=e.target.closest("[data-open-dup]");if(b){closeDupModal();loadSkuIntoCalc(b.dataset.openDup);}});
 $("#clearBtn").onclick=()=>{kit=[];autoName="";loadedSku="";selAcct="";buildAcctSelect();$("#skuDup").style.display="none";$("#sku").value="";$("#kitname").value="";$("#priceFinal").value="";$("#priceDe").value="";$("#pricePor").value="";$("#priceBase").value="";$("#desc").value=0;$("#rebate").value=0;showChannelFees(true);renderKit();};
-$("#tbody").onclick=e=>{const t=e.target;const tg=t.closest&&t.closest("[data-toggleblk]");if(tg){toggleBlock(tg.dataset.toggleblk);return;}const ba=t.closest&&t.closest("[data-bulkapply]");if(ba){applyBulk(ba.dataset.bulkapply);return;}const ev=t.closest&&t.closest("[data-editvar]");if(ev){editVarCode(ev.dataset.editvar);return;}if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
+$("#tbody").onclick=e=>{const t=e.target;const bk=t.closest&&t.closest("[data-bkt]");if(bk){const sku=bk.dataset.bkt;const row=document.querySelector(`[data-bkrow="${CSS.escape(sku)}"]`);if(row){const open=row.style.display!=="none";row.style.display=open?"none":"";bk.classList.toggle("open",!open);bk.textContent=open?"custos ▾":"custos ▴";}return;}const tg=t.closest&&t.closest("[data-toggleblk]");if(tg){toggleBlock(tg.dataset.toggleblk);return;}const ba=t.closest&&t.closest("[data-bulkapply]");if(ba){applyBulk(ba.dataset.bulkapply);return;}const ev=t.closest&&t.closest("[data-editvar]");if(ev){editVarCode(ev.dataset.editvar);return;}if(t.dataset.load)loadSkuIntoCalc(t.dataset.load);else if(t.dataset.del){if(confirm(`Excluir o SKU ${t.dataset.del}?`))deleteSku(t.dataset.del);}};
 $("#tbody").addEventListener("keydown",e=>{if(e.key==="Enter"){const inp=e.target.closest&&e.target.closest("[data-savevar]");if(inp){e.preventDefault();saveVarCode(inp);}}});
 $("#tbody").addEventListener("blur",e=>{const inp=e.target.closest&&e.target.closest("[data-savevar]");if(inp)saveVarCode(inp);},true);
 $("#tbody").addEventListener("input",onSkuInline);
