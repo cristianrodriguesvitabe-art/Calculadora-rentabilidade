@@ -481,17 +481,8 @@
   .clickrow:hover{background:var(--wash,#f2f5f3)}
   .clickrow .goarr{color:var(--forest);font-weight:600;opacity:.5}
   .clickrow:hover .goarr{opacity:1}
-  .ce-line{margin-top:6px}
-  .ce-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;max-width:300px}
-  .ce-bar span{display:block;height:100%}
-  .ce-items{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:4px;font-size:10.5px;color:var(--muted);line-height:1.45}
-  .ce-it{white-space:nowrap}
-  .ce-it i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:3px;vertical-align:middle}
-  .ce-it b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
-  .ce-tot{white-space:nowrap;font-weight:600;color:var(--ink);border-left:1px solid var(--line);padding-left:8px;font-variant-numeric:tabular-nums}
-  tr.cerow td{padding:0 12px 9px 12px;border-top:0}
-  tr.cerow .ce-line{margin-top:0;padding-left:2px;border-left:2px solid var(--line2)}
-  tr.cerow .ce-line{padding-left:10px}
+  .cadbtn{border:1px solid var(--line2);background:#fff;color:var(--forest);border-radius:7px;padding:2px 9px;font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+  .cadbtn:hover{background:var(--forest);color:#fff;border-color:var(--forest)}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -563,7 +554,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 97</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 98</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1332,6 +1323,7 @@ async function saveSku(){
   const rec={sku,nome:$("#kitname").value.trim(),canal:r.ch.n,origem:selAcct||"",mlCatName:(r.ch.categories&&r.ch.categories[selCat]?r.ch.categories[selCat].n:null),itens:kit.map(it=>({n:it.n,c:it.c,q:it.q})),
     priceMode,priceBase:r.priceBase,desc:r.desc,priceFinal:r.L,priceDe:r.priceDe,pricePor:r.pricePor,descPct:r.descPct,rebate:r.rebate,rebatePct:r.rebatePct,freight:r.freight,
     price:r.L,custoItens:r.N,liquido:r.Y,lucratividade:r.Z,ts:Date.now(),atualizadoEm:Date.now(),atualizadoVia:"manual"};
+  if(/shopee/i.test(r.ch.n||"")){rec.plataforma="Shopee";rec.skusShopee=Array.from(new Set([].concat(rec.skusShopee||[],[sku]).filter(Boolean)));}
   saved[sku]=rec;loadedSku=sku;$("#skuDup").style.display="none";renderSaved();
   try{await DB.upsertSku(rec);toast(`SKU ${sku} salvo`+(SUPA_ON?" na nuvem":""));if(SUPA_ON)setSync("cloud");}
   catch(e){setSync("err");toast("Salvo localmente, mas falhou na nuvem");}
@@ -1655,16 +1647,6 @@ function priceCellHtml(de,por,rebate,frete){
   let meta="";
   if(rb>0||fr>0){meta=`<span class="pc-meta">${rb>0?`reb ${brl(rb)}`:""}${(rb>0&&fr>0)?" \u00b7 ":""}${fr>0?`frete ${brl(fr)}`:""}</span>`;}
   return `<td class="r pricecell">${main}${deHtml}${meta}</td>`;
-}
-function custosEmbutidosLine(r){
-  const items=(r.itens||[]).filter(it=>it&&(+it.q>0)&&(+it.c>0));
-  if(!items.length)return "";
-  const tot=items.reduce((s,it)=>s+(+it.c||0)*(+it.q||0),0);
-  if(tot<=0)return "";
-  const cols=["#234B3E","#A6394F","#C67B30","#3E6B8A","#5C8A72","#8A6BA6","#B08968","#7A8A5C"];
-  const bar=items.map((it,i)=>{const v=(+it.c||0)*(+it.q||0),w=Math.max(1.5,v/tot*100);return `<span style="width:${w}%;background:${cols[i%cols.length]}" title="${(it.n||"").replace(/"/g,"&quot;")}: ${brl(v)}"></span>`;}).join("");
-  const chips=items.map((it,i)=>{const v=(+it.c||0)*(+it.q||0),nm=(it.n||"").length>20?(it.n.slice(0,20)+"\u2026"):(it.n||"");return `<span class="ce-it"><i style="background:${cols[i%cols.length]}"></i>${(+it.q||1)}\u00d7 ${nm} <b>${brl(v)}</b></span>`;}).join("");
-  return `<div class="ce-line"><div class="ce-bar">${bar}</div><div class="ce-items">${chips}<span class="ce-tot">custo ${brl(tot)}</span></div></div>`;
 }
 function skuRowHtml(r,meta,child,hideCodes){
   const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
@@ -3516,14 +3498,14 @@ function renderShopee(){
   const sk=shpSort.key,dir=shpSort.dir,val=g=>{const v=g[sk];return v==null?-Infinity:v;};
   const prods=[...A.prods].sort((a,b)=>dir<0?val(b)-val(a):val(a)-val(b));
   const sortsh=(key,label,r)=>{const on=shpSort.key===key,arr=on?(shpSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${r?"r ":""}sortsh${on?" on":""}" data-shsort="${key}">${label}${arr}</th>`;};
-  const sidxCE=shopeeSkuIndex();
-  const prows=prods.map(g=>{const recCE=g.matched?(sidxCE[shpNorm(g.sku)]||sidxCE[shpNorm(g.produto)]):null;const ceLine=(recCE&&recCE.itens)?custosEmbutidosLine(recCE):"";
-    return `<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>${ceLine?`<tr class="cerow"><td colspan="7">${ceLine}</td></tr>`:""}`;}).join("");
+  const prows=prods.map(g=>{
+    return `<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:`<button class="cadbtn" data-cadastrar-shp="${(g.sku||"").replace(/"/g,"&quot;")}" data-produto="${(g.produto||"").replace(/"/g,"&quot;")}">cadastrar \u2192</button>`}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`;}).join("");
   const main=`<details class="detwrap" open><summary><h4 style="display:inline">Por produto (${A.prods.length})</h4> <span class="sec">clique nos t\u00edtulos pra ordenar</span></summary><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></details>`;
   body.innerHTML=hist+heroHtml+kpis+custosHtml+ded+boxes+dailyCard+main;
   body.querySelectorAll("[data-shmonth]").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.shdel!=null)return;SALES.shp.view=c.dataset.shmonth;renderShopee();});
   body.querySelectorAll("[data-shdel]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.shdel,m=SALES.shp.months[k];if(!confirm("Remover o fechamento Shopee de "+((m&&m.monthLabel)||k)+"?"))return;delete SALES.shp.months[k];if(SALES.shp.view===k)SALES.shp.view="";await persistSalesMonths();renderShopee();toast("Removido");});
   body.querySelectorAll("[data-shsort]").forEach(th=>th.onclick=()=>{const k=th.dataset.shsort;if(shpSort.key===k)shpSort.dir*=-1;else{shpSort.key=k;shpSort.dir=-1;}renderShopee();});
+  body.querySelectorAll("[data-cadastrar-shp]").forEach(b=>b.onclick=()=>newKitFromShopee(b.dataset.cadastrarShp,b.dataset.produto||""));
   wireCustos(body,mrec,K.lucro,K.receita);
 }
 function renderCombined(){
@@ -3608,16 +3590,14 @@ function renderSales(){
   const sortableTh=(key,label,ralign)=>{const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
   const smk=salesSort.key,sdir=salesSort.dir,sval=g=>{const v=g[smk];return v==null?-Infinity:v;};
   const mlbsView=[...A.mlbs].sort((a,b)=>sdir<0?sval(b)-sval(a):sval(a)-sval(b));
-  const nCeCols=adCostByMlb?11:9;
   const mainRows=mlbsView.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
-    const rec=saved[g.mlb];const ceLine=(g.matched&&rec)?custosEmbutidosLine(rec):"";
     return `<tr${g.matched&&posA<0?' class="rowneg"':""}>
     <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
     <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
     <td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td>
-    <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td>
+    <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:`<button class="cadbtn" data-cadastrar="${(g.mlb||"").replace(/"/g,"&quot;")}" data-titulo="${(g.titulo||"").replace(/"/g,"&quot;")}">cadastrar \u2192</button>`}</td>
     ${adCostByMlb?`<td class="r sec">${ac>0?brl(ac):"\u2014"}</td><td class="r">${g.matched?`<b class="${posA<0?"neg":""}">${brl(posA)}</b>`:'<span class="sec">\u2014</span>'}</td>`:""}
-    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>${ceLine?`<tr class="cerow"><td colspan="${nCeCols}">${ceLine}</td></tr>`:""}`;}).join("");
+    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`;}).join("");
   const mainTitle=isHist?`Por an\u00fancio (${A.mlbs.length})`:`Por an\u00fancio (${A.mlbs.length}) \u2014 clique nos t\u00edtulos pra ordenar`;
   const adsCols=adCostByMlb?`<th class="r">Ads (est.)</th><th class="r">Lucro p\u00f3s-Ads</th>`:"";
   const main=`<div class="scard"><h4>${mainTitle}</h4>${adCostByMlb?'<div class="sec" style="margin:-4px 0 10px">Ads por an\u00fancio \u00e9 <b>estimado</b>: o investimento de cada campanha foi rateado entre os an\u00fancios dela pela receita atribu\u00edda.</div>':""}<div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${adsCols}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
@@ -3686,15 +3666,17 @@ async function rematchMonth(key){
   return changed;
 }
 // abre a Calculadora pronta pra cadastrar o kit de um anúncio ainda sem custo
-function newKitFromMlb(mlb,titulo){
+function newKitFromMlb(code,titulo,shopee){
   loadedSku="";const dup=$("#skuDup");if(dup)dup.style.display="none";
-  $("#sku").value=mlb||"";$("#kitname").value=titulo||"";autoName="__custom__";
-  $("#channel").value=0;selCat=0;selAcct="";buildAcctSelect();showChannelFees(false);
+  $("#sku").value=code||"";$("#kitname").value=titulo||"";autoName="__custom__";
+  let ci=0;if(shopee){const k=CHANNELS.findIndex(c=>/shopee/i.test(c.n||""));if(k>=0)ci=k;}
+  $("#channel").value=ci;selCat=0;selAcct="";buildAcctSelect();showChannelFees(false);
   kit=[];priceMode="depor";applyPriceMode();
   $("#priceDe").value="";$("#pricePor").value="";$("#rebate").value=0;$("#freight").value=curChannel().fre;
   switchView("calc");renderKit();
-  toast("Cadastrando "+(mlb||"novo kit")+" \u2014 adicione os itens e salve");
+  toast("Cadastrando "+(code||"novo kit")+(shopee?" (Shopee)":"")+" \u2014 adicione os itens e salve");
 }
+function newKitFromShopee(sku,produto){newKitFromMlb(sku,produto,true);}
 async function onSalesFiles(files){
   if(!files||!files.length)return;
   if(typeof XLSX==="undefined"){toast("A leitura de planilha n\u00e3o carregou (precisa de internet)");return;}
