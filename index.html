@@ -378,6 +378,11 @@
   .bxbig{font-size:22px;font-weight:800;color:var(--ink)}
   .semlist{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
   .semchip{font-size:11px;background:#fff;border:1px solid var(--line2);border-radius:20px;padding:2px 9px;font-family:var(--mono);color:var(--muted)}
+  button.semchip{cursor:pointer;transition:border-color .12s,color .12s}
+  button.semchip:hover{border-color:var(--forest);color:var(--ink)}
+  button.semchip .goarr{color:var(--forest);font-weight:700;opacity:.5;margin-left:2px}
+  button.semchip:hover .goarr{opacity:1}
+  .semtools{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 6px}
   .semchip.more{background:var(--paper);font-weight:700}
   .ssegs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:0}
   @media(max-width:900px){.ssegs{grid-template-columns:1fr}}
@@ -476,6 +481,14 @@
   .clickrow:hover{background:var(--wash,#f2f5f3)}
   .clickrow .goarr{color:var(--forest);font-weight:600;opacity:.5}
   .clickrow:hover .goarr{opacity:1}
+  .ce-line{margin-top:6px}
+  .ce-bar{display:flex;height:5px;border-radius:3px;overflow:hidden;gap:1px;max-width:300px}
+  .ce-bar span{display:block;height:100%}
+  .ce-items{display:flex;flex-wrap:wrap;gap:3px 10px;margin-top:4px;font-size:10.5px;color:var(--muted);line-height:1.45}
+  .ce-it{white-space:nowrap}
+  .ce-it i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:3px;vertical-align:middle}
+  .ce-it b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .ce-tot{white-space:nowrap;font-weight:600;color:var(--ink);border-left:1px solid var(--line);padding-left:8px;font-variant-numeric:tabular-nums}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -547,7 +560,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 94</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 95</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1640,6 +1653,16 @@ function priceCellHtml(de,por,rebate,frete){
   if(rb>0||fr>0){meta=`<span class="pc-meta">${rb>0?`reb ${brl(rb)}`:""}${(rb>0&&fr>0)?" \u00b7 ":""}${fr>0?`frete ${brl(fr)}`:""}</span>`;}
   return `<td class="r pricecell">${main}${deHtml}${meta}</td>`;
 }
+function custosEmbutidosLine(r){
+  const items=(r.itens||[]).filter(it=>it&&(+it.q>0)&&(+it.c>0));
+  if(!items.length)return "";
+  const tot=items.reduce((s,it)=>s+(+it.c||0)*(+it.q||0),0);
+  if(tot<=0)return "";
+  const cols=["#234B3E","#A6394F","#C67B30","#3E6B8A","#5C8A72","#8A6BA6","#B08968","#7A8A5C"];
+  const bar=items.map((it,i)=>{const v=(+it.c||0)*(+it.q||0),w=Math.max(1.5,v/tot*100);return `<span style="width:${w}%;background:${cols[i%cols.length]}" title="${(it.n||"").replace(/"/g,"&quot;")}: ${brl(v)}"></span>`;}).join("");
+  const chips=items.map((it,i)=>{const v=(+it.c||0)*(+it.q||0),nm=(it.n||"").length>20?(it.n.slice(0,20)+"\u2026"):(it.n||"");return `<span class="ce-it"><i style="background:${cols[i%cols.length]}"></i>${(+it.q||1)}\u00d7 ${nm} <b>${brl(v)}</b></span>`;}).join("");
+  return `<div class="ce-line"><div class="ce-bar">${bar}</div><div class="ce-items">${chips}<span class="ce-tot">custo ${brl(tot)}</span></div></div>`;
+}
 function skuRowHtml(r,meta,child,hideCodes){
   const pf=(which,val,ph)=>`<span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" min="0" inputmode="decimal" data-skuedit="${r.sku}" data-pf="${which}" value="${val}"${ph?` placeholder="${ph}"`:""}></span>`;
   const meli=(r.skusMeli&&r.skusMeli.length)?`<div class="sku-meli" title="${r.skusMeli.join(", ")}">${r.skusMeli.join(", ")}</div>`:"";
@@ -1653,7 +1676,7 @@ function skuRowHtml(r,meta,child,hideCodes){
   const nmTitle=(r.nome||"").replace(/"/g,"&quot;");
   const varLabel=(child&&r.nome&&r.nome.includes(" \u00b7 "))?r.nome.split(" \u00b7 ").slice(1).join(" \u00b7 "):"";
   const codeLine=child?`<div class="sku-code sub" title="${nmTitle}">${varLabel||dispSku(r)}</div>`:`<div class="sku-code" title="${nmTitle}">${dispSku(r)}</div>`;
-  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${updHtml(r)}</td>`;
+  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${child?"":custosEmbutidosLine(r)}${updHtml(r)}</td>`;
   if(r.composicaoPendente){
     return `<tr class="${child?"childrow":""}">${cellHead}
       <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composi\u00e7\u00e3o pendente</span>'}</td>
@@ -3557,7 +3580,7 @@ function renderSales(){
     ${kpi("Ticket m\u00e9dio",brl(K.ticket))}</div>`;
   const boxes=`<div class="sboxes">
     <div class="scard warn"><h4>Cancelados / devolvidos</h4><div class="bxbig">${K.nCancel.toLocaleString("pt-BR")} vendas</div><div class="sec">Frete de devolu\u00e7\u00e3o: <b class="neg">${(K.freteDevol||0)>0?"\u2212"+brl(K.freteDevol):brl(0)}</b> \u00b7 ${(K.nDevolFrete||0).toLocaleString("pt-BR")} linhas com total negativo</div></div>
-    <div class="scard ${K.nUnmatched?"warn":""}"><h4>Sem custo cadastrado</h4><div class="bxbig">${K.nUnmatched.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita ${brl(K.recUnmatched)} \u00b7 ${A.semCusto.length} an\u00fancios sem kit cadastrado</div>${A.semCusto.length?'<div class="semlist">'+A.semCusto.slice(0,12).map(g=>`<span class="semchip">${g.mlb}${g.titulo?" \u00b7 "+g.titulo.slice(0,32):""}</span>`).join("")+(A.semCusto.length>12?`<span class="semchip more">+${A.semCusto.length-12}</span>`:"")+'</div>':""}</div></div>`;
+    <div class="scard ${K.nUnmatched?"warn":""}"><h4>Sem custo cadastrado</h4><div class="bxbig">${K.nUnmatched.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita ${brl(K.recUnmatched)} \u00b7 ${A.semCusto.length} an\u00fancios sem kit cadastrado</div>${A.semCusto.length?`<div class="semtools"><button class="iact" data-rematch title="Depois de cadastrar os kits, recalcula o casamento">\u21bb Recalcular custos</button> <span class="sec">clique num an\u00fancio pra cadastrar</span></div><div class="semlist">`+A.semCusto.slice(0,12).map(g=>`<button class="semchip" data-cadastrar="${(g.mlb||"").replace(/"/g,"&quot;")}" data-titulo="${(g.titulo||"").replace(/"/g,"&quot;")}">${g.mlb}${g.titulo?" \u00b7 "+g.titulo.slice(0,32):""} <span class="goarr">\u2192</span></button>`).join("")+(A.semCusto.length>12?`<span class="semchip more">+${A.semCusto.length-12}</span>`:"")+"</div>":""}</div></div>`;
   // deduções do ML
   const dedAjuste=K.receita-(K.bruto-K.tarifaTot-K.freteTot);
   const ded=`<div class="scard"><h4>Para onde foi o faturamento (bruto \u2192 recebido)</h4>
@@ -3618,9 +3641,52 @@ function renderSales(){
     body.querySelectorAll("[data-costdel]").forEach(b=>b.onclick=()=>{const ex=monthExtras(mrec);ex.custos.splice(+b.dataset.costdel,1);persistSalesMonths();renderSales();});
   }
   body.querySelectorAll(".sortth").forEach(th=>th.onclick=()=>{const k=th.dataset.sortk;if(salesSort.key===k)salesSort.dir*=-1;else{salesSort.key=k;salesSort.dir=-1;}renderSales();});
+  {const rmb=body.querySelector("[data-rematch]");if(rmb)rmb.onclick=async()=>{const key=SALES.currentMonth||SALES.view;rmb.disabled=true;rmb.textContent="Recalculando\u2026";await refreshSkus();const n=await rematchMonth(key);if(n<0){toast("Suba o relat\u00f3rio deste m\u00eas de novo pra recalcular \u2014 as linhas n\u00e3o ficam salvas na nuvem.");rmb.disabled=false;rmb.textContent="\u21bb Recalcular custos";return;}renderFechamento();toast(n?`${n} linhas casadas com o custo rec\u00e9m-cadastrado`:"Tudo j\u00e1 estava casado \u2014 nada mudou.");};}
+  body.querySelectorAll("[data-cadastrar]").forEach(b=>b.onclick=()=>newKitFromMlb(b.dataset.cadastrar,b.dataset.titulo||""));
   if(!isHist){
     body.querySelectorAll(".sfilter").forEach(s=>s.onchange=()=>{salesFilters[s.dataset.sf]=s.value;renderSales();});
   }
+}
+// recasa as linhas retidas com os SKUs cadastrados agora (custo congela no parse; aqui refazemos)
+function rematchRows(rows){
+  let changed=0;
+  rows.forEach(r=>{
+    const rec=r.mlb?saved[r.mlb]:null;
+    const matched=!!(rec&&!rec.composicaoPendente&&(+rec.custoItens>0));
+    const custoUnit=rec?(+rec.custoItens||0):0, cost=matched?custoUnit*(r.un||1):0;
+    if(matched!==r.matched)changed++;
+    r.matched=matched;r.custoUnit=custoUnit;r.cost=cost;
+    r.profit=matched?(r.total-cost):null;
+    r.margin=(matched&&r.total)?(r.total-cost)/r.total:null;
+    r.precoCad=rec?(+rec.pricePor||+rec.price||0):0;
+    if(rec&&rec.nome&&!r.titulo)r.titulo=rec.nome;
+  });
+  return changed;
+}
+async function rematchMonth(key){
+  const store=(SALES._rawRows||{})[key];
+  const m=SALES.months[key];
+  if(!store||!m)return -1; // linhas não estão em memória: precisa resubir o relatório
+  let changed=0;m.parts=m.parts||{};
+  Object.keys(store).forEach(acct=>{
+    const rows=store[acct];changed+=rematchRows(rows);
+    const A=buildMonthSummary(rows,(m.parts[acct]&&m.parts[acct].fileName)||m.fileName||"",key,m.monthLabel).A;
+    m.parts[acct]=Object.assign(m.parts[acct]||{},{A});
+  });
+  m.A=mergeAggs(Object.values(m.parts).map(x=>x.A));
+  SALES.months[key]=m;
+  await persistSalesMonths();
+  return changed;
+}
+// abre a Calculadora pronta pra cadastrar o kit de um anúncio ainda sem custo
+function newKitFromMlb(mlb,titulo){
+  loadedSku="";const dup=$("#skuDup");if(dup)dup.style.display="none";
+  $("#sku").value=mlb||"";$("#kitname").value=titulo||"";autoName="__custom__";
+  $("#channel").value=0;selCat=0;selAcct="";buildAcctSelect();showChannelFees(false);
+  kit=[];priceMode="depor";applyPriceMode();
+  $("#priceDe").value="";$("#pricePor").value="";$("#rebate").value=0;$("#freight").value=curChannel().fre;
+  switchView("calc");renderKit();
+  toast("Cadastrando "+(mlb||"novo kit")+" \u2014 adicione os itens e salve");
 }
 async function onSalesFiles(files){
   if(!files||!files.length)return;
@@ -3643,6 +3709,7 @@ async function onSalesFiles(files){
         const partA=buildMonthSummary(rows,p.name,mk.key,mk.label).A;
         const m=SALES.months[mk.key]||{month:mk.key,monthLabel:mk.label,fileName:p.name,uploadedAt:Date.now()};
         m.parts=m.parts||{};m.parts[acct]={A:partA,fileName:p.name,uploadedAt:Date.now(),sheet};
+        (SALES._rawRows=SALES._rawRows||{});(SALES._rawRows[mk.key]=SALES._rawRows[mk.key]||{})[acct]=rows;
         m.A=mergeAggs(Object.values(m.parts).map(x=>x.A));
         m.monthLabel=m.monthLabel||mk.label;m.fileName=p.name;
         SALES.months[mk.key]=m;
