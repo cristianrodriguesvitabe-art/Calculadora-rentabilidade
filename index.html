@@ -426,6 +426,10 @@
   .chbtn.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
   .sgrid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:640px){.sgrid2{grid-template-columns:1fr}}
+  .ctcard{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--paper)}
+  .ct-name{font-family:var(--disp);font-weight:600;font-size:15px;color:var(--forest);margin-bottom:8px}
+  .ctcard .dedgrid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .ctcard .dedv{font-size:17px}
   .bignum{font-size:30px;font-weight:800;color:var(--ink)}
   .sortsh{cursor:pointer;user-select:none}.sortsh.on{color:var(--ink)}
   .mc-l{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-top:2px}
@@ -535,7 +539,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 92</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 93</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2699,7 +2703,7 @@ function parseSalesWB(wb){
       un,total,recProd:Number(r[c.recProd])||0,bruto:(Number(r[c.recProd])||0)+(Number(r[c.acr])||0)+(Number(r[c.recEnvio])||0),bonus:Number(r[c.bonus])||0,tarifa:Number(r[c.tarifa])||0,frete:Number(r[c.frete])||0,precoUnit:Number(r[c.precoUnit])||0,
       mlb,sku:String(r[c.sku]||"").trim(),variacao:String(r[c.variacao]||"").trim(),
       titulo:String(r[c.titulo]||(rec&&rec.nome)||"").trim(),tipo:(String(r[c.tipo]||"").trim()||"\u2014"),pub,
-      conta:rec?(rec.conta||"\u2014"):"\u2014",matched,custoUnit,cost,precoCad:rec?(+rec.pricePor||+rec.price||0):0,
+      conta:(()=>{const d=String(r[c.dep]||"").toLowerCase();return /extrema/.test(d)?"MG":/guarulho|guaru/.test(d)?"GRU":(rec?(rec.origem||rec.conta||"\u2014"):"\u2014");})(),matched,custoUnit,cost,precoCad:rec?(+rec.pricePor||+rec.price||0):0,
       profit:matched?(total-cost):null,margin:(matched&&total)?(total-cost)/total:null});
   }
   return {rows,sheet:sn};
@@ -2721,12 +2725,15 @@ function mergeAggs(list){
   const bruto=S("bruto"),tarifaTot=S("tarifaTot"),freteTot=S("freteTot"),receita=S("receita"),lucro=S("lucro"),nVend=S("nVend");
   const K={nVend,unid:S("unid"),receita,custo:S("custo"),lucro,margem:recMatched>0?lucro/recMatched:0,ticket:nVend?receita/nVend:0,
     nCancel:S("nCancel"),recCancel:S("recCancel"),nUnmatched:S("nUnmatched"),recUnmatched:S("recUnmatched"),
+    freteDevol:S("freteDevol"),nDevolFrete:S("nDevolFrete"),
     bruto,tarifaTot,freteTot,tarifaPct:bruto>0?tarifaTot/bruto:0,fretePct:bruto>0?freteTot/bruto:0,takeRate:bruto>0?receita/bruto:0};
+  const cbMap={};list.forEach(a=>(a.contaBreak||[]).forEach(g=>{let x=cbMap[g.conta];if(!x)x=cbMap[g.conta]={conta:g.conta,nVend:0,unid:0,receita:0,custo:0,lucro:0,recM:0,nCancel:0,freteDevol:0,nUnmatched:0,recUnmatched:0};x.nVend+=g.nVend||0;x.unid+=g.unid||0;x.receita+=g.receita||0;x.custo+=g.custo||0;x.lucro+=g.lucro||0;x.recM+=g.recM||0;x.nCancel+=g.nCancel||0;x.freteDevol+=g.freteDevol||0;x.nUnmatched+=g.nUnmatched||0;x.recUnmatched+=g.recUnmatched||0;}));
+  const contaBreakM=Object.values(cbMap).map(x=>({...x,margem:x.recM>0?x.lucro/x.recM:0}));
   const mergeSeg=key=>{const m={};list.forEach(a=>(a[key]||[]).forEach(g=>{let x=m[g.k];if(!x)x=m[g.k]={k:g.k,n:0,receita:0,custo:0,lucro:0,matched:true};x.n+=g.n;x.receita+=g.receita;x.custo+=g.custo||0;x.lucro+=g.lucro||0;if(g.matched===false)x.matched=false;}));return Object.values(m).map(g=>({...g,margem:g.matched&&g.receita?g.lucro/g.receita:null})).sort((a,b)=>b.receita-a.receita);};
   const mlbsSorted=[...mlbs].sort((a,b)=>b.receita-a.receita);
   const dm={};list.forEach(a=>(a.daily||[]).forEach(d=>{let g=dm[d.t];if(!g)g=dm[d.t]={t:d.t,day:d.day,label:d.label,n:0,receita:0,lucro:0};g.n+=d.n;g.receita+=d.receita;g.lucro+=d.lucro;}));
   const daily=Object.values(dm).sort((a,b)=>a.t-b.t);
-  return {K,mlbs:mlbsSorted,porTipo:mergeSeg("porTipo"),porPub:mergeSeg("porPub"),porConta:mergeSeg("porConta"),
+  return {K,mlbs:mlbsSorted,contaBreak:contaBreakM,porTipo:mergeSeg("porTipo"),porPub:mergeSeg("porPub"),porConta:mergeSeg("porConta"),
     semCusto:[].concat(...list.map(a=>a.semCusto||[])).sort((a,b)=>b.receita-a.receita),
     prejuizo:mlbsSorted.filter(g=>g.matched&&g.lucro<0).sort((a,b)=>a.lucro-b.lucro),
     precoGap:mlbsSorted.filter(g=>g.precoCad>0&&g.precoMedio>0&&g.gapPct<-0.005).sort((a,b)=>a.gapPct-b.gapPct),
@@ -2747,10 +2754,20 @@ function salesAgg(){
     margem:recMatched>0?lucro/recMatched:0,ticket:valid.length?receita/valid.length:0,
     nCancel:cancel.length,recCancel:S(cancel,x=>x.total||0),
     nUnmatched:unmatched.length,recUnmatched:S(unmatched,x=>x.total),
+    freteDevol:S(base.filter(x=>x.total<0),x=>Math.abs(x.total||0)),nDevolFrete:base.filter(x=>x.total<0).length,
     bruto,tarifaTot,freteTot,tarifaPct:bruto>0?tarifaTot/bruto:0,fretePct:bruto>0?freteTot/bruto:0,
     takeRate:bruto>0?receita/bruto:0};
   // cancelamentos por MLB
   const cbm={};cancel.forEach(r=>{cbm[r.mlb]=(cbm[r.mlb]||0)+1;});
+  // separação por conta (MG × GRU) a partir do Depósito
+  const contaBreak=["MG","GRU"].map(cn=>{
+    const cv=valid.filter(r=>r.conta===cn), cm=cv.filter(r=>r.matched);
+    const recM=S(cm,x=>x.total), luc=S(cm,x=>x.profit);
+    return {conta:cn,nVend:cv.length,unid:S(cv,x=>x.un),receita:S(cv,x=>x.total),custo:S(cm,x=>x.cost),lucro:luc,recM,
+      margem:recM>0?luc/recM:0,nCancel:cancel.filter(r=>r.conta===cn).length,
+      freteDevol:S(base.filter(r=>r.conta===cn&&r.total<0),x=>Math.abs(x.total||0)),
+      nUnmatched:cv.filter(r=>!r.matched).length,recUnmatched:S(cv.filter(r=>!r.matched),x=>x.total)};
+  }).filter(x=>x.nVend>0||x.nCancel>0);
   // por MLB
   const bm={};
   valid.forEach(r=>{let g=bm[r.mlb];if(!g)g=bm[r.mlb]={mlb:r.mlb,titulo:r.titulo,conta:r.conta,tipo:r.tipo,n:0,un:0,receita:0,custo:0,lucro:0,matched:true,sumPU:0,sumUn:0,precoCad:r.precoCad||0};
@@ -2775,7 +2792,7 @@ function salesAgg(){
   // evolução diária
   const dm={};valid.forEach(r=>{if(!r.date)return;const t=r.date.getTime();let g=dm[t];if(!g)g=dm[t]={t,day:r.date.getDate(),label:r.date.toLocaleDateString("pt-BR"),n:0,receita:0,lucro:0};g.n++;g.receita+=r.total;if(r.matched)g.lucro+=r.profit;});
   const daily=Object.values(dm).sort((a,b)=>a.t-b.t);
-  return {K,mlbs:mlbsSorted,porTipo:seg("tipo"),porPub:seg("pub"),porConta:seg("conta"),semCusto,prejuizo,precoGap,devol,daily,
+  return {K,mlbs:mlbsSorted,porTipo:seg("tipo"),porPub:seg("pub"),porConta:seg("conta"),contaBreak,semCusto,prejuizo,precoGap,devol,daily,
     periodo:(()=>{const ds=valid.map(r=>r.date).filter(Boolean).sort((a,b)=>a-b);const fmt=d=>d?d.toLocaleDateString("pt-BR"):"?";return ds.length?fmt(ds[0])+" \u2013 "+fmt(ds[ds.length-1]):"\u2014";})()};
 }
 function shpNum(v){return parseFloat(String(v==null?"":v).replace(/[^0-9.\-]/g,""))||0;}
@@ -3266,18 +3283,20 @@ function monthExtras(m){if(!m.extras||typeof m.extras!=="object")m.extras={adMan
 function effAdSpend(m){const ex=monthExtras(m);if(ex.adManual!=null&&ex.adManual!=="")return +ex.adManual||0;return m.ads?m.ads.investTot:0;}
 let salesSaveTimer=null;
 function persistSalesDebounced(){clearTimeout(salesSaveTimer);salesSaveTimer=setTimeout(()=>{persistSalesMonths();},700);}
-function custosCardHtml(mkey,mrec,lucroVendas,receita,adsData){
+function custosCardHtml(mkey,mrec,lucroVendas,receita,adsData,freteDevol){
   const ex=monthExtras(mrec);
+  const fd=+freteDevol||0;
   const adShown=(ex.adManual!=null&&ex.adManual!=="")?(+ex.adManual):(mrec.ads?(+mrec.ads.investTot).toFixed(2):"");
   const adEff=effAdSpend(mrec);
   const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);
-  const resultado=lucroVendas-adEff-outros, margem=receita>0?resultado/receita:0;
+  const resultado=lucroVendas-adEff-outros-fd, margem=receita>0?resultado/receita:0;
   const acosNote=adsData?`<span class="sec">relat\u00f3rio: ${brl(adsData.investTot)} \u00b7 ACOS ${pct(adsData.receitaAds>0?adsData.investTot/adsData.receitaAds:0)} \u00b7 ROAS ${(adsData.investTot>0?adsData.receitaAds/adsData.investTot:0).toFixed(2)}x`:`<span class="sec">digite o valor (do Faturamento) ou suba o relat\u00f3rio de Ads</span>`;
   const costRows=ex.custos.map((c,i)=>`<div class="costrow"><input class="costname" data-costidx="${i}" data-cf="nome" value="${(c.nome||"").replace(/"/g,"&quot;")}" placeholder="Nome do custo"><span class="pricefield"><span class="pfx">R$</span><input class="skuprice" type="number" step="0.01" data-costidx="${i}" data-cf="valor" value="${c.valor!=null&&c.valor!==""?c.valor:""}" placeholder="0,00"></span><button class="iact del" data-costdel="${i}" title="Remover">\u00d7</button></div>`).join("");
   return `<div class="scard custoscard" data-mkey="${mkey}"><h4>Custos do m\u00eas &amp; resultado final</h4>
     <div class="sec" style="margin:-4px 0 12px">Some aqui o que <b>n\u00e3o</b> est\u00e1 nas vendas: investimento em Ads e custos operacionais. Comiss\u00e3o e frete do ML j\u00e1 est\u00e3o descontados nas vendas \u2014 n\u00e3o repita.</div>
     <div class="crow"><div class="clbl">Lucro das vendas <span class="sec">(receita l\u00edq. \u2212 custo dos produtos)</span></div><div class="cval">${brl(lucroVendas)}</div></div>
     <div class="crow"><div class="clbl">\u2212 Investimento em Ads</div><div class="cinput"><span class="pricefield"><span class="pfx">R$</span><input class="skuprice adinput" type="number" step="0.01" data-extra="ad" value="${adShown}" placeholder="0,00"></span> ${acosNote}</div></div>
+    ${fd>0?`<div class="crow"><div class="clbl">\u2212 Frete de devolu\u00e7\u00e3o <span class="sec">(linhas com total negativo, autom\u00e1tico)</span></div><div class="cval neg">\u2212${brl(fd)}</div></div>`:""}
     ${ex.custos.length?`<div class="costlist">${costRows}</div>`:""}
     <div class="costadd"><button class="iact" data-costadd="Despesas fixas">+ Despesas fixas</button><button class="iact" data-costadd="Embalagem">+ Embalagem</button><button class="iact" data-costadd="Pr\u00f3-labore">+ Pr\u00f3-labore</button><button class="iact" data-costadd="Marketing externo">+ Marketing</button><button class="iact" data-costadd="">+ Outro</button></div>
     <div class="crow total"><div class="clbl">Resultado final do m\u00eas</div><div class="cval ${resultado<0?"neg":"pos"}" data-resfinal>${brl(resultado)} <span class="marg ${margem>=(assumptions.meta||10)/100?"ok":margem>=0?"mid":"no"}">${pct(margem)}</span></div></div>
@@ -3521,7 +3540,7 @@ function renderSales(){
     ${kpi("Margem m\u00e9dia",pct(K.margem),K.margem>=0?"pos":"neg")}
     ${kpi("Ticket m\u00e9dio",brl(K.ticket))}</div>`;
   const boxes=`<div class="sboxes">
-    <div class="scard warn"><h4>Cancelados / devolvidos</h4><div class="bxbig">${K.nCancel.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita revertida (n\u00e3o conta no lucro): ${brl(K.recCancel)}</div></div>
+    <div class="scard warn"><h4>Cancelados / devolvidos</h4><div class="bxbig">${K.nCancel.toLocaleString("pt-BR")} vendas</div><div class="sec">Frete de devolu\u00e7\u00e3o: <b class="neg">${(K.freteDevol||0)>0?"\u2212"+brl(K.freteDevol):brl(0)}</b> \u00b7 ${(K.nDevolFrete||0).toLocaleString("pt-BR")} linhas com total negativo</div></div>
     <div class="scard ${K.nUnmatched?"warn":""}"><h4>Sem custo cadastrado</h4><div class="bxbig">${K.nUnmatched.toLocaleString("pt-BR")} vendas</div><div class="sec">Receita ${brl(K.recUnmatched)} \u00b7 ${A.semCusto.length} an\u00fancios sem kit cadastrado</div>${A.semCusto.length?'<div class="semlist">'+A.semCusto.slice(0,12).map(g=>`<span class="semchip">${g.mlb}${g.titulo?" \u00b7 "+g.titulo.slice(0,32):""}</span>`).join("")+(A.semCusto.length>12?`<span class="semchip more">+${A.semCusto.length-12}</span>`:"")+'</div>':""}</div></div>`;
   // deduções do ML
   const dedAjuste=K.receita-(K.bruto-K.tarifaTot-K.freteTot);
@@ -3535,7 +3554,8 @@ function renderSales(){
     </div></div>`;
   const chart=`<div class="scard"><h4>Evolu\u00e7\u00e3o di\u00e1ria (lucro por dia)</h4>${dailyChart(A.daily)}<div class="sec" style="margin-top:6px">Passe o mouse nas barras pra ver receita, lucro e nº de vendas do dia.</div></div>`;
   const segs=`<div class="ssegs">${segTableHtml("Cl\u00e1ssico \u00d7 Premium",A.porTipo)}${segTableHtml("Com \u00d7 sem publicidade",A.porPub)}${segTableHtml("Por conta",A.porConta)}</div>`;
-  const prej=A.prejuizo.length?`<div class="scard danger"><h4>\u26a0 An\u00fancios no preju\u00edzo (${A.prejuizo.length})</h4><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Vendas</th><th class="r">Receita</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${A.prejuizo.map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,40):""}</td><td class="r">${g.n}</td><td class="r">${brl(g.receita)}</td><td class="r"><b class="neg">${brl(g.lucro)}</b></td><td class="r"><span class="marg no">${pct(g.margem)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
+  const prejTot=A.prejuizo.reduce((s,g)=>s+(g.lucro||0),0);
+  const prej=A.prejuizo.length?`<div class="scard danger"><h4>Kits mais detratores (${A.prejuizo.length})</h4><div class="sec" style="margin:-4px 0 10px">Anúncios que fecharam no vermelho \u2014 juntos derrubaram <b class="neg">${brl(prejTot)}</b> do resultado do mês. Ordenados do que mais tira.</div><table class="stab"><thead><tr><th>Anúncio</th><th class="r">Conta</th><th class="r">Vendas</th><th class="r">Receita</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${A.prejuizo.map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,40):""}</td><td class="r sec">${g.conta||"\u2014"}</td><td class="r">${g.n}</td><td class="r">${brl(g.receita)}</td><td class="r"><b class="neg">${brl(g.lucro)}</b></td><td class="r"><span class="marg no">${pct(g.margem)}</span></td></tr>`).join("")}</tbody></table></div>`:"";
   // preço praticado x cadastrado
   const preco=A.precoGap.length?`<div class="scard warn"><h4>Vendendo abaixo do pre\u00e7o cadastrado (${A.precoGap.length})</h4><div class="sec" style="margin:-4px 0 10px">Pre\u00e7o m\u00e9dio praticado na venda vs. o "Por" que voc\u00ea cadastrou \u2014 onde o desconto est\u00e1 comendo margem.</div><table class="stab"><thead><tr><th>An\u00fancio</th><th class="r">Praticado</th><th class="r">Cadastrado</th><th class="r">Diferen\u00e7a</th></tr></thead><tbody>${A.precoGap.slice(0,20).map(g=>`<tr><td><span class="mono">${g.mlb}</span> ${g.titulo?g.titulo.slice(0,38):""}</td><td class="r">${brl(g.precoMedio)}</td><td class="r sec">${brl(g.precoCad)}</td><td class="r"><b class="neg">${brl(g.gap)}</b> <span class="sec">(${pct(g.gapPct)})</span></td></tr>`).join("")}</tbody></table></div>`:"";
   // devolução por anúncio
@@ -3558,15 +3578,23 @@ function renderSales(){
   const adsHtml=adsData?adsPanelHtml(adsData,K.lucro,adcObj):"";
   const mkeyEdit=isHist?SALES.view:SALES.currentMonth;
   const mrec=SALES.months[mkeyEdit];
-  const custosHtml=mrec?custosCardHtml(mkeyEdit,mrec,K.lucro,K.receita,adsData):"";
-  const detalhes=`<details class="detwrap"><summary><h4 style="display:inline">Detalhes t\u00e9cnicos</h4> <span class="sec">segmentos, pre\u00e7o praticado, devolu\u00e7\u00e3o</span></summary>${segs}${preco}${devol}</details>`;
+  const custosHtml=mrec?custosCardHtml(mkeyEdit,mrec,K.lucro,K.receita,adsData,K.freteDevol||0):"";
+  const devolSec=A.devol.length?`<details class="detwrap"><summary><h4 style="display:inline">Cancelamentos & devoluções por anúncio</h4> <span class="sec">quem mais devolve</span></summary>${devol}</details>`:"";
+  const detalhes=`<details class="detwrap"><summary><h4 style="display:inline">Detalhes t\u00e9cnicos</h4> <span class="sec">segmentos, pre\u00e7o praticado</span></summary>${segs}${preco}</details>`;
+  const cbData=(A.contaBreak&&A.contaBreak.length)?A.contaBreak:null;
+  const contaSplit=cbData?`<div class="scard"><h4>Contas — Mercado Livre (MG × GRU)</h4><div class="sgrid2">${cbData.map(g=>`<div class="ctcard"><div class="ct-name">${CONTA_LBL[g.conta]||g.conta}</div><div class="dedgrid">
+      <div><div class="sk-l">Receita l\u00edq.</div><div class="dedv">${brl(g.receita)}</div><div class="sec">${g.nVend.toLocaleString("pt-BR")} vendas</div></div>
+      <div><div class="sk-l">Lucro</div><div class="dedv ${g.lucro<0?"neg":""}">${brl(g.lucro)}</div><div class="sec">margem ${pct(g.margem)}</div></div>
+      <div><div class="sk-l">Cancel./devol.</div><div class="dedv">${g.nCancel.toLocaleString("pt-BR")}</div></div>
+      <div><div class="sk-l">Frete devolu\u00e7\u00e3o</div><div class="dedv ${g.freteDevol>0?"neg":""}">${g.freteDevol>0?"\u2212"+brl(g.freteDevol):brl(0)}</div></div>
+    </div></div>`).join("")}</div></div>`:null;
   const parts=meta&&meta.parts;
   const contaCard=(parts&&Object.keys(parts).length>1)?`<div class="scard"><h4>Por conta (Mercado Livre)</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Conta</th><th class="r">Vendas</th><th class="r">Receita líq.</th><th class="r">Custo</th><th class="r">Lucro</th><th class="r">Margem</th></tr></thead><tbody>${Object.keys(parts).sort().map(acct=>{const pk=parts[acct].A.K;return `<tr><td>${CONTA_LBL[acct]||acct}</td><td class="r">${pk.nVend.toLocaleString("pt-BR")}</td><td class="r">${brl(pk.receita)}</td><td class="r sec">${brl(pk.custo)}</td><td class="r"><b class="${pk.lucro<0?"neg":""}">${brl(pk.lucro)}</b></td><td class="r"><span class="marg ${pk.margem>=(assumptions.meta||10)/100?"ok":pk.margem>=0?"mid":"no"}">${pct(pk.margem)}</span></td></tr>`;}).join("")}<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${K.nVend.toLocaleString("pt-BR")}</b></td><td class="r"><b>${brl(K.receita)}</b></td><td class="r">${brl(K.custo)}</td><td class="r"><b>${brl(K.lucro)}</b></td><td class="r">${pct(K.margem)}</td></tr></tbody></table></div></div>`:"";
-  body.innerHTML=hist+filters+heroHtml+kpis+contaCard+custosHtml+ded+boxes+chart+prej+main+detalhes;
+  body.innerHTML=hist+filters+heroHtml+kpis+(contaSplit||contaCard)+custosHtml+ded+boxes+devolSec+chart+prej+main+detalhes;
   body.querySelectorAll(".mchip").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.delmonth!=null)return;const k=c.dataset.month;SALES.view=(k===SALES.currentMonth&&SALES.loaded)?"atual":k;renderSales();});
   body.querySelectorAll("[data-delmonth]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.delmonth;const m=SALES.months[k];if(!confirm("Remover o fechamento de "+((m&&m.monthLabel)||k)+" da nuvem?"))return;delete SALES.months[k];if(SALES.view===k)SALES.view=SALES.loaded?"atual":"";await persistSalesMonths();renderSales();toast("Fechamento removido");});
   if(mrec){
-    const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=K.lucro-effAdSpend(mrec)-outros;const mg=K.receita>0?res/K.receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
+    const recalc=()=>{const ex=monthExtras(mrec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);const res=K.lucro-effAdSpend(mrec)-outros-(K.freteDevol||0);const mg=K.receita>0?res/K.receita:0;const el=body.querySelector("[data-resfinal]");if(el){el.className="cval "+(res<0?"neg":"pos");el.innerHTML=brl(res)+` <span class="marg ${mg>=(assumptions.meta||10)/100?"ok":mg>=0?"mid":"no"}">${pct(mg)}</span>`;}};
     const adInp=body.querySelector('[data-extra="ad"]');
     if(adInp)adInp.oninput=()=>{const ex=monthExtras(mrec);ex.adManual=adInp.value===""?null:(+adInp.value||0);recalc();persistSalesDebounced();};
     body.querySelectorAll("[data-costidx]").forEach(inp=>inp.oninput=()=>{const ex=monthExtras(mrec);const i=+inp.dataset.costidx;if(!ex.custos[i])return;if(inp.dataset.cf==="valor")ex.custos[i].valor=inp.value===""?null:(+inp.value||0);else ex.custos[i].nome=inp.value;recalc();persistSalesDebounced();});
