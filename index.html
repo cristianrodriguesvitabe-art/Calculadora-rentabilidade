@@ -563,7 +563,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 96</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 97</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -3516,7 +3516,9 @@ function renderShopee(){
   const sk=shpSort.key,dir=shpSort.dir,val=g=>{const v=g[sk];return v==null?-Infinity:v;};
   const prods=[...A.prods].sort((a,b)=>dir<0?val(b)-val(a):val(a)-val(b));
   const sortsh=(key,label,r)=>{const on=shpSort.key===key,arr=on?(shpSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${r?"r ":""}sortsh${on?" on":""}" data-shsort="${key}">${label}${arr}</th>`;};
-  const prows=prods.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
+  const sidxCE=shopeeSkuIndex();
+  const prows=prods.map(g=>{const recCE=g.matched?(sidxCE[shpNorm(g.sku)]||sidxCE[shpNorm(g.produto)]):null;const ceLine=(recCE&&recCE.itens)?custosEmbutidosLine(recCE):"";
+    return `<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,46)}${g.variacao?" \u00b7 "+g.variacao.slice(0,22):""}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>${ceLine?`<tr class="cerow"><td colspan="7">${ceLine}</td></tr>`:""}`;}).join("");
   const main=`<details class="detwrap" open><summary><h4 style="display:inline">Por produto (${A.prods.length})</h4> <span class="sec">clique nos t\u00edtulos pra ordenar</span></summary><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></details>`;
   body.innerHTML=hist+heroHtml+kpis+custosHtml+ded+boxes+dailyCard+main;
   body.querySelectorAll("[data-shmonth]").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.shdel!=null)return;SALES.shp.view=c.dataset.shmonth;renderShopee();});
