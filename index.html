@@ -411,6 +411,24 @@
   .mchip .mval{font-size:17px;font-weight:800;color:var(--forest);font-variant-numeric:tabular-nums}
   .mchip .mval.neg{color:var(--red,#b23b3b)}
   .mchip .msub{font-size:11px;color:var(--muted)}
+  .mchip.mc2{gap:3px;min-width:184px;padding:10px 30px 10px 12px}
+  .mchip.mc2.on{border-color:var(--forest);box-shadow:inset 0 0 0 1px var(--forest)}
+  .mchip.mc2 .mc-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .mchip.mc2 .mc-month{font-size:13px;font-weight:700;color:var(--ink);text-transform:capitalize}
+  .mchip.mc2 .mc-sales{font-size:10.5px;color:var(--faint);font-weight:600;white-space:nowrap}
+  .mchip.mc2 .mc-rec{font-size:11px;color:var(--muted)}
+  .mchip.mc2 .mc-rec b{font-family:var(--mono);color:var(--ink);font-weight:600}
+  .mchip.mc2 .mc-res{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:1px}
+  .mchip.mc2 .mc-res b{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--forest)}
+  .mchip.mc2 .mc-res b.neg{color:var(--neg)}
+  .mchip.mc2 .mc-res .marg{font-size:11px;padding:2px 7px}
+  .mc-tr{font-size:11px;font-weight:700}
+  .mc-tr.up{color:var(--pos)}.mc-tr.down{color:var(--neg)}
+  .mchip.mc2 .mc-foot{display:flex;gap:8px;font-size:10.5px;color:var(--faint);margin-top:2px}
+  .mchip.mc2 .mc-cob.low{color:var(--neg);font-weight:700}
+  .mc-legend{margin-top:10px;font-size:11px;color:var(--muted);line-height:1.7}
+  .mc-legend b{color:var(--ink);font-weight:600}
+  .mc-legend .marg{font-size:10px;padding:1px 6px;vertical-align:middle}
   .mchip .mdel{position:absolute;top:6px;right:8px;font-size:14px;color:var(--faint);line-height:1;padding:2px 4px;border-radius:6px}
   .mchip .mdel:hover{color:var(--red,#b23b3b);background:#FBF1F1}
   .custoscard .crow{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--paper)}
@@ -554,7 +572,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 99</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 100</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -3284,11 +3302,28 @@ function monthTrend(keys){
     return `<g><rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="4" fill="${col}"><title>${m.monthLabel}: ${brl(v)}</title></rect><text x="${x+bw/2}" y="${h-8}" text-anchor="middle" font-size="9" fill="var(--muted)">${(m.monthLabel||k).slice(0,3)}</text></g>`;}).join("");
   return `<div class="stabwrap" style="margin-top:10px"><svg width="${W}" height="${h}" class="daychart"><line x1="0" y1="${h-pad}" x2="${W}" y2="${h-pad}" stroke="var(--line2)"/>${bars}</svg></div>`;
 }
+function monthResult(m){if(!m||!m.A)return 0;const K=m.A.K;return (K.lucro||0)-effAdSpend(m)-monthExtras(m).custos.reduce((s,c)=>s+(+c.valor||0),0)-(K.freteDevol||0);}
+function monthChipHtml(o){
+  const meta=(assumptions.meta||10)/100,cls=o.margem>=meta?"ok":o.margem>=0?"mid":"no";
+  const trend=(o.trendPct!=null&&isFinite(o.trendPct))?`<span class="mc-tr ${o.trendPct>=0?"up":"down"}">${o.trendPct>=0?"\u25b2":"\u25bc"} ${Math.abs(Math.round(o.trendPct))}%</span>`:"";
+  const cob=(o.cob==null)?"":`<span class="mc-cob${o.cob<0.8?" low":""}">cob. ${pct(o.cob)}</span>`;
+  const dev=(o.devRate)?`<span>devol. ${pct(o.devRate)}</span>`:"";
+  const foot=(cob||dev)?`<span class="mc-foot">${cob}${dev}</span>`:"";
+  const sales=(o.nVend!=null)?`<span class="mc-sales">${o.nVend.toLocaleString("pt-BR")} vendas</span>`:"";
+  const del=o.delAttr?`<span class="mdel" data-${o.delAttr}="${o.key}" title="Remover">\u00d7</span>`:"";
+  return `<button class="mchip mc2${o.active?" on":""}" data-${o.selAttr}="${o.key}"><span class="mc-top"><span class="mc-month">${o.label}</span>${sales}</span><span class="mc-rec">Recebido <b>${brl(o.rec)}</b></span><span class="mc-res">Resultado <b class="${o.res<0?"neg":""}">${brl(o.res)}</b> <span class="marg ${cls}">${pct(o.margem)}</span>${trend}</span>${foot}${del}</button>`;
+}
+function monthLegendHtml(){return `<div class="mc-legend"><b>Recebido</b> = líquido que entrou · <b>Resultado</b> = lucro após custos, Ads e frete de devolução · <span class="marg ok">verde</span> ≥ meta · <span class="marg mid">âmbar</span> abaixo · <span class="marg no">vermelho</span> prejuízo · \u25b2/\u25bc vs mês anterior · cob. baixa = itens sem custo (lucro pode estar superestimado).</div>`;}
+function chipMetrics(m,prev,selAttr,delAttr,key,label,active){
+  const K=m.A.K,rec=K.receita||0,res=monthResult(m),pres=prev?monthResult(prev):null;
+  return monthChipHtml({label,key,active,rec,res,margem:rec>0?res/rec:0,nVend:K.nVend||0,
+    cob:rec>0?(rec-(K.recUnmatched||0))/rec:1,devRate:K.nCancel?(K.nCancel/((K.nVend||0)+K.nCancel)):0,
+    trendPct:(prev&&Math.abs(pres)>0.005)?(res-pres)/Math.abs(pres)*100:null,selAttr,delAttr});
+}
 function histStripHtml(keys){
   const activeKey=(SALES.view==="atual")?SALES.currentMonth:SALES.view;
-  const chips=keys.map(k=>{const m=SALES.months[k],KK=m.A.K,on=k===activeKey;
-    return `<button class="mchip${on?" on":""}" data-month="${k}"><span class="mlab">${m.monthLabel||k}</span><span class="mval ${KK.lucro>=0?"":"neg"}">${brl(KK.lucro)}</span><span class="msub">${KK.nVend.toLocaleString("pt-BR")} vendas \u00b7 ${pct(KK.margem)}</span><span class="mdel" data-delmonth="${k}" title="Remover">\u00d7</span></button>`;}).join("");
-  return `<div class="scard histcard"><h4>Histórico mensal (${keys.length}) \u2014 salvo na nuvem</h4><div class="mchips">${chips}</div>${keys.length>1?monthTrend(keys):""}</div>`;
+  const chips=keys.map((k,i)=>chipMetrics(SALES.months[k],i>0?SALES.months[keys[i-1]]:null,"month","delmonth",k,SALES.months[k].monthLabel||k,k===activeKey)).join("");
+  return `<div class="scard histcard"><h4>Histórico mensal (${keys.length}) \u2014 salvo na nuvem</h4><div class="mchips">${chips}</div>${monthLegendHtml()}${keys.length>1?monthTrend(keys):""}</div>`;
 }
 function adsPanelHtml(ads,lucroVendas,adc){
   const acos=ads.receitaAds>0?ads.investTot/ads.receitaAds:0;
@@ -3481,8 +3516,8 @@ function renderShopee(){
   empty.style.display="none";
   const sel=SALES.shp.view&&SALES.shp.months[SALES.shp.view]?SALES.shp.view:keys[keys.length-1];SALES.shp.view=sel;
   const mrec=SALES.shp.months[sel],A=mrec.A,K=A.K;
-  const strip=keys.map(k=>{const m=SALES.shp.months[k],on=k===sel;return `<button class="mchip${on?" on":""}" data-shmonth="${k}">${m.monthLabel}<span class="mc-l">${brl(m.A.K.lucro)}</span><span class="mdel" data-shdel="${k}" title="Remover">\u00d7</span></button>`;}).join("");
-  const hist=`<div class="scard histcard"><h4>Meses (Shopee)</h4><div class="mstrip">${strip}</div></div>`;
+  const strip=keys.map((k,i)=>chipMetrics(SALES.shp.months[k],i>0?SALES.shp.months[keys[i-1]]:null,"shmonth","shdel",k,SALES.shp.months[k].monthLabel,k===sel)).join("");
+  const hist=`<div class="scard histcard"><h4>Meses (Shopee)</h4><div class="mchips">${strip}</div>${monthLegendHtml()}</div>`;
   const heroHtml=receitaHero(K,"Comissão + serviço + transação");
   const kpis=`<div class="skpis">${kpi("Pedidos",K.nVend.toLocaleString("pt-BR"))}${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}${kpi("Custo",brl(K.custo))}${kpi("Lucro",brl(K.lucro),K.lucro<0?"neg":"pos")}${kpi("Margem",pct(K.margem))}${kpi("Cancelados",K.nCancel.toLocaleString("pt-BR"))}</div>`;
   const custosHtml=custosCardHtml(sel,mrec,K.lucro,K.receita,null);
@@ -3520,8 +3555,17 @@ function renderCombined(){
   const T={receita:0,custo:0,lucro:0,ad:0,outros:0,res:0};chans.forEach(c=>{T.receita+=c.receita;T.custo+=c.custo;T.lucro+=c.lucro;T.ad+=c.ad;T.outros+=c.outros;T.res+=c.res;});
   const midiaCost=(+assumptions.midiaInv||0)*(+assumptions.site||0)/100;
   const resFinal=T.res-midiaCost;
-  const strip=keys.map(k=>{const has=(SALES.months[k]?1:0)+(SALES.shp.months[k]?1:0),on=k===sel,lbl=(SALES.months[k]||SALES.shp.months[k]).monthLabel;return `<button class="mchip${on?" on":""}" data-bothmonth="${k}">${lbl}<span class="mc-l">${has} canal${has>1?"is":""}</span></button>`;}).join("");
-  const hist=`<div class="scard histcard"><h4>Meses</h4><div class="mstrip">${strip}</div></div>`;
+  const strip=keys.map((k,i)=>{const ml=SALES.months[k],shp=SALES.shp.months[k];
+    const rec=(ml?ml.A.K.receita||0:0)+(shp?shp.A.K.receita||0:0);
+    const res=monthResult(ml)+monthResult(shp);
+    const nVend=(ml?ml.A.K.nVend||0:0)+(shp?shp.A.K.nVend||0:0);
+    const unm=(ml?ml.A.K.recUnmatched||0:0)+(shp?shp.A.K.recUnmatched||0:0);
+    const nCancel=(ml?ml.A.K.nCancel||0:0)+(shp?shp.A.K.nCancel||0:0);
+    let pres=null;if(i>0){const pk=keys[i-1];pres=monthResult(SALES.months[pk])+monthResult(SALES.shp.months[pk]);}
+    return monthChipHtml({label:(ml||shp).monthLabel,key:k,active:k===sel,rec,res,margem:rec>0?res/rec:0,nVend,
+      cob:rec>0?(rec-unm)/rec:1,devRate:nCancel?(nCancel/(nVend+nCancel)):0,
+      trendPct:(pres!=null&&Math.abs(pres)>0.005)?(res-pres)/Math.abs(pres)*100:null,selAttr:"bothmonth",delAttr:null});}).join("");
+  const hist=`<div class="scard histcard"><h4>Meses</h4><div class="mchips">${strip}</div>${monthLegendHtml()}</div>`;
   const kpis=`<div class="skpis">${kpi("Receita l\u00edq.",brl(T.receita))}${kpi("Lucro vendas",brl(T.lucro),T.lucro<0?"neg":"pos")}${kpi("Ads",brl(T.ad))}${kpi("Outros custos",brl(T.outros))}${midiaCost>0?kpi("M\u00eddia e-comm ("+ (+assumptions.site||0) +"%)",brl(midiaCost)):""}${kpi("Resultado final",brl(resFinal),resFinal<0?"neg":"pos")}</div>`;
   const fr=c=>`<tr><td>${c.name}</td><td class="r">${brl(c.receita)}</td><td class="r sec">${brl(c.custo)}</td><td class="r">${brl(c.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r sec">${brl(c.outros)}</td><td class="r"><b class="${c.res<0?'neg':''}">${brl(c.res)}</b></td></tr>`;
   const midiaRow=midiaCost>0?`<div class="sec" style="margin-top:8px">Resultado dos canais: <b>${brl(T.res)}</b> − mídia do e-commerce (${(+assumptions.site||0)}% de ${brl(+assumptions.midiaInv||0)}) <b>${brl(midiaCost)}</b> = <b class="${resFinal<0?'neg':''}">${brl(resFinal)}</b>. Ajuste o investimento de mídia em Ajustes.</div>`:"";
