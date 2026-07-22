@@ -554,7 +554,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 98</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 99</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -2012,7 +2012,7 @@ function shopeeOpen(){
   SHOPEE.rows=[];$("#shopeeModal").style.display="flex";
 }
 function shopeeCloseModal(){$("#shopeeModal").style.display="none";}
-function parseShopeeWB(wb){
+function parseShopeeMassWB(wb){
   const ws=wb.Sheets[wb.SheetNames[0]];if(!ws)throw new Error("Planilha vazia");
   const mtx=sheetMatrix(ws);const out=[];
   for(const r of mtx){
@@ -2084,7 +2084,7 @@ async function shopeeAnalyze(){
       st.textContent=`${SHOPEE.rows.length} variações na planilha de preços · ${nEx} já no app (só o preço De/Por será atualizado; composição preservada).`;
       return;
     }
-    const raw=parseShopeeWB(wb);let matched=0;
+    const raw=parseShopeeMassWB(wb);let matched=0;
     SHOPEE.rows=raw.map(r=>{const g=shopeeGuess(r.title,r.varName);const key="SHP-"+r.pid+(r.vid?"-"+r.vid:"");
       let de=null,por=null;
       if(prices){const p=prices.byVid[r.vid]||(r.sku&&prices.bySku[r.sku]);if(p){de=p.de;por=p.por;matched++;}}
