@@ -403,7 +403,7 @@
   @media(max-width:800px){.dedgrid{grid-template-columns:repeat(2,1fr)}}
   .dedv{font-size:19px;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;margin-top:2px}
   .dedv.neg{color:var(--red,#b23b3b)}
-  .histcard .mchips{display:flex;flex-wrap:wrap;gap:8px}
+  .histcard .mchips{display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding-bottom:6px}
   .mchip{position:relative;text-align:left;border:1px solid var(--line2);background:#fff;border-radius:12px;padding:10px 30px 10px 12px;cursor:pointer;min-width:150px;display:flex;flex-direction:column;gap:1px}
   .mchip:hover{border-color:var(--forest)}
   .mchip.on{border-color:var(--forest);background:var(--paper);box-shadow:inset 0 0 0 1px var(--forest)}
@@ -411,7 +411,7 @@
   .mchip .mval{font-size:17px;font-weight:800;color:var(--forest);font-variant-numeric:tabular-nums}
   .mchip .mval.neg{color:var(--red,#b23b3b)}
   .mchip .msub{font-size:11px;color:var(--muted)}
-  .mchip.mc2{gap:3px;min-width:184px;padding:10px 30px 10px 12px}
+  .mchip.mc2{gap:3px;min-width:172px;flex:0 0 auto;padding:10px 30px 10px 12px}
   .mchip.mc2.on{border-color:var(--forest);box-shadow:inset 0 0 0 1px var(--forest)}
   .mchip.mc2 .mc-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .mchip.mc2 .mc-month{font-size:13px;font-weight:700;color:var(--ink);text-transform:capitalize}
@@ -572,7 +572,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 100</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 101</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -3311,12 +3311,12 @@ function monthChipHtml(o){
   const foot=(cob||dev)?`<span class="mc-foot">${cob}${dev}</span>`:"";
   const sales=(o.nVend!=null)?`<span class="mc-sales">${o.nVend.toLocaleString("pt-BR")} vendas</span>`:"";
   const del=o.delAttr?`<span class="mdel" data-${o.delAttr}="${o.key}" title="Remover">\u00d7</span>`:"";
-  return `<button class="mchip mc2${o.active?" on":""}" data-${o.selAttr}="${o.key}"><span class="mc-top"><span class="mc-month">${o.label}</span>${sales}</span><span class="mc-rec">Recebido <b>${brl(o.rec)}</b></span><span class="mc-res">Resultado <b class="${o.res<0?"neg":""}">${brl(o.res)}</b> <span class="marg ${cls}">${pct(o.margem)}</span>${trend}</span>${foot}${del}</button>`;
+  return `<button class="mchip mc2${o.active?" on":""}" data-${o.selAttr}="${o.key}"><span class="mc-top"><span class="mc-month">${o.label}</span>${sales}</span>${o.bruto!=null?`<span class="mc-rec">Bruto <b>${brl(o.bruto)}</b></span>`:""}<span class="mc-rec">Líquido <b>${brl(o.rec)}</b></span><span class="mc-res">Lucro <b class="${o.res<0?"neg":""}">${brl(o.res)}</b> <span class="marg ${cls}">${pct(o.margem)}</span>${trend}</span>${foot}${del}</button>`;
 }
-function monthLegendHtml(){return `<div class="mc-legend"><b>Recebido</b> = líquido que entrou · <b>Resultado</b> = lucro após custos, Ads e frete de devolução · <span class="marg ok">verde</span> ≥ meta · <span class="marg mid">âmbar</span> abaixo · <span class="marg no">vermelho</span> prejuízo · \u25b2/\u25bc vs mês anterior · cob. baixa = itens sem custo (lucro pode estar superestimado).</div>`;}
+function monthLegendHtml(){return `<div class="mc-legend"><b>Bruto</b> = faturamento total · <b>Líquido</b> = após taxas do canal · <b>Lucro</b> = após custos, Ads e frete de devolução · <span class="marg ok">verde</span> ≥ meta · <span class="marg mid">âmbar</span> abaixo · <span class="marg no">vermelho</span> prejuízo · \u25b2/\u25bc vs mês anterior · cob. baixa = itens sem custo (lucro pode estar superestimado).</div>`;}
 function chipMetrics(m,prev,selAttr,delAttr,key,label,active){
   const K=m.A.K,rec=K.receita||0,res=monthResult(m),pres=prev?monthResult(prev):null;
-  return monthChipHtml({label,key,active,rec,res,margem:rec>0?res/rec:0,nVend:K.nVend||0,
+  return monthChipHtml({label,key,active,bruto:K.bruto||0,rec,res,margem:rec>0?res/rec:0,nVend:K.nVend||0,
     cob:rec>0?(rec-(K.recUnmatched||0))/rec:1,devRate:K.nCancel?(K.nCancel/((K.nVend||0)+K.nCancel)):0,
     trendPct:(prev&&Math.abs(pres)>0.005)?(res-pres)/Math.abs(pres)*100:null,selAttr,delAttr});
 }
@@ -3562,7 +3562,7 @@ function renderCombined(){
     const unm=(ml?ml.A.K.recUnmatched||0:0)+(shp?shp.A.K.recUnmatched||0:0);
     const nCancel=(ml?ml.A.K.nCancel||0:0)+(shp?shp.A.K.nCancel||0:0);
     let pres=null;if(i>0){const pk=keys[i-1];pres=monthResult(SALES.months[pk])+monthResult(SALES.shp.months[pk]);}
-    return monthChipHtml({label:(ml||shp).monthLabel,key:k,active:k===sel,rec,res,margem:rec>0?res/rec:0,nVend,
+    return monthChipHtml({label:(ml||shp).monthLabel,key:k,active:k===sel,bruto:(ml?ml.A.K.bruto||0:0)+(shp?shp.A.K.bruto||0:0),rec,res,margem:rec>0?res/rec:0,nVend,
       cob:rec>0?(rec-unm)/rec:1,devRate:nCancel?(nCancel/(nVend+nCancel)):0,
       trendPct:(pres!=null&&Math.abs(pres)>0.005)?(res-pres)/Math.abs(pres)*100:null,selAttr:"bothmonth",delAttr:null});}).join("");
   const hist=`<div class="scard histcard"><h4>Meses</h4><div class="mchips">${strip}</div>${monthLegendHtml()}</div>`;
