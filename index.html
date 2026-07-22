@@ -489,6 +489,9 @@
   .ce-it i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:3px;vertical-align:middle}
   .ce-it b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
   .ce-tot{white-space:nowrap;font-weight:600;color:var(--ink);border-left:1px solid var(--line);padding-left:8px;font-variant-numeric:tabular-nums}
+  tr.cerow td{padding:0 12px 9px 12px;border-top:0}
+  tr.cerow .ce-line{margin-top:0;padding-left:2px;border-left:2px solid var(--line2)}
+  tr.cerow .ce-line{padding-left:10px}
   .blktoggle{border:1px solid var(--line2);background:#fff;border-radius:7px;cursor:pointer;font-size:13px;color:var(--muted);padding:2px 8px;line-height:1;font-weight:700}
   .blktoggle:hover{background:var(--paper);color:var(--forest)}
   .legendrow td{padding:2px 12px 10px 46px;border-top:none;background:transparent}
@@ -560,7 +563,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 95</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 96</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1676,7 +1679,7 @@ function skuRowHtml(r,meta,child,hideCodes){
   const nmTitle=(r.nome||"").replace(/"/g,"&quot;");
   const varLabel=(child&&r.nome&&r.nome.includes(" \u00b7 "))?r.nome.split(" \u00b7 ").slice(1).join(" \u00b7 "):"";
   const codeLine=child?`<div class="sku-code sub" title="${nmTitle}">${varLabel||dispSku(r)}</div>`:`<div class="sku-code" title="${nmTitle}">${dispSku(r)}</div>`;
-  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${child?"":custosEmbutidosLine(r)}${updHtml(r)}</td>`;
+  const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${updHtml(r)}</td>`;
   if(r.composicaoPendente){
     return `<tr class="${child?"childrow":""}">${cellHead}
       <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composi\u00e7\u00e3o pendente</span>'}</td>
@@ -3603,14 +3606,16 @@ function renderSales(){
   const sortableTh=(key,label,ralign)=>{const on=salesSort.key===key;const arr=on?(salesSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${ralign?"r ":""}sortth${on?" on":""}" data-sortk="${key}">${label}${arr}</th>`;}
   const smk=salesSort.key,sdir=salesSort.dir,sval=g=>{const v=g[smk];return v==null?-Infinity:v;};
   const mlbsView=[...A.mlbs].sort((a,b)=>sdir<0?sval(b)-sval(a):sval(a)-sval(b));
+  const nCeCols=adCostByMlb?11:9;
   const mainRows=mlbsView.map(g=>{const ac=adCostByMlb?(adCostByMlb[g.mlb]||0):0;const posA=g.matched?(g.lucro-ac):null;
+    const rec=saved[g.mlb];const ceLine=(g.matched&&rec)?custosEmbutidosLine(rec):"";
     return `<tr${g.matched&&posA<0?' class="rowneg"':""}>
     <td><span class="mono">${g.mlb}</span><div class="stt">${g.titulo?g.titulo.slice(0,52):"\u2014"}</div></td>
     <td>${g.conta}</td><td>${g.tipo}</td><td class="r">${g.n}</td><td class="r">${g.un}</td>
     <td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td>
     <td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:'<span class="sec">sem custo</span>'}</td>
     ${adCostByMlb?`<td class="r sec">${ac>0?brl(ac):"\u2014"}</td><td class="r">${g.matched?`<b class="${posA<0?"neg":""}">${brl(posA)}</b>`:'<span class="sec">\u2014</span>'}</td>`:""}
-    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`;}).join("");
+    <td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>${ceLine?`<tr class="cerow"><td colspan="${nCeCols}">${ceLine}</td></tr>`:""}`;}).join("");
   const mainTitle=isHist?`Por an\u00fancio (${A.mlbs.length})`:`Por an\u00fancio (${A.mlbs.length}) \u2014 clique nos t\u00edtulos pra ordenar`;
   const adsCols=adCostByMlb?`<th class="r">Ads (est.)</th><th class="r">Lucro p\u00f3s-Ads</th>`:"";
   const main=`<div class="scard"><h4>${mainTitle}</h4>${adCostByMlb?'<div class="sec" style="margin:-4px 0 10px">Ads por an\u00fancio \u00e9 <b>estimado</b>: o investimento de cada campanha foi rateado entre os an\u00fancios dela pela receita atribu\u00edda.</div>':""}<div class="stabwrap"><table class="stab big"><thead><tr><th>An\u00fancio</th><th>Conta</th><th>Tipo</th>${sortableTh("n","Vendas",1)}${sortableTh("un","Unid",1)}${sortableTh("receita","Receita",1)}<th class="r">Custo</th>${sortableTh("lucro","Lucro",1)}${adsCols}${sortableTh("margem","Margem",1)}</tr></thead><tbody>${mainRows}</tbody></table></div></div>`;
