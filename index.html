@@ -575,7 +575,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 105</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 106</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -719,6 +719,7 @@
         <button class="btn btn-primary" id="importFiscal">Importar Dados Fiscais</button>
         <input type="file" id="fiscalFile" accept=".xlsx,.xls" style="display:none">
         <button class="btn" id="importShopee">Importar Shopee</button>
+        <button class="btn" id="importAmz">Importar Amazon</button>
         <button class="btn" id="importShopeeComp">Composição Shopee</button>
         <input type="file" id="shopeeCompFile" accept=".csv,.xlsx,.xls" multiple style="display:none">
         <button class="btn" id="pastePrices">Colar preços</button>
@@ -979,7 +980,35 @@
   </div>
 </div>
 
-<div class="modal-bg" id="pasteModal" style="display:none">
+<div class="modal-bg" id="amzModal" style="display:none">
+  <div class="modal" style="max-width:820px;width:100%">
+    <div class="modal-h"><span>Importar anúncios da Amazon</span><button class="modal-x" id="amzClose" aria-label="Fechar">×</button></div>
+    <div class="modal-b">
+      <div class="set-note" style="margin-bottom:14px">Abra o arquivo <b>"manage products"</b> (Código SKU, ASIN, título, preço). O casamento é por <b>SKU</b>: se o SKU já existe cadastrado, a composição e o custo são <b>herdados</b>; os novos são criados prontos pra cadastrar. Nada dos outros canais é alterado.</div>
+      <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap">
+        <label class="mfield" style="flex:1;min-width:260px"><span>Anúncios <small>(manage products .csv)</small></span><input type="file" id="amzFile" accept=".csv"></label>
+        <label class="mfield" style="max-width:160px"><span>Conta / origem</span><select id="amzAcct"></select></label>
+        <button class="btn btn-primary" id="amzAnalyze">Analisar</button>
+      </div>
+      <div id="amzStatus" class="set-note" style="margin-top:10px;display:none"></div>
+      <div id="amzPreviewWrap" style="display:none;margin-top:14px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+          <label style="display:flex;gap:7px;align-items:center;font-size:13px"><input type="checkbox" id="amzAll" checked> Selecionar todos</label>
+          <span id="amzCounts" class="chip"></span>
+          <span class="set-note" style="margin:0">Legenda: <span class="conf v">herda</span> SKU já cadastrado · <span class="conf r">novo</span> criar e cadastrar depois</span>
+        </div>
+        <div class="card" style="max-height:360px;overflow:auto"><div class="pad" style="padding:4px">
+          <table class="etable"><thead><tr>
+            <th style="width:34px"></th><th>SKU</th><th>Produto</th><th class="r">Preço</th><th>Composição</th>
+          </tr></thead><tbody id="amzPreviewBody"></tbody></table>
+        </div></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px">
+          <button class="btn btn-primary" id="amzImport">Importar selecionados</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
   <div class="modal" style="max-width:900px;width:100%">
     <div class="modal-h"><span>Colar preços da tela (Editor em massa)</span><button class="modal-x" id="pasteClose" aria-label="Fechar">×</button></div>
     <div class="modal-b">
@@ -3017,6 +3046,66 @@ async function rematchAmazon(key){
   rows.forEach(r=>{if(r.kind!=="sale")return;const rec=r.sku?saved[r.sku]:null;const matched=!!(rec&&!rec.composicaoPendente&&(+rec.custoItens>0));if(matched!==r.matched)changed++;const cu=rec?(+rec.custoItens||0):0;r.matched=matched;r.custoUnit=cu;r.cost=matched?cu*r.un:0;r.profit=matched?(r.total-r.cost):null;r.margin=(matched&&r.total)?(r.total-r.cost)/r.total:null;if(rec&&rec.nome&&!r.titulo)r.titulo=rec.nome;});
   m.A=amazonAgg(rows);SALES.amz.months[key]=m;await persistSalesMonths();return changed;
 }
+const AMZL={rows:[]};
+function parseAmazonListings(text){
+  text=String(text||"").replace(/^\uFEFF/,"");
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  const P=l=>{const o=[];let c="",q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else{if(ch==='"')q=true;else if(ch===","){o.push(c);c="";}else c+=ch;}}o.push(c);return o;};
+  const H=P(lines[0]).map(x=>x.trim().toLowerCase());
+  const ci=re=>H.findIndex(h=>re.test(h));
+  const iSku=ci(/sku/),iAsin=ci(/asin/),iNome=ci(/t[i\u00ed]tulo|nome/),iPreco=ci(/pre[\u00e7c]o atual/)<0?ci(/pre[\u00e7c]o/):ci(/pre[\u00e7c]o atual/),iStatus=ci(/status/);
+  const rows=[];
+  for(let i=1;i<lines.length;i++){const r=P(lines[i]);const sku=String(r[iSku]||"").trim();if(!sku)continue;
+    rows.push({sku,asin:String(r[iAsin]||"").trim(),nome:String(r[iNome]||"").trim(),preco:amzNum(r[iPreco]),status:String(r[iStatus]||"").trim()});}
+  return rows;
+}
+function amzOpen(){AMZL.rows=[];$("#amzModal").style.display="flex";$("#amzPreviewWrap").style.display="none";$("#amzStatus").style.display="none";$("#amzFile").value="";const s=$("#amzAcct");if(s)s.innerHTML=(ACCOUNTS||["MG","GRU"]).map(a=>`<option value="${a}">${a}</option>`).join("");}
+function amzCloseModal(){$("#amzModal").style.display="none";}
+async function amzAnalyze(){
+  const f=$("#amzFile").files[0],st=$("#amzStatus");st.style.display="block";
+  if(!f){st.textContent="Selecione o arquivo de an\u00fancios (manage products).";return;}
+  st.textContent="Lendo\u2026";
+  try{const text=await f.text();const list=parseAmazonListings(text);const conta=$("#amzAcct").value||"";
+    if(!list.length){st.textContent="N\u00e3o encontrei SKUs nesse arquivo.";return;}
+    AMZL.rows=list.map(r=>{const rec=saved[r.sku];const hasComp=!!(rec&&rec.itens&&rec.itens.length);return {...r,conta,existing:!!rec,hasComp,sel:true};});
+    renderAmzPreview();$("#amzPreviewWrap").style.display="block";
+    const herda=AMZL.rows.filter(r=>r.hasComp).length,novos=AMZL.rows.filter(r=>!r.existing).length;
+    st.textContent=`${AMZL.rows.length} an\u00fancios \u00b7 ${herda} j\u00e1 cadastrados (composi\u00e7\u00e3o herdada) \u00b7 ${novos} novos (criar e cadastrar).`;
+  }catch(e){st.textContent="Erro ao ler: "+e.message;}
+}
+function renderAmzPreview(){
+  $("#amzPreviewBody").innerHTML=AMZL.rows.map((r,i)=>`<tr>
+    <td><input type="checkbox" data-asel="${i}" ${r.sel?"checked":""}></td>
+    <td><span class="mono">${r.sku}</span></td>
+    <td>${(r.nome||"\u2014").slice(0,54)}</td>
+    <td class="r">${r.preco?brl(r.preco):"\u2014"}</td>
+    <td>${r.hasComp?'<span class="conf v">herda composi\u00e7\u00e3o</span>':(r.existing?'<span class="conf a">cadastrado (sem itens)</span>':'<span class="conf r">novo \u2014 cadastrar</span>')}</td></tr>`).join("");
+  $("#amzPreviewBody").querySelectorAll("[data-asel]").forEach(c=>c.onchange=()=>{AMZL.rows[+c.dataset.asel].sel=c.checked;amzCounts();});
+  amzCounts();
+}
+function amzCounts(){const s=AMZL.rows.filter(r=>r.sel).length;$("#amzCounts").textContent=`${s} de ${AMZL.rows.length} selecionados`;}
+async function amzImport(){
+  const chosen=AMZL.rows.filter(r=>r.sel);if(!chosen.length){toast("Nada selecionado");return;}
+  let herdou=0,novo=0;
+  for(const r of chosen){
+    const prev=saved[r.sku]||null;const rec=prev?{...prev}:{sku:r.sku,itens:[]};
+    if(r.asin)rec.asin=r.asin;
+    if(!prev||!rec.nome)rec.nome=r.nome||rec.nome||r.sku;
+    rec.origem=r.conta||rec.origem||"";
+    rec.plataformas=Array.from(new Set([].concat(rec.plataformas||[],["Amazon"])));
+    if(prev&&rec.itens&&rec.itens.length){herdou++;}
+    else{rec.itens=rec.itens||[];rec.composicaoPendente=!(rec.itens&&rec.itens.length);novo++;}
+    rec.priceMode=rec.priceMode||"depor";
+    if(r.preco>0&&(!prev||!(+rec.pricePor>0))){rec.pricePor=r.preco;rec.price=r.preco;}
+    rec.status=rec.status||"Ativo";
+    rec.fonte=rec.fonte||"amazon-listing";rec.ts=rec.ts||Date.now();rec.atualizadoEm=Date.now();rec.atualizadoVia="amazon-listing";
+    if((+rec.pricePor||0)>0&&rec.itens&&rec.itens.length)recomputeSku(rec);
+    saved[r.sku]=rec;try{await DB.upsertSku(rec);}catch(e){}
+  }
+  renderSaved();if(SUPA_ON)setSync("cloud");amzCloseModal();
+  toast(`${chosen.length} an\u00fancios Amazon \u00b7 ${herdou} herdaram composi\u00e7\u00e3o, ${novo} novos pra cadastrar`);
+  switchView("saved");renderSaved();
+}
 async function applyShopee(wbList,fileName){
   await ensureSalesMonths();
   const {rows}=parseShopeeWB(wbList);
@@ -3956,6 +4045,12 @@ $("#meliPreviewBody").addEventListener("change",e=>{const cb=e.target.closest("[
 $("#importShopee").onclick=shopeeOpen;
 $("#shopeeClose").onclick=shopeeCloseModal;
 $("#shopeeModal").addEventListener("click",e=>{if(e.target.id==="shopeeModal")shopeeCloseModal();});
+$("#importAmz")&&($("#importAmz").onclick=amzOpen);
+$("#amzClose")&&($("#amzClose").onclick=amzCloseModal);
+$("#amzAnalyze")&&($("#amzAnalyze").onclick=amzAnalyze);
+$("#amzImport")&&($("#amzImport").onclick=amzImport);
+$("#amzAll")&&($("#amzAll").onchange=e=>{AMZL.rows.forEach(r=>r.sel=e.target.checked);renderAmzPreview();});
+$("#amzModal")&&$("#amzModal").addEventListener("click",e=>{if(e.target.id==="amzModal")amzCloseModal();});
 $("#shopeeAnalyze").onclick=shopeeAnalyze;
 $("#shopeeImport").onclick=shopeeImport;
 $("#shopeeAcct").addEventListener("change",()=>{const c=$("#shopeeAcct").value||"";SHOPEE.rows.forEach(r=>r.conta=c);});
