@@ -575,7 +575,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 106</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 107</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1075,7 +1075,7 @@ let CATALOG = clone(DEF_CATALOG), CHANNELS = clone(DEF_CHANNELS), assumptions = 
 let kit = [], saved = {};
 let priceMode = "depor", autoName = "", selCat = 0, loadedSku = "", selAcct = "", skuFilter = "";
 let skuSearch = "", skuConta = "", skuCanal = "", skuStatus = "", skuPlat = "", skuGap = "", skuSort = {key:"upd",dir:-1};
-const platOf=r=>(/shopee/i.test(r.canal||"")||r.plataforma==="Shopee")?"Shopee":"Mercado Livre";
+const platOf=r=>(/amazon/i.test(r.plataforma||"")||r.amazon||/amazon/i.test(r.canal||""))?"Amazon":(/shopee/i.test(r.canal||"")||r.plataforma==="Shopee")?"Shopee":"Mercado Livre";
 const dispSku=r=>(r.plataforma==="Shopee")?("SHP-"+(r.shopeePid||String(r.sku||"").replace(/^SHP-/,"").split("-")[0])):r.sku;
 
 function clone(o){return JSON.parse(JSON.stringify(o));}
@@ -1626,7 +1626,7 @@ function renderSkuChips(){
   const conta=ACCOUNTS.map(a=>chip(skuConta===a,"conta",a,a)).join("");
   const canal=["Clássico","Premium"].map(c=>chip(skuCanal===c,"canal",c,c)).join("");
   const status=["Ativo","Inativo"].map(s=>chip(skuStatus===s,"status",s,s)).join("");
-  const plat=["Mercado Livre","Shopee"].map(p=>chip(skuPlat===p,"plat",p,p)).join("");
+  const plat=["Mercado Livre","Shopee","Amazon"].map(p=>chip(skuPlat===p,"plat",p,p)).join("");
   const gap=[["semPreco","Sem preço"],["semComp","Sem composição"]].map(([v,l])=>chip(skuGap===v,"gap",v,l)).join("");
   $("#skuChips").innerHTML=`<span class="fclabel">Plataforma</span>${plat}<span class="fclabel" style="margin-left:8px">Conta</span>${conta}<span class="fclabel" style="margin-left:8px">Canal</span>${canal}<span class="fclabel" style="margin-left:8px">Status</span>${status}<span class="fclabel" style="margin-left:8px">Dados</span>${gap}`;
 }
@@ -1708,6 +1708,7 @@ function skuRowHtml(r,meta,child,hideCodes){
   const codesHtml=kcRaw.length?`<div class="sku-codes" title="${kcRaw.map(c=>c+(PROD_COD[c]?" \u2014 "+PROD_COD[c]:"")).join(" \u00b7 ")}">${kcDisp.join(", ")}</div>`:"";
   const confHtml=(r.plataforma==="Shopee")?(r.confianca==="v"?'<span class="conf v">comp. alta</span>':r.confianca==="a"?'<span class="conf a">comp. parcial</span>':'<span class="conf r">preencher comp.</span>'):"";
   const canalTxt=(r.canal||"").replace(/^Mercado Livre\s*/i,"")||(r.canal||"");
+  const amzChip=platOf(r)==="Amazon"?'<span class="chip" style="background:#fdeee0;color:#b06a1b">Amazon</span> ':"";
   const inativo=(r.statusMeli==="Inativo")?' <span class="mbadge" style="background:#f3d9d9;color:#8a2a2a">inativo</span>':"";
   const nmTitle=(r.nome||"").replace(/"/g,"&quot;");
   const varLabel=(child&&r.nome&&r.nome.includes(" \u00b7 "))?r.nome.split(" \u00b7 ").slice(1).join(" \u00b7 "):"";
@@ -1715,13 +1716,13 @@ function skuRowHtml(r,meta,child,hideCodes){
   const cellHead=`<td class="${child?"childcell":""}">${codeLine}${hideCodes?"":codesHtml}${hideCodes?"":meli}${updHtml(r)}</td>`;
   if(r.composicaoPendente){
     return `<tr class="${child?"childrow":""}">${cellHead}
-      <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composi\u00e7\u00e3o pendente</span>'}</td>
+      <td>${amzChip}<span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo} ${r.plataforma==="Shopee"?confHtml:'<span class="mbadge upd">composi\u00e7\u00e3o pendente</span>'}</td>
       ${priceCellHtml(0,r.pricePor||r.price||0,r.rebate,r.freight)}<td class="r">\u2014</td><td class="r">\u2014</td><td class="r">\u2014</td>
       <td><div class="tacts"><button class="iact" data-load="${r.sku}">Abrir</button><button class="iact del" data-del="${r.sku}">Excluir</button></div></td></tr>`;
   }
   const cls=r.lucratividade>=meta?"ok":r.lucratividade>=0?"mid":"no";
   return `<tr class="${child?"childrow":""}">${cellHead}
-    <td><span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}${confHtml}</td>
+    <td>${amzChip}<span class="chip" title="${r.canal}">${canalTxt}</span>${r.origem?` <span class="chip" style="background:#e6efe9;color:var(--forest)">${r.origem}</span>`:""}${inativo}${confHtml}</td>
     ${priceCellHtml(r.priceDe,r.pricePor||r.price,r.rebate,r.freight)}
     <td class="r sec">${brl(r.custoItens)}</td>
     <td class="r"><b class="liqval${r.liquido<0?" neg":""}" data-liq="${r.sku}">${brl(r.liquido)}</b></td><td class="r"><span class="marg ${cls}" data-marg="${r.sku}">${pct(r.lucratividade)}</span></td>
@@ -3090,6 +3091,7 @@ async function amzImport(){
   for(const r of chosen){
     const prev=saved[r.sku]||null;const rec=prev?{...prev}:{sku:r.sku,itens:[]};
     if(r.asin)rec.asin=r.asin;
+    rec.amazon=true;if(!prev)rec.plataforma="Amazon";
     if(!prev||!rec.nome)rec.nome=r.nome||rec.nome||r.sku;
     rec.origem=r.conta||rec.origem||"";
     rec.plataformas=Array.from(new Set([].concat(rec.plataformas||[],["Amazon"])));
