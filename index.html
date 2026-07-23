@@ -1,4 +1,7 @@
 <meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Renova Be — Rentabilidade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -572,7 +575,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 101</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 104</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -779,6 +782,7 @@
     <div class="chseg" id="chseg">
       <button class="chbtn on" data-ch="ml">Mercado Livre</button>
       <button class="chbtn" data-ch="shp">Shopee</button>
+      <button class="chbtn" data-ch="amz">Amazon</button>
       <button class="chbtn" data-ch="both">Juntos</button>
     </div>
     <div class="subtabs" id="fechSub">
@@ -2377,19 +2381,19 @@ function breakdownOf(rec){
 }
 function marginColor(z,meta){return z>=meta?"var(--pos)":z>=0?"var(--warn)":"var(--neg)";}
 function execSummaryHtml(){
-  const keys=[...new Set([...Object.keys(SALES.months),...Object.keys(SALES.shp.months)])].sort();
+  const keys=[...new Set([...Object.keys(SALES.months),...Object.keys(SALES.shp.months),...Object.keys(SALES.amz.months)])].sort();
   if(!keys.length)return "";
   const sel=keys[keys.length-1];
-  const ml=SALES.months[sel],shp=SALES.shp.months[sel];
+  const ml=SALES.months[sel],shp=SALES.shp.months[sel],amz=SALES.amz.months[sel];
   const metaPct=(assumptions.meta||10)/100;
   const chan=(name,rec)=>{if(!rec)return null;const K=rec.A.K;const ad=effAdSpend(rec);const ex=monthExtras(rec);const outros=ex.custos.reduce((s,c)=>s+(+c.valor||0),0);return {name,K,ad,outros,res:K.lucro-ad-outros};};
-  const cs=[chan("Mercado Livre",ml),chan("Shopee",shp)].filter(Boolean);
+  const cs=[chan("Mercado Livre",ml),chan("Shopee",shp),chan("Amazon",amz)].filter(Boolean);
   const T={bruto:0,receita:0,custo:0,lucro:0,ad:0,outros:0,res:0,recUnmatched:0};
   cs.forEach(c=>{T.bruto+=c.K.bruto||0;T.receita+=c.K.receita;T.custo+=c.K.custo;T.lucro+=c.K.lucro;T.ad+=c.ad;T.outros+=c.outros;T.res+=c.res;T.recUnmatched+=c.K.recUnmatched||0;});
-  const margemRes=T.receita>0?T.res/T.receita:0, cobertura=T.receita>0?(T.receita-T.recUnmatched)/T.receita:1, label=(ml||shp).monthLabel;
+  const margemRes=T.receita>0?T.res/T.receita:0, cobertura=T.receita>0?(T.receita-T.recUnmatched)/T.receita:1, label=(ml||shp||amz).monthLabel;
   const hero=receitaHero({receita:T.receita,bruto:T.bruto},"taxas dos canais");
   const dcards=`<div class="skpis">${kpi("Resultado final",brl(T.res),T.res<0?"neg":"pos")}${kpi("Lucro das vendas",brl(T.lucro))}${kpi("Investimento Ads",brl(T.ad))}${kpi("Margem final",pct(margemRes),margemRes>=metaPct?"pos":margemRes>=0?"":"neg")}</div>`;
-  const chRow=c=>`<tr class="clickrow" data-goto="${/shopee/i.test(c.name)?"shp":"ml"}"><td>${c.name} <span class="goarr">\u2192</span></td><td class="r">${brl(c.K.receita)}</td><td class="r">${brl(c.K.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r"><b class="${c.res<0?"neg":""}">${brl(c.res)}</b></td></tr>`;
+  const chRow=c=>`<tr class="clickrow" data-goto="${/shopee/i.test(c.name)?"shp":/amazon/i.test(c.name)?"amz":"ml"}"><td>${c.name} <span class="goarr">\u2192</span></td><td class="r">${brl(c.K.receita)}</td><td class="r">${brl(c.K.lucro)}</td><td class="r sec">${brl(c.ad)}</td><td class="r"><b class="${c.res<0?"neg":""}">${brl(c.res)}</b></td></tr>`;
   const chTable=`<div class="scard"><h4>Por canal</h4><div class="stabwrap"><table class="stab big"><thead><tr><th>Canal</th><th class="r">Receita líq.</th><th class="r">Lucro vendas</th><th class="r">Ads</th><th class="r">Resultado</th></tr></thead><tbody>${cs.map(chRow).join("")}${cs.length>1?`<tr class="rowtot"><td><b>Total</b></td><td class="r"><b>${brl(T.receita)}</b></td><td class="r"><b>${brl(T.lucro)}</b></td><td class="r">${brl(T.ad)}</td><td class="r"><b class="${T.res<0?"neg":""}">${brl(T.res)}</b></td></tr>`:""}</tbody></table></div></div>`;
   const items=[];
   if(ml)ml.A.mlbs.forEach(g=>items.push({id:g.mlb,name:g.titulo,rev:g.receita,ch:"ML"}));
@@ -2631,7 +2635,7 @@ function restoreDefaults(){
 }
 
 // ---------- Vendas (rentabilidade real) ----------
-const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual",channel:"ml",fsub:"num",shp:{months:{},view:""},anChannel:"ml",anView:{ml:"",shp:"",both:""}};
+const SALES={loaded:false,rows:[],fileName:"",sheet:"",months:{},monthsLoaded:false,currentMonth:"",view:"atual",channel:"ml",fsub:"num",shp:{months:{},view:""},amz:{months:{},view:""},anChannel:"ml",anView:{ml:"",shp:"",both:""}};
 const shpSort={key:"lucro",dir:-1};
 const salesFilters={conta:"",tipo:"",pub:""};
 const salesSort={key:"lucro",dir:-1};
@@ -2643,6 +2647,8 @@ function parseAdDate(s){const t=String(s||"").match(/(\d{1,2})[-\/ ]([a-z\u00e7]
 function detectReport(wb){
   for(const sn of wb.SheetNames){const M=sheetMatrix(wb.Sheets[sn]);const flat=M.slice(0,12).map(r=>Array.isArray(r)?r:[]).reduce((a,r)=>a.concat(r),[]).map(x=>String(x||""));
     if(flat.some(x=>/id do pedido/i.test(x))&&flat.some(x=>/taxa de comiss|n[u\u00fa]mero de refer[e\u00ea]ncia sku/i.test(x)))return {kind:"shopee",sheet:sn};
+    if(flat.some(x=>/vendas do produto/i.test(x))&&flat.some(x=>/tarifas de venda/i.test(x)))return {kind:"amazon",sheet:sn};
+    if(flat.some(x=>/amazon marketplace/i.test(x))&&flat.some(x=>/fulfillment by amazon/i.test(x)))return {kind:"amazon",sheet:sn};
     if(flat.some(x=>/n\.?\s*[\u00ba\u00b0o]?\s*de venda/i.test(x)))return {kind:"sales",sheet:sn};
     if(flat.some(x=>/an[u\u00fa]ncio patrocinado/i.test(x)))return {kind:"adssales",sheet:sn};
     if(flat.some(x=>/investimento/i.test(x)))return {kind:"adscampaign",sheet:sn};
@@ -2940,6 +2946,77 @@ function shopeeAgg(rows){
   return {K,prods:prodsSorted,semCusto,prejuizo,daily,periodo:ds.length?fmt(ds[0])+" \u2013 "+fmt(ds[ds.length-1]):"\u2014"};
 }
 function shopeeMonthKey(rows){const ds=rows.filter(r=>r.valid&&r.date&&r.first).map(r=>r.date).sort((a,b)=>a-b);const d=ds[0]||new Date();return {key:d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"),label:d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"})};}
+const AMZ_MES={jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+function parseAmzDate(s){s=String(s||"");const m=s.match(/(\d{1,2})\s+de\s+([a-zç]{3})\.?\s+de\s+(\d{4})/i);if(m){const mo=AMZ_MES[m[2].toLowerCase().slice(0,3)];if(mo!=null)return new Date(+m[3],mo,+m[1]);}const d=new Date(s);return isNaN(d)?null:d;}
+function amzNum(s){s=String(s==null?"":s).trim();if(!s)return 0;s=s.replace(/\s/g,"");if(s.indexOf(",")>=0)s=s.replace(/\./g,"").replace(",",".");return parseFloat(s)||0;}
+function parseAmazonCSV(text){
+  text=String(text||"").replace(/^\uFEFF/,"");
+  const lines=text.split(/\r?\n/);
+  const P=l=>{const o=[];let c="",q=false;for(let i=0;i<l.length;i++){const ch=l[i];if(q){if(ch==='"'){if(l[i+1]==='"'){c+='"';i++;}else q=false;}else c+=ch;}else{if(ch==='"')q=true;else if(ch===","){o.push(c);c="";}else c+=ch;}}o.push(c);return o;};
+  let hi=-1,H=null;
+  for(let i=0;i<Math.min(30,lines.length);i++){const cells=P(lines[i]).map(x=>x.trim().toLowerCase());if(cells.some(x=>/^data\/hora$|^date\/hora$/.test(x))&&cells.some(x=>x==="sku")){hi=i;H=cells;break;}}
+  if(hi<0)throw new Error("Cabe\u00e7alho n\u00e3o encontrado (\u00e9 o relat\u00f3rio mensal de Transa\u00e7\u00f5es da Amazon?)");
+  const ci=n=>H.findIndex(h=>h===n);
+  const c={date:H.findIndex(h=>/^data\/hora$|^date\/hora$/.test(h)),tipo:ci("tipo"),order:ci("id do pedido"),sku:ci("sku"),desc:ci("descri\u00e7\u00e3o"),qty:ci("quantidade"),conta:ci("tipo de conta"),bruto:ci("vendas do produto"),promo:ci("descontos promocionais"),comis:ci("tarifas de venda"),total:ci("total")};
+  const rows=[];
+  for(let i=hi+1;i<lines.length;i++){if(!lines[i].trim())continue;const r=P(lines[i]);
+    const tipo=String(r[c.tipo]||"").trim();if(!tipo)continue;
+    const low=tipo.toLowerCase();
+    if(/transferir|transfer/.test(low))continue; // saque bancário, não é operacional
+    const kind=/pedido|order/.test(low)?"sale":/reembol|refund/.test(low)?"refund":/servi\u00e7os de envio|shipping/.test(low)?"ship":/taxa de servi\u00e7o|service/.test(low)?"svc":"other";
+    const sku=String(r[c.sku]||"").trim();
+    const rec=(kind==="sale"&&sku)?saved[sku]:null;
+    const matched=!!(rec&&!rec.composicaoPendente&&(+rec.custoItens>0));
+    const un=Math.max(1,Math.round(amzNum(r[c.qty]))||1);
+    const custoUnit=rec?(+rec.custoItens||0):0,cost=matched?custoUnit*un:0;
+    const bruto=amzNum(r[c.bruto]),total=amzNum(r[c.total]);
+    rows.push({kind,tipo,sku,order:String(r[c.order]||""),titulo:String(r[c.desc]||"").trim(),conta:String(r[c.conta]||"").trim(),
+      un,bruto,promo:amzNum(r[c.promo]),comis:amzNum(r[c.comis]),total,date:parseAmzDate(r[c.date]),
+      matched,custoUnit,cost,profit:matched?(total-cost):null,margin:(matched&&total)?(total-cost)/total:null});
+  }
+  return rows;
+}
+function amazonMonthKey(rows){const ds=rows.filter(r=>r.date).map(r=>r.date).sort((a,b)=>a-b);const d=ds[Math.floor(ds.length/2)]||ds[0]||new Date();const key=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");const label=d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"});return {key,label:label.charAt(0).toUpperCase()+label.slice(1)};}
+function amazonAgg(rows){
+  const S=(a,f)=>a.reduce((s,x)=>s+(f(x)||0),0);
+  const sales=rows.filter(r=>r.kind==="sale"),ship=rows.filter(r=>r.kind==="ship"),refund=rows.filter(r=>r.kind==="refund"),svc=rows.filter(r=>r.kind==="svc");
+  const matched=sales.filter(r=>r.matched),unmatched=sales.filter(r=>!r.matched);
+  const bruto=S(sales,x=>x.bruto),saleNet=S(sales,x=>x.total),comis=S(sales,x=>x.comis);
+  const freteC=S(ship,x=>x.total),svcC=S(svc,x=>x.total),reembC=S(refund,x=>x.total);
+  const receita=saleNet+freteC+svcC+reembC; // líquido operacional (frete/serviço/reembolso já negativos)
+  const custo=S(matched,x=>x.cost),lucro=receita-custo;
+  // por SKU
+  const bm={};sales.forEach(r=>{const k=r.sku||"(sem sku)";const g=bm[k]||(bm[k]={sku:k,produto:r.titulo,n:0,un:0,bruto:0,net:0,custo:0,matched:r.matched});g.n++;g.un+=r.un;g.bruto+=r.bruto;g.net+=r.total;if(r.matched)g.custo+=r.cost;g.matched=g.matched||r.matched;if(!g.produto&&r.titulo)g.produto=r.titulo;});
+  const prods=Object.values(bm).map(g=>({sku:g.sku,produto:g.produto,n:g.n,un:g.un,receita:g.bruto,custo:g.custo,lucro:g.matched?(g.net-g.custo):null,margem:(g.matched&&g.net)?(g.net-g.custo)/g.net:null,matched:g.matched})).sort((a,b)=>b.receita-a.receita);
+  const semCusto=prods.filter(p=>!p.matched).map(p=>({sku:p.sku,produto:p.produto,receita:p.receita}));
+  const prejuizo=prods.filter(p=>p.matched&&p.lucro<0).sort((a,b)=>a.lucro-b.lucro);
+  const dm={};sales.forEach(r=>{if(!r.date)return;const d=r.date.getDate();const g=dm[d]||(dm[d]={day:d,n:0,receita:0,lucro:0});g.n++;g.receita+=r.total;if(r.matched)g.lucro+=r.profit;});
+  const daily=Object.values(dm).sort((a,b)=>a.day-b.day).map(d=>({...d,label:"dia "+d.day}));
+  const K={nVend:sales.length,unid:S(sales,x=>x.un),bruto,receita,custo,lucro,margem:receita>0?lucro/receita:0,
+    comissao:comis,frete:freteC,taxaServico:svcC,reembolso:reembC,promo:S(sales,x=>x.promo),
+    nCancel:refund.length,recCancel:reembC,nUnmatched:unmatched.length,recUnmatched:S(unmatched,x=>x.bruto),
+    freteDevol:0,tarifaTot:comis,freteTot:freteC,takeRate:bruto>0?receita/bruto:0};
+  return {K,prods,semCusto,prejuizo,daily};
+}
+async function applyAmazon(text,fileName){
+  await ensureSalesMonths();
+  const rows=parseAmazonCSV(text);
+  if(!rows.some(r=>r.kind==="sale")){toast("N\u00e3o encontrei pedidos nesse arquivo da Amazon");return;}
+  const mk=amazonMonthKey(rows.filter(r=>r.kind==="sale"));const A=amazonAgg(rows);
+  const prev=SALES.amz.months[mk.key]||{};
+  SALES.amz.months[mk.key]={month:mk.key,monthLabel:mk.label,fileName,uploadedAt:Date.now(),A,extras:prev.extras||{adManual:null,custos:[]}};
+  (SALES.amz._rawRows=SALES.amz._rawRows||{})[mk.key]=rows;
+  SALES.channel="amz";SALES.amz.view=mk.key;
+  renderFechamento();await persistSalesMonths();
+  toast(A.K.nVend.toLocaleString("pt-BR")+" pedidos Amazon de "+mk.label+" \u00b7 l\u00edquido "+brl(A.K.receita));
+}
+async function rematchAmazon(key){
+  const rows=(SALES.amz._rawRows||{})[key];const m=SALES.amz.months[key];
+  if(!rows||!m)return -1;
+  let changed=0;
+  rows.forEach(r=>{if(r.kind!=="sale")return;const rec=r.sku?saved[r.sku]:null;const matched=!!(rec&&!rec.composicaoPendente&&(+rec.custoItens>0));if(matched!==r.matched)changed++;const cu=rec?(+rec.custoItens||0):0;r.matched=matched;r.custoUnit=cu;r.cost=matched?cu*r.un:0;r.profit=matched?(r.total-r.cost):null;r.margin=(matched&&r.total)?(r.total-r.cost)/r.total:null;if(rec&&rec.nome&&!r.titulo)r.titulo=rec.nome;});
+  m.A=amazonAgg(rows);SALES.amz.months[key]=m;await persistSalesMonths();return changed;
+}
 async function applyShopee(wbList,fileName){
   await ensureSalesMonths();
   const {rows}=parseShopeeWB(wbList);
@@ -2971,13 +3048,13 @@ let _lastStock=null;
 function stockPayload(){if(STOCK.loaded&&STOCK.rows.length)return {rows:STOCK.rows,fileName:STOCK.fileName,updatedAt:STOCK.updatedAt};return _lastStock||{rows:STOCK.rows,fileName:STOCK.fileName,updatedAt:STOCK.updatedAt};}
 async function ensureSalesMonths(){
   if(SALES.monthsLoaded)return;
-  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};SALES.shp.months=(d&&d.shpMonths)||{};
+  try{const d=await DB.getSales();SALES.months=(d&&d.months)||{};SALES.shp.months=(d&&d.shpMonths)||{};SALES.amz.months=(d&&d.amzMonths)||{};
     if(d&&d.stock){STOCK.rows=d.stock.rows||[];STOCK.fileName=d.stock.fileName||"";STOCK.updatedAt=d.stock.updatedAt||0;_lastStock=d.stock;}
-    STOCK.loaded=true;if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};SALES.shp.months={};}
+    STOCK.loaded=true;if(SUPA_ON)setSync("cloud");}catch(e){SALES.months={};SALES.shp.months={};SALES.amz.months={};}
   SALES.monthsLoaded=true;
 }
-async function persistSalesMonths(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months,stock:stockPayload()});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
-async function persistStock(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months,stock:stockPayload()});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o estoque na nuvem");}}
+async function persistSalesMonths(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months,amzMonths:SALES.amz.months,stock:stockPayload()});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o fechamento na nuvem");}}
+async function persistStock(){try{await DB.setSales({months:SALES.months,shpMonths:SALES.shp.months,amzMonths:SALES.amz.months,stock:stockPayload()});if(SUPA_ON)setSync("cloud");}catch(e){setSync("err");toast("Falha ao salvar o estoque na nuvem");}}
 function monthKeyOf(rows){
   const ds=rows.filter(r=>r.valid&&r.date).map(r=>r.date).sort((a,b)=>a-b);
   const d=ds[0]||new Date();
@@ -3502,12 +3579,51 @@ function renderFechamento(){
   const note=$("#salesNote");
   if(note)note.innerHTML=SALES.channel==="shp"
     ?"Suba o relat\u00f3rio de <b>pedidos</b> da Shopee (Meus Pedidos \u2192 Exportar, status Conclu\u00eddo/Todos). L\u00edquido por pedido = Valor Total \u2212 comiss\u00e3o \u2212 servi\u00e7o \u2212 transa\u00e7\u00e3o; o custo do kit vem da composi\u00e7\u00e3o deduzida. Se o export vier em 2 partes, selecione as duas juntas."
+    :SALES.channel==="amz"
+    ?"Suba o relat\u00f3rio mensal de <b>Transa\u00e7\u00f5es</b> da Amazon (mês fechado, todas as bandeiras). Casa o custo por SKU. Frete (Easy Ship), comiss\u00e3o e reembolsos j\u00e1 descontam o l\u00edquido; o Ads da Amazon voc\u00ea lan\u00e7a na se\u00e7\u00e3o Custos do m\u00eas."
     :SALES.channel==="both"
     ?"Vis\u00e3o combinada: Mercado Livre + Shopee no mesmo m\u00eas, separado e somado. Para editar Ads/custos, escolha o canal espec\u00edfico."
     :"Suba o relat\u00f3rio <b>Vendas</b> do Mercado Livre (.xlsx). Lucro real = Total depositado \u2212 custo da composi\u00e7\u00e3o. O custo de Ads entra na se\u00e7\u00e3o Custos do m\u00eas.";
   if(SALES.channel==="shp")return renderShopee();
+  if(SALES.channel==="amz")return renderAmazon();
   if(SALES.channel==="both")return renderCombined();
   return renderSales();
+}
+function renderAmazon(){
+  const body=$("#salesBody"),empty=$("#salesEmpty");
+  const keys=Object.keys(SALES.amz.months).sort();
+  if(!keys.length){body.innerHTML="";empty.style.display="";empty.querySelector(".big").textContent="Nenhum relat\u00f3rio Amazon";empty.querySelector("div:nth-child(2)").innerHTML="Suba o relat\u00f3rio mensal de <b>Transa\u00e7\u00f5es</b> da Amazon para ver a rentabilidade.";return;}
+  empty.style.display="none";
+  const sel=SALES.amz.view&&SALES.amz.months[SALES.amz.view]?SALES.amz.view:keys[keys.length-1];SALES.amz.view=sel;
+  const mrec=SALES.amz.months[sel],A=mrec.A,K=A.K;
+  const strip=keys.map((k,i)=>chipMetrics(SALES.amz.months[k],i>0?SALES.amz.months[keys[i-1]]:null,"amzmonth","amzdel",k,SALES.amz.months[k].monthLabel,k===sel)).join("");
+  const hist=`<div class="scard histcard"><h4>Meses (Amazon)</h4><div class="mchips">${strip}</div>${monthLegendHtml()}</div>`;
+  const heroHtml=receitaHero(K,"Comissão + frete + serviço");
+  const kpis=`<div class="skpis">${kpi("Pedidos",K.nVend.toLocaleString("pt-BR"))}${kpi("Unidades",K.unid.toLocaleString("pt-BR"))}${kpi("Custo",brl(K.custo))}${kpi("Lucro",brl(K.lucro),K.lucro<0?"neg":"pos")}${kpi("Margem",pct(K.margem))}${kpi("Reembolsos",K.nCancel.toLocaleString("pt-BR"))}</div>`;
+  const custosHtml=custosCardHtml(sel,mrec,K.lucro,K.receita,null);
+  const dailyCard=A.daily&&A.daily.length?`<div class="scard"><h4>Lucro por dia</h4>${dailyChart(A.daily)}</div>`:"";
+  const ded=`<div class="scard"><h4>Do bruto ao l\u00edquido</h4><div class="dedgrid">
+    <div><div class="sk-l">Bruto (vendas)</div><div class="dedv">${brl(K.bruto)}</div></div>
+    <div><div class="sk-l">\u2212 Comiss\u00e3o Amazon</div><div class="dedv neg">${brl(K.comissao)}</div></div>
+    <div><div class="sk-l">\u2212 Frete (Easy Ship)</div><div class="dedv neg">${brl(K.frete)}</div></div>
+    <div><div class="sk-l">\u2212 Taxa de servi\u00e7o</div><div class="dedv neg">${brl(K.taxaServico)}</div></div>
+    <div><div class="sk-l">= L\u00edquido recebido</div><div class="dedv">${brl(K.receita)}</div><div class="sec">take ${pct(K.takeRate)}</div></div></div></div>`;
+  const semtools=A.semCusto.length?`<div class="semtools"><button class="iact" data-rematch title="Depois de cadastrar os kits, recalcula o casamento">\u21bb Recalcular custos</button> <span class="sec">clique num produto pra cadastrar</span></div><div class="semlist">`+A.semCusto.slice(0,12).map(g=>`<button class="semchip" data-cadastrar="${(g.sku||"").replace(/"/g,"&quot;")}" data-titulo="${(g.produto||"").replace(/"/g,"&quot;")}">${g.sku}${g.produto?" \u00b7 "+g.produto.slice(0,30):""} <span class="goarr">\u2192</span></button>`).join("")+(A.semCusto.length>12?`<span class="semchip more">+${A.semCusto.length-12}</span>`:"")+"</div>":"";
+  const boxes=`<div class="sgrid2">
+    <div class="scard"><h4>Reembolsos</h4><div class="bignum">${K.nCancel.toLocaleString("pt-BR")}</div><div class="sec">${brl(K.recCancel)} descontado do l\u00edquido</div></div>
+    <div class="scard ${A.semCusto.length?"warn":""}"><h4>Sem custo cadastrado</h4><div class="bignum">${A.semCusto.length}</div><div class="sec">${brl(K.recUnmatched)} em ${K.nUnmatched} linhas</div>${semtools}</div></div>`;
+  const sk=shpSort.key,dir=shpSort.dir,val=g=>{const v=g[sk];return v==null?-Infinity:v;};
+  const prods=[...A.prods].sort((a,b)=>dir<0?val(b)-val(a):val(a)-val(b));
+  const sortsh=(key,label,r)=>{const on=shpSort.key===key,arr=on?(shpSort.dir<0?" \u25be":" \u25b4"):"";return `<th class="${r?"r ":""}sortsh${on?" on":""}" data-shsort="${key}">${label}${arr}</th>`;};
+  const prows=prods.map(g=>`<tr${g.matched&&g.lucro<0?' class="rowneg"':""}><td><span class="mono">${g.sku||"\u2014"}</span><div class="stt">${(g.produto||"").slice(0,52)}</div></td><td class="r">${g.n}</td><td class="r">${g.un}</td><td class="r">${brl(g.receita)}</td><td class="r sec">${g.matched?brl(g.custo):"\u2014"}</td><td class="r">${g.matched?`<b class="${g.lucro<0?"neg":""}">${brl(g.lucro)}</b>`:`<button class="cadbtn" data-cadastrar="${(g.sku||"").replace(/"/g,"&quot;")}" data-titulo="${(g.produto||"").replace(/"/g,"&quot;")}">cadastrar \u2192</button>`}</td><td class="r">${g.margem==null?'<span class="sec">\u2014</span>':`<span class="marg ${g.margem>=(assumptions.meta||10)/100?"ok":g.margem>=0?"mid":"no"}">${pct(g.margem)}</span>`}</td></tr>`).join("");
+  const main=`<details class="detwrap" open><summary><h4 style="display:inline">Por produto (${A.prods.length})</h4> <span class="sec">clique nos t\u00edtulos pra ordenar</span></summary><div class="stabwrap"><table class="stab big"><thead><tr><th>Produto / SKU</th>${sortsh("n","Vendas",1)}${sortsh("un","Unid",1)}${sortsh("receita","Receita",1)}<th class="r">Custo</th>${sortsh("lucro","Lucro",1)}${sortsh("margem","Margem",1)}</tr></thead><tbody>${prows}</tbody></table></div></details>`;
+  body.innerHTML=hist+heroHtml+kpis+custosHtml+ded+boxes+dailyCard+main;
+  body.querySelectorAll("[data-amzmonth]").forEach(c=>c.onclick=e=>{if(e.target&&e.target.dataset&&e.target.dataset.amzdel!=null)return;SALES.amz.view=c.dataset.amzmonth;renderAmazon();});
+  body.querySelectorAll("[data-amzdel]").forEach(x=>x.onclick=async e=>{e.stopPropagation();const k=x.dataset.amzdel,m=SALES.amz.months[k];if(!confirm("Remover o fechamento Amazon de "+((m&&m.monthLabel)||k)+"?"))return;delete SALES.amz.months[k];if(SALES.amz.view===k)SALES.amz.view="";await persistSalesMonths();renderAmazon();toast("Removido");});
+  body.querySelectorAll("[data-shsort]").forEach(th=>th.onclick=()=>{const k=th.dataset.shsort;if(shpSort.key===k)shpSort.dir*=-1;else{shpSort.key=k;shpSort.dir=-1;}renderAmazon();});
+  body.querySelectorAll("[data-cadastrar]").forEach(b=>b.onclick=()=>newKitFromMlb(b.dataset.cadastrar,b.dataset.titulo||""));
+  {const rmb=body.querySelector("[data-rematch]");if(rmb)rmb.onclick=async()=>{rmb.disabled=true;rmb.textContent="Recalculando\u2026";await refreshSkus();const n=await rematchAmazon(sel);if(n<0){toast("Suba o relat\u00f3rio deste m\u00eas de novo pra recalcular.");rmb.disabled=false;rmb.textContent="\u21bb Recalcular custos";return;}renderAmazon();toast(n?`${n} produtos casados com o custo`:"Nada novo pra casar.");};}
+  wireCustos(body,mrec,K.lucro,K.receita);
 }
 function renderShopee(){
   const body=$("#salesBody"),empty=$("#salesEmpty");
@@ -3726,11 +3842,12 @@ async function onSalesFiles(files){
   if(typeof XLSX==="undefined"){toast("A leitura de planilha n\u00e3o carregou (precisa de internet)");return;}
   toast("Lendo relat\u00f3rio\u2026");
   try{
-    const parsed=[];for(const f of files){const wb=await readWorkbook(f);parsed.push({wb,name:f.name,det:detectReport(wb)});}
+    const parsed=[];for(const f of files){const wb=await readWorkbook(f);parsed.push({wb,name:f.name,det:detectReport(wb),file:f});}
     const shp=parsed.filter(p=>p.det.kind==="shopee");
     if(shp.length)await applyShopee(shp.map(p=>p.wb),shp.map(p=>p.name).join(", "));
     for(const p of parsed){
-      if(p.det.kind==="adscampaign")await applyAdsCampaign(p.wb,p.name);
+      if(p.det.kind==="amazon")await applyAmazon(await p.file.text(),p.name);
+      else if(p.det.kind==="adscampaign")await applyAdsCampaign(p.wb,p.name);
       else if(p.det.kind==="adssales")await applyAdsAttribution(p.wb,p.name);
       else if(p.det.kind==="sales"){
         const {rows,sheet}=parseSalesWB(p.wb);
