@@ -70,6 +70,16 @@
   .statusbar .right{margin-left:auto;display:flex;align-items:center;gap:10px}
   .upd{font-size:11px;color:var(--muted)}
   [data-range].on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .barrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .barrow+.barrow{margin-top:9px;padding-top:9px;border-top:1px solid var(--line2)}
+  .grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .chip{border-radius:999px;padding:6px 13px;font-size:12.5px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);cursor:pointer;font-family:var(--body)}
+  .chip.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+  .showing{font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;margin:10px 0 0;display:inline-block}
+  .showing b{color:var(--ink)}.showing .cor{color:var(--accent);font-weight:600}
+  .miniseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .miniseg button{border:0;background:transparent;color:var(--muted);padding:5px 11px;font-size:11.5px;cursor:pointer;font-family:var(--body)}
+  .miniseg button.on{background:var(--accent2);color:#111;font-weight:700}
   .pill{font-size:10px;padding:2px 7px;border-radius:999px;font-weight:600}.pill.ok{background:rgba(34,197,94,.15);color:var(--pos)}.pill.bad{background:rgba(251,113,133,.15);color:var(--neg)}
   h2{font-family:var(--display);font-size:13px;font-weight:600;margin:0 0 11px;display:flex;justify-content:space-between;align-items:center;gap:8px}
   h2 .ttl{display:flex;align-items:center;gap:7px;min-width:0}
@@ -146,21 +156,25 @@
     <button id="btnDiag">🔍</button><button id="btnConfig">⚙</button>
   </div>
   <div class="ctrls">
-    <span class="lbl">Período:</span>
-    <button data-range="mes">Mês vigente</button>
-    <button data-range="ano">Este ano</button>
-    <button data-range="anoant">Ano passado</button>
-    <button data-range="30d">Últimos 30 dias</button>
-    <button data-range="tudo">Tudo</button>
-    <span class="sep"></span>
-    <span class="lbl">Trimestre:</span>
-    <span class="qbtns"><span><button data-range="q1">Q1</button><span class="qsub">Jan–Mar</span></span><span><button data-range="q2">Q2</button><span class="qsub">Abr–Jun</span></span><span><button data-range="q3">Q3</button><span class="qsub">Jul–Set</span></span><span><button data-range="q4">Q4</button><span class="qsub">Out–Dez</span></span></span>
-    <span class="sep"></span>
-    <span class="lbl">De</span><input type="date" id="de" /><span class="lbl">Até</span><input type="date" id="ate" />
-    <div class="dd"><button id="btnCanais">Canais ▾</button><div class="ddpanel" id="canaisPanel"></div></div>
-    <span class="lbl">Comparar:</span><select id="compSel"><option value="mes">Mês anterior</option><option value="ano">Ano anterior</option></select>
-    <span class="lbl">Ver por:</span><div class="seg" id="granSeg"><button data-gran="dia" class="on">Dia</button><button data-gran="mes">Mês</button></div>
-    <button id="btnAplicar" class="primary">Aplicar</button>
+    <div class="barrow">
+      <span class="lbl">Quando</span>
+      <button class="chip" data-range="mes">Mês vigente</button>
+      <button class="chip" data-range="ano">Este ano</button>
+      <button class="chip" data-range="anoant">Ano passado</button>
+      <button class="chip" data-range="30d">Últimos 30 dias</button>
+      <button class="chip" data-range="tudo">Período completo</button>
+      <span class="sep"></span>
+      <button class="chip" data-range="q1">Q1</button><button class="chip" data-range="q2">Q2</button><button class="chip" data-range="q3">Q3</button><button class="chip" data-range="q4">Q4</button>
+      <span class="sep"></span>
+      <input type="date" id="de" /><span class="lbl">até</span><input type="date" id="ate" /><button id="btnAplicar">OK</button>
+    </div>
+    <div class="barrow">
+      <span class="lbl">Recortes</span>
+      <div class="dd"><button id="btnCanais">Canais ▾</button><div class="ddpanel" id="canaisPanel"></div></div>
+      <span class="lbl" style="text-transform:none;font-size:11px">Comparar com</span>
+      <select id="compSel"><option value="mes">Mês anterior</option><option value="ano">Ano anterior</option></select>
+    </div>
+    <div class="showing" id="showing"></div>
   </div>
   <div class="wrap"><p class="hint" id="hint"></p><div id="board"></div></div>
 
@@ -501,7 +515,9 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const anosAsc=[...anos].filter(y=>y!==2023);
   const diaCap=hoje.getDate()-1>0?hoje.getDate()-1:1;
   const fatYM=(y,m,cap)=>soma(revF.filter(x=>yOf(x.date)===y&&mOf(x.date)===m&&(!cap||dOf(x.date)<=cap)),'faturamento');
-  const comparativoAnos={anos:anosAsc,linhas:MES.map((nome,i)=>{const m=i+1;const cap=(m===curM)?diaCap:null;return {mes:nome,valores:anosAsc.map(y=>r2(fatYM(y,m,cap)))};})};
+  const linhaFor=(capCur)=>MES.map((nome,i)=>{const m=i+1;const cap=(m===curM)?capCur:null;return {mes:nome,valores:anosAsc.map(y=>r2(fatYM(y,m,cap)))};});
+  const totalFor=(capCur)=>anosAsc.map(y=>r2(MES.reduce((acc,_,i)=>{const m=i+1;const cap=(m===curM)?capCur:null;return acc+fatYM(y,m,cap);},0)));
+  const comparativoAnos={anos:anosAsc,linhas:linhaFor(diaCap),totais:totalFor(diaCap),linhasCheio:linhaFor(null),totaisCheio:totalFor(null)};
   const totaisAnuais=anosAsc.map(y=>({ano:y,total:r2(soma(revF.filter(x=>yOf(x.date)===y),'faturamento'))}));
   const evolucaoAno={labels:MES,series:anosAsc.map(y=>({ano:y,dados:MES.map((_,i)=>r2(soma(revF.filter(x=>yOf(x.date)===y&&mOf(x.date)===i+1),'faturamento')))}))};
 
@@ -604,7 +620,7 @@ const fNum2=v=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:2,
 function comp(v){const a=Math.abs(v||0);if(a>=1e6)return 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' Mi';if(a>=1e3)return 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' Mil';return fBRL0.format(v||0);}
 let TC={tick:'#9aa3b2',grid:'#222838'},ultData=null,ultDiag=null,ultLayout=null,charts=[],canaisDisp=[],maxData=null,anos=[],sortable=null;
 let state={de:null,ate:null,gran:'dia',nivel:null,canais:null,compara:'mes',perfil:null};
-let aba='geral';
+let aba='geral';let compMode='ontem';
 const METAS_IDS=['metasbar','metasq','tri','metas'];
 const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp'];
 function tabOf(id){return METAS_IDS.includes(id)?'metas':(COMPAR_IDS.includes(id)?'comparativos':'geral');}
@@ -631,9 +647,9 @@ async function carregar(){
   maxData=d.maxData;anos=d.anosDisponiveis;ultData=d;ultDiag=d.diagnostico;
   document.getElementById('de').value=d.periodo.de;document.getElementById('ate').value=d.periodo.ate;
   state.de=d.periodo.de;state.ate=d.periodo.ate;state.nivel=d.nivelSelecionado;
+  atualizaShowing(document.querySelector('[data-range].on')?document.querySelector('[data-range].on').dataset.range:'personalizado');
   montaNivelSeg(d.nivelSelecionado);montaCanais(d.canaisDisponiveis,d.canaisSelecionados);
   document.getElementById('compSel').value=state.compara;
-  document.querySelectorAll('#granSeg button').forEach(b=>b.classList.toggle('on',b.dataset.gran===state.gran));
   if(!d.configurado){board.innerHTML='<div class="card"><div class="empty">Nenhuma planilha configurada.<br><br><button class="primary" onclick="abrirConfig()">⚙ Abrir Configurações</button></div></div>';return;}
   render(d);
 }
@@ -687,8 +703,8 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
         const meio=andamento?`feito ${comp(m.realizado)} (até dia ${pj.projecaoMes.diasDecorridos}) · `:`feito ${comp(m.realizado)} · `;
         return `<div class="kpi"><p class="eyebrow">${m.mes} · ${m.pesoPct.toFixed(0)}% do quarter</p><div class="val sm num">${comp(m.meta)}</div><div class="sub">${meio}${tail}</div></div>`;}).join('')}
     </div></div>`));
-  if(mostrarMes)blocks.push(bloco('ev','',`<div class="card"><h2><span class="ttl">${H()} Evolução do faturamento</span><span class="tag">${gran==='dia'?'diária — período vs comparação':'mensal — ano atual vs anterior'}</span></h2><canvas id="chEv"></canvas></div>`));
-  if(mostrarMes)blocks.push(bloco('inv','',`<div class="card"><h2><span class="ttl">${H()} Evolução do investimento (ADS)</span><span class="tag">${gran==='dia'?'diária — período vs comparação':'mensal'}</span></h2><canvas id="chInv"></canvas></div>`));
+  if(mostrarMes)blocks.push(bloco('ev','',`<div class="card"><h2><span class="ttl">${H()} Evolução do faturamento</span><span class="miniseg"><button onclick="setGran('dia')" class="${gran==='dia'?'on':''}">Por dia</button><button onclick="setGran('mes')" class="${gran==='mes'?'on':''}">Por mês</button></span></h2><canvas id="chEv"></canvas></div>`));
+  if(mostrarMes)blocks.push(bloco('inv','',`<div class="card"><h2><span class="ttl">${H()} Evolução do investimento (ADS)</span><span class="miniseg"><button onclick="setGran('dia')" class="${gran==='dia'?'on':''}">Por dia</button><button onclick="setGran('mes')" class="${gran==='mes'?'on':''}">Por mês</button></span></h2><canvas id="chInv"></canvas></div>`));
   if(mostrarMes)blocks.push(bloco('roasdia','',`<div class="card"><h2><span class="ttl">${H()} ROAS por dia</span><span class="tag">período</span></h2><canvas id="chRoasDia"></canvas></div>`));
   blocks.push(bloco('canal','b6',`<div class="card"><h2><span class="ttl">${H()} Faturamento por canal</span><span class="tag">período</span></h2><div class="canalwrap"><div class="canaldon"><canvas id="chCanal" height="190"></canvas></div><ul class="legend" id="legCanal"></ul></div></div>`));
   blocks.push(bloco('tri','b6',`<div class="card"><h2><span class="ttl">${H()} Trimestres vs meta</span><span class="tag">${d.anoRef} · ${d.nivelSelecionado}</span></h2>
@@ -703,10 +719,12 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </tbody></table></div><div class="sub num">Realizado ${d.anoRef}: Q1 ${comp(rt['1'])} · Q2 ${comp(rt['2'])} · Q3 ${comp(rt['3'])} · Q4 ${comp(rt['4'])}</div></div>`));
   blocks.push(bloco('evano','',`<div class="card"><h2><span class="ttl">${H()} Evolução por ano</span><span class="tag">faturamento mensal · todos os anos</span></h2><canvas id="chEvAno"></canvas>
     <div class="anosrow">${d.totaisAnuais.map(t=>`<div class="anocard"><div class="lbl">${t.ano}</div><div class="num" style="font-weight:700">${comp(t.total)}</div></div>`).join('')}</div></div>`));
-  blocks.push(bloco('comp','',`<div class="card"><h2><span class="ttl">${H()} Comparativo mensal</span><span class="tag">todos os anos · mês vigente até ontem</span></h2>
+  const CAlin=compMode==='cheio'?d.comparativoAnos.linhasCheio:d.comparativoAnos.linhas;
+  const CAtot=compMode==='cheio'?d.comparativoAnos.totaisCheio:d.comparativoAnos.totais;
+  blocks.push(bloco('comp','',`<div class="card"><h2><span class="ttl">${H()} Comparativo mensal</span><span class="miniseg"><button onclick="setCompMode('ontem')" class="${compMode==='ontem'?'on':''}">Até ontem</button><button onclick="setCompMode('cheio')" class="${compMode==='cheio'?'on':''}">Mês cheio</button></span></h2>
     <div class="tw"><table><thead><tr><th>Mês</th>${A.map(y=>`<th>${y}</th>`).join('')}${hasVar?`<th>Var ${A[A.length-2]}→${A[A.length-1]}</th>`:''}</tr></thead><tbody>
-    ${d.comparativoAnos.linhas.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
-    <tr class="hl"><td><b>Total</b></td>${d.totaisAnuais.map(t=>`<td class="num"><b>${comp(t.total)}</b></td>`).join('')}${hasVar?(()=>{const a=d.totaisAnuais;const v=a[a.length-2]&&a[a.length-2].total?(a[a.length-1].total-a[a.length-2].total)/a[a.length-2].total*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
+    ${CAlin.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
+    <tr class="hl"><td><b>Total</b></td>${CAtot.map(t=>`<td class="num"><b>${comp(t)}</b></td>`).join('')}${hasVar?(()=>{const v=CAtot[A.length-2]?(CAtot[A.length-1]-CAtot[A.length-2])/CAtot[A.length-2]*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
     </tbody></table></div></div>`));
   const ORDEM=['mesatual','resumoquarter','acumulado','canal','roascanal','ev','inv','roasdia','evcanal','evano','comp','metasbar','metasq','tri','metas'];
   blocks.sort((a,b)=>{const ga=(a.match(/data-block="([^"]+)"/)||[])[1],gb=(b.match(/data-block="([^"]+)"/)||[])[1];const ia=ORDEM.indexOf(ga),ib=ORDEM.indexOf(gb);return (ia<0?99:ia)-(ib<0?99:ib);});
@@ -779,7 +797,10 @@ function aplicarLayout(){const prefs=lsGet('prefs:'+state.perfil,{})||{};const o
   if(window.Sortable){if(sortable){try{sortable.destroy()}catch(e){}}sortable=window.Sortable.create(board,{handle:'.bhandle',animation:160,ghostClass:'drag',onEnd:()=>{const o=[...board.querySelectorAll('.block')].map(b=>b.dataset.block);salvaPref('layout_'+aba,o);}});}}
 
 // período
-function marcaRange(tipo){document.querySelectorAll('[data-range]').forEach(b=>b.classList.toggle('on',b.dataset.range===tipo));}
+function marcaRange(tipo){document.querySelectorAll('[data-range]').forEach(b=>b.classList.toggle('on',b.dataset.range===tipo));atualizaShowing(tipo);}
+const RANGE_LBL={mes:'Mês vigente',ano:'Este ano',anoant:'Ano passado','30d':'Últimos 30 dias',tudo:'Período completo',q1:'Q1',q2:'Q2',q3:'Q3',q4:'Q4'};
+function fmtBR(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4):'—';}
+function atualizaShowing(tipo){const el=document.getElementById('showing');if(!el)return;const nome=RANGE_LBL[tipo]||'Período personalizado';const de=state.de||(document.getElementById('de')||{}).value;const ate=state.ate||(document.getElementById('ate')||{}).value;const nc=(state.canais&&state.canais.length)?state.canais.length:(canaisDisp.length||0);el.innerHTML=`Mostrando: <span class="cor">${nome}</span> · <b>${fmtBR(de)}</b> até <b>${fmtBR(ate)}</b>${nc?` · <b>${nc} ${nc===1?'canal':'canais'}</b>`:''}`;}
 function setRange(tipo){marcaRange(tipo);const ey=anos[anos.length-1]||new Date().getFullYear();const hoje=new Date();const ontem=new Date(hoje);ontem.setDate(ontem.getDate()-1);const isoD=dt=>dt.toISOString().slice(0,10);const pad=n=>String(n).padStart(2,'0');
   if(tipo==='mes'){state.de=isoD(new Date(hoje.getFullYear(),hoje.getMonth(),1));state.ate=isoD(ontem);}
   else if(tipo==='ano'){state.de=ey+'-01-01';state.ate=(maxData&&+maxData.slice(0,4)===ey)?maxData:ey+'-12-31';}
@@ -824,8 +845,9 @@ function aplicaTema(t){document.documentElement.setAttribute('data-theme',t);try
 document.getElementById('btnTema').onclick=()=>{const novo=document.documentElement.getAttribute('data-theme')==='light'?'dark':'light';aplicaTema(novo);salvaPref('theme',novo);if(ultData)render(ultData);};
 
 document.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>setRange(b.dataset.range));
-document.getElementById('btnAplicar').onclick=()=>{marcaRange('');state.de=document.getElementById('de').value;state.ate=document.getElementById('ate').value;carregar();};
-document.getElementById('granSeg').querySelectorAll('button').forEach(b=>b.onclick=()=>{state.gran=b.dataset.gran;carregar();});
+document.getElementById('btnAplicar').onclick=()=>{marcaRange('');state.de=document.getElementById('de').value;state.ate=document.getElementById('ate').value;atualizaShowing('personalizado');carregar();};
+window.setGran=(g)=>{state.gran=g;carregar();};
+window.setCompMode=(m)=>{compMode=m;if(ultData)render(ultData);};
 document.getElementById('btnConfig').onclick=abrirConfig;document.getElementById('btnFechar').onclick=fecharConfig;document.getElementById('btnSalvar').onclick=salvarConfig;
 
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
