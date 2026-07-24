@@ -156,23 +156,29 @@
     <button id="btnDiag">🔍</button><button id="btnConfig">⚙</button>
   </div>
   <div class="ctrls">
-    <div class="barrow">
-      <span class="lbl">Quando</span>
-      <button class="chip" data-range="mes">Mês vigente</button>
-      <button class="chip" data-range="ano">Este ano</button>
-      <button class="chip" data-range="anoant">Ano passado</button>
-      <button class="chip" data-range="30d">Últimos 30 dias</button>
-      <button class="chip" data-range="tudo">Período completo</button>
-      <span class="sep"></span>
-      <button class="chip" data-range="q1">Q1</button><button class="chip" data-range="q2">Q2</button><button class="chip" data-range="q3">Q3</button><button class="chip" data-range="q4">Q4</button>
-      <span class="sep"></span>
-      <input type="date" id="de" /><span class="lbl">até</span><input type="date" id="ate" /><button id="btnAplicar">OK</button>
+    <div class="barrow" style="align-items:center">
+      <div class="grp">
+        <span class="lbl">Quando</span>
+        <button class="chip" data-range="mes">Mês vigente</button>
+        <button class="chip" data-range="ano">Este ano</button>
+        <button class="chip" data-range="anoant">Ano passado</button>
+        <button class="chip" data-range="30d">Últimos 30 dias</button>
+        <button class="chip" data-range="tudo">Período completo</button>
+      </div>
+      <div class="grp" style="margin-left:auto;padding-left:14px;border-left:1px solid var(--line)">
+        <div class="dd"><button id="btnCanais">Canais ▾</button><div class="ddpanel" id="canaisPanel"></div></div>
+        <span class="lbl" style="text-transform:none;font-size:11px">Comparar</span>
+        <select id="compSel"><option value="mes">Mês anterior</option><option value="ano">Ano anterior</option></select>
+      </div>
     </div>
     <div class="barrow">
-      <span class="lbl">Recortes</span>
-      <div class="dd"><button id="btnCanais">Canais ▾</button><div class="ddpanel" id="canaisPanel"></div></div>
-      <span class="lbl" style="text-transform:none;font-size:11px">Comparar com</span>
-      <select id="compSel"><option value="mes">Mês anterior</option><option value="ano">Ano anterior</option></select>
+      <div class="grp">
+        <span class="lbl">Trimestre</span>
+        <button class="chip" data-range="q1">Q1</button><button class="chip" data-range="q2">Q2</button><button class="chip" data-range="q3">Q3</button><button class="chip" data-range="q4">Q4</button>
+        <span class="sep"></span>
+        <span class="lbl">Datas</span>
+        <input type="date" id="de" /><span class="lbl">até</span><input type="date" id="ate" /><button id="btnAplicar">OK</button>
+      </div>
     </div>
     <div class="showing" id="showing"></div>
   </div>
