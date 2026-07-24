@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Teste do proxy (leitura via atalho)</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0e1015;color:#eef1f6;margin:0;padding:20px;font-size:14px;line-height:1.5}
+  h1{font-size:18px}
+  .card{background:#161922;border:1px solid #272c3a;border-radius:12px;padding:14px 16px;margin:12px 0}
+  .ok{color:#22c55e;font-weight:700}
+  .bad{color:#fb7185;font-weight:700}
+  .muted{color:#9aa3b2;font-size:12px}
+  pre{background:#0b0d12;border:1px solid #272c3a;border-radius:8px;padding:10px;overflow:auto;font-size:11px;white-space:pre-wrap;word-break:break-word}
+</style>
+</head>
+<body>
+  <h1>🔎 Teste do proxy — leitura das abas via atalho</h1>
+  <p class="muted">Tenta ler as 4 abas passando por proxies públicos. Para cada aba, mostra qual proxy conseguiu (ou se todos falharam). Me mande um print desta tela.</p>
+  <div id="saida"></div>
+
+<script>
+const BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM6NRFxSThFzMqIyJyE18h1lI1nuMvTKuzMKW-aoyJwfC031l_Q0NJSChBFVTUQJUrRLGjIM9gyOwq';
+const ABAS = [
+  { nome: 'ADS RENOVA',          gid: '432173951' },
+  { nome: 'ADS TikTok',          gid: '178673841' },
+  { nome: 'RETROATIVO / RENOVA', gid: '80783708'  },
+  { nome: 'Retroativo TikTok',   gid: '611256132' },
+];
+const alvo = (gid) => `${BASE}/pub?gid=${gid}&single=true&output=csv`;
+const PROXIES = [
+  { nome: 'allorigins', build: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+  { nome: 'corsproxy',  build: (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u) },
+  { nome: 'codetabs',   build: (u) => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u) },
+];
+const saida = document.getElementById('saida');
+function bloco(html){ const d=document.createElement('div'); d.className='card'; d.innerHTML=html; saida.appendChild(d); }
+
+async function lerVia(proxy, url){
+  const res = await fetch(proxy.build(url));
+  const txt = await res.text();
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  if (txt.trim().startsWith('<')) throw new Error('veio HTML, nao CSV');
+  return txt;
+}
+
+(async () => {
+  for (const aba of ABAS) {
+    const url = alvo(aba.gid);
+    let feito = false;
+    for (const proxy of PROXIES) {
+      try {
+        const txt = await lerVia(proxy, url);
+        const linhas = txt.split('\n');
+        const previa = linhas.slice(0,3).map(l=>l.slice(0,110)).join('\n');
+        bloco(`<b>${aba.nome}</b> <span class="ok">✅ leu via ${proxy.nome}</span> — ${linhas.length} linhas.<pre>${previa.replace(/</g,'&lt;')}</pre>`);
+        feito = true; break;
+      } catch (e) { /* tenta o proximo proxy */ }
+    }
+    if (!feito) bloco(`<b>${aba.nome}</b> <span class="bad">❌ nenhum proxy conseguiu</span>`);
+  }
+  bloco('<b>Fim do teste.</b> <span class="muted">Me mande um print desta tela.</span>');
+})();
+</script>
+</body>
+</html>
