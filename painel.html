@@ -885,9 +885,60 @@ function carregarPrefs(){const prefs=lsGet('prefs:'+state.perfil,{})||{};if(pref
 function salvaPref(chave,valor){if(!state.perfil)return;const prefs=lsGet('prefs:'+state.perfil,{})||{};prefs[chave]=valor;lsSet('prefs:'+state.perfil,prefs);}
 document.getElementById('perfilSel').onchange=e=>{state.perfil=e.target.value;try{localStorage.setItem('perfil',state.perfil);}catch(x){}carregarPrefs();if(ultData)render(ultData);};
 document.getElementById('btnNovoPerfil').onclick=()=>{const nome=(prompt('Nome do novo perfil:')||'').trim();if(!nome)return;let perfis=lsGet('perfis',[])||[];if(!perfis.includes(nome))perfis.push(nome);lsSet('perfis',perfis);lsSet('prefs:'+nome,{theme:document.documentElement.getAttribute('data-theme')||'dark'});try{localStorage.setItem('perfil',nome);}catch(x){}initPerfis();if(ultData)render(ultData);};
-function copiarResumo(){if(!ultData)return;const r=ultData.resumoMes,pj=ultData.projecao.projecaoMes,s=ultData.semaforo,q=ultData.resumoQuarter;
-  const fp=v=>v==null?'—':(v>0?'+':'')+v.toFixed(0)+'%';
-  const t=`📊 ${r.mesLabel} (até dia ${pj.diasDecorridos}/${pj.diasMes})\nFaturado: ${comp(r.faturamento)}${r.atingidoPct!=null?' ('+r.atingidoPct.toFixed(0)+'% da meta)':''}\nvs meta (ritmo até hoje): ${fp(r.vsMetaProp)}\nvs mês anterior (mesmo período): ${fp(r.vsMesAnterior)}\nProjeção: ${comp(pj.projetado)}${pj.atingidoProjPct!=null?' ('+pj.atingidoProjPct.toFixed(0)+'%)':''}\nMeta do mês: ${comp(r.meta)}\nQuarter ${q.quarter}: ${comp(q.faturamento)}${q.atingidoPct!=null?' ('+q.atingidoPct.toFixed(0)+'% da meta)':''}\nStatus: ${s.label}`;
+function copiarResumo(){if(!ultData)return;
+  const r=ultData.resumoMes,pj=ultData.projecao.projecaoMes,s=ultData.semaforo,q=ultData.resumoQuarter,mm=ultData.projecao.mesesMeta||[];
+  const cfg=getConfig(),niveis=cfg.metas.niveis,principal=cfg.metas.nivelPrincipal;
+  const fmtC=n=>{const a=Math.abs(n);const sg=n<0?'-':'';return a>=1e6?sg+'R$ '+(a/1e6).toFixed(2).replace('.',',')+' mi':'R$ '+sg+Math.round(a/1e3)+' mil';};
+  const mesNum=pj.mesNum,quarter=Math.ceil(mesNum/3),posInQ=(mesNum-1)%3,lastOfQ=posInQ===2;
+  const baseLvl=L=>((niveis[L]&&niveis[L]['q'+quarter])||0)/3;
+  let accum=0; for(const m of mm){ if(m.mesNum<mesNum) accum+=(m.meta-m.realizado); }
+  const realMes=r.faturamento;
+  const diasRest=Math.max(pj.diasMes-pj.diasDecorridos,1);
+  const metaPrincMes=baseLvl(principal)+accum;
+  const emoji=s.status==='verde'?'🟢':s.status==='amarelo'?'🟠':s.status==='vermelho'?'🔴':'⚪';
+  // meta do mês (discriminada se houver acúmulo)
+  let metaMesStr=fmtC(metaPrincMes);
+  if(Math.abs(accum)>1){ metaMesStr=fmtC(metaPrincMes)+' ('+fmtC(baseLvl(principal))+' base '+(accum>0?'+ '+fmtC(accum)+' acúmulo':'− '+fmtC(-accum)+' superávit')+')'; }
+  // níveis: falta este mês + /dia; marca mais próxima e atingidos
+  const ordem=['M1','M2','M3','M4'].filter(L=>niveis[L]);
+  const faltas=ordem.map(L=>({L,falta:(baseLvl(L)+accum)-realMes}));
+  const positivas=faltas.filter(x=>x.falta>0).sort((a,b)=>a.falta-b.falta);
+  const maisProx=positivas.length?positivas[0].L:null;
+  const linhasNiveis=faltas.map(x=>{
+    if(x.falta<=0) return '• *'+x.L+'* — ✔️ atingido _(superou '+fmtC(-x.falta)+')_';
+    return '• *'+x.L+'* — falta *'+fmtC(x.falta)+'* · '+fmtC(x.falta/diasRest)+'/dia'+(x.L===maisProx?' ✅ _mais próxima_':'');
+  });
+  // tendência (⚠️/✅)
+  const faltaProj=metaPrincMes-pj.projetado;
+  const proxMes=MES[mesNum%12];
+  let tend='';
+  if(!lastOfQ){
+    tend = faltaProj>0 ? '⚠️ _No ritmo atual, deve faltar ~'+fmtC(faltaProj)+' → acúmulo estimado p/ '+proxMes+'_'
+                       : '✅ _No ritmo atual, deve sobrar ~'+fmtC(-faltaProj)+' → abate na meta de '+proxMes+'_';
+  } else {
+    tend = faltaProj>0 ? '⚠️ _No ritmo atual, o '+q.quarter+' deve fechar ~'+fmtC(faltaProj)+' abaixo da meta_'
+                       : '✅ _No ritmo atual, o '+q.quarter+' deve fechar ~'+fmtC(-faltaProj)+' acima da meta_';
+  }
+  const now=new Date();const dd=String(now.getDate()).padStart(2,'0'),mo=String(now.getMonth()+1).padStart(2,'0'),hh=String(now.getHours()).padStart(2,'0'),mi=String(now.getMinutes()).padStart(2,'0');
+  const L=[];
+  L.push('*📊 Renova Be — Painel ADS*');
+  L.push('_'+r.mesLabel+' · até dia '+pj.diasDecorridos+' · faltam '+diasRest+' dias_');
+  L.push('');
+  L.push('*Faturado no mês:* '+fmtC(realMes)+' de '+metaMesStr+' _(meta '+principal+' do mês)_');
+  L.push('*Projeção de fim do mês:* '+fmtC(pj.projetado));
+  L.push('*Status:* '+emoji+' '+s.label);
+  L.push(tend);
+  L.push('');
+  L.push('*🎯 Falta este mês por nível*');
+  L.push('_meta do mês = base do trimestre ÷ 3'+(Math.abs(accum)>1?' '+(accum>0?'+ acúmulo':'− superávit'):'')+'_');
+  for(const ln of linhasNiveis) L.push(ln);
+  L.push('');
+  L.push('*📊 Acumulado do trimestre ('+q.quarter+')*');
+  L.push('Realizado: '+fmtC(q.faturamento)+' de '+fmtC(q.meta)+' ('+principal+')'+(q.atingidoPct!=null?' · '+q.atingidoPct.toFixed(0)+'%':''));
+  L.push('');
+  L.push('*ROAS:* '+(r.roas!=null?r.roas.toFixed(2).replace('.',','):'—')+'  ·  *Invest.:* '+fmtC(r.investimento)+'  ·  *Receita ADS:* '+fmtC(r.receitaAds));
+  L.push('_Atualizado em '+dd+'/'+mo+' às '+hh+':'+mi+'_');
+  const t=L.join('\n');
   const done=()=>{const b=document.getElementById('btnCopiar');if(b){const o=b.textContent;b.textContent='✅ Copiado!';setTimeout(()=>b.textContent=o,1500);}};
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>prompt('Copie o resumo:',t));}else prompt('Copie o resumo:',t);}
 window.copiarResumo=copiarResumo;
