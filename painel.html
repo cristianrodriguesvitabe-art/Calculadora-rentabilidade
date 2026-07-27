@@ -41,14 +41,11 @@
   .hcell.best{outline:2px solid var(--pos);outline-offset:-1px}
   .hcell.worst{outline:2px dashed rgba(229,86,60,.7);outline-offset:-1px}
   .hfoot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line2)}
-  .hfhd{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px}
-  .hfhd .eb{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-  .sweek2{display:flex;gap:5px}
-  .sc2{flex:1;aspect-ratio:1;border:1px solid var(--line);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff2ee}
-  .sc2.sb{outline:2px solid var(--pos);outline-offset:-1px}
-  .sc2.sw{outline:2px dashed rgba(229,86,60,.7);outline-offset:-1px}
-  .vrow{display:flex;gap:5px;margin-top:4px}
-  .vlab{flex:1;text-align:center;font-size:9.5px;color:var(--muted);font-weight:600}
+  .hfeb{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
+  .gweek{display:flex;align-items:flex-end;gap:7px;height:46px}
+  .gbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end}
+  .gbf{width:100%;border-radius:3px;min-height:3px}
+  .gbl{font-size:9px;color:var(--faint);text-transform:uppercase}
   .hinsight{margin-top:11px;font-size:12.5px;color:var(--ink);line-height:1.5;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .hinsight b{color:var(--pos)}
   .hcmp{margin-top:14px;text-align:center;font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px}
@@ -770,11 +767,11 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     const cal=(key,dias,side)=>{const st=stats(dias);const[y,m]=key.split('-');const firstDow=new Date(+y,+m-1,1).getDay();let cells='';for(let i=0;i<firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of dias){const c=cor(x.fat);const tip=x.fat==null?`Dia ${x.d}: sem dados`:`${DOW[x.dow]} ${x.d}: ${comp(x.fat)}`;const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;cells+=`<div class="hcell${isB?' best':''}${isW?' worst':''}" style="background:${c[0]};border-color:${c[1]}" title="${tip}"><span class="hd" style="color:${c[2]}">${x.d}</span>${(x.fat==null||x.fat<=0)?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}
       let foot='<div class="hfoot"><div class="sub" style="color:var(--muted)">sem vendas no mês</div></div>';
       if(st){const mxD=Math.max(...st.avgDow.map(x=>x.avg),1);
-        const strip=st.avgDow.map(x=>{const op=(0.16+0.6*(x.avg/mxD)).toFixed(2);const isB=x.dow===st.bestDow.dow&&x.n>0,isW=x.dow===st.worstDow.dow&&x.n>0;return `<div class="sc2${isB?' sb':''}${isW?' sw':''}" style="background:${x.n>0?`rgba(234,83,57,${op})`:'#101010'}" title="${DOW[x.dow]}: ${x.n>0?comp(x.avg)+'/dia':'sem dados'}"><span>${DOW[x.dow][0]}</span></div>`;}).join('');
-        const vals=st.avgDow.map(x=>`<span class="vlab">${x.n>0?fmtk(x.avg):'—'}</span>`).join('');
+        const DIAF=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+        const bars=st.avgDow.map(x=>{const h=x.n>0?Math.max(Math.round(x.avg/mxD*100),8):0;const isB=x.dow===st.bestDow.dow&&x.n>0;return `<div class="gbar" title="${DOW[x.dow]}: ${x.n>0?comp(x.avg)+'/dia':'sem dados'}"><div class="gbf" style="height:${h}%;background:${isB?'var(--pos)':'#3a3a3a'}"></div><span class="gbl">${DOW[x.dow]}</span></div>`;}).join('');
         const queda=st.bestDow.avg?Math.round((1-st.worstDow.avg/st.bestDow.avg)*100):0;
-        const ins=`<b>${DOW[st.bestDow.dow]}s</b> são o dia mais forte (${comp(st.bestDow.avg)}/dia)${queda>0?` · <b>${DOW[st.worstDow.dow]}s</b> caem ~${queda}%`:''}.`;
-        foot=`<div class="hfoot"><div class="hfhd"><span class="eb">média por dia da semana</span><span class="eb">média geral ${comp(st.avg)}/dia</span></div><div class="sweek2">${strip}</div><div class="vrow">${vals}</div><div class="hinsight">${ins}</div></div>`;
+        const ins=`Seu dia mais forte é <b>${DIAF[st.bestDow.dow]}</b> (${comp(st.bestDow.avg)}/dia)${queda>0?`; o mais fraco é <b>${DIAF[st.worstDow.dow]}</b> (~${queda}% abaixo)`:''}.`;
+        foot=`<div class="hfoot"><div class="hfeb">média por dia da semana · geral ${comp(st.avg)}/dia</div><div class="gweek">${bars}</div><div class="hinsight">${ins}</div></div>`;
       }
       const opts=CH.map(k=>`<option value="${k}"${k===key?' selected':''}>${lbl(k)}</option>`).join('');
       const nav=`<div class="calhd"><div class="calnav"><button onclick="hmNav('${side}',-1)">◀</button><select onchange="hmSet('${side}',this.value)">${opts}</select><button onclick="hmNav('${side}',1)">▶</button></div><span class="tot">${comp(st?st.tot:0)}</span></div>`;
