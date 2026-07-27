@@ -25,6 +25,10 @@
   .cals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;align-items:stretch}
   @media(max-width:640px){.cals{grid-template-columns:1fr}}
   .cal{display:flex;flex-direction:column}
+  .calhd{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px}
+  .calnav{display:flex;align-items:center;gap:4px}
+  .calnav button{width:26px;height:26px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:7px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;justify-content:center;padding:0}
+  .calnav select{height:26px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:7px;font-family:var(--body);font-size:12px;padding:0 6px;cursor:pointer}
   .cal h4{font-family:var(--display);font-size:13px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
   .cal h4 .tot{font-family:var(--body);font-size:12px;color:var(--muted);font-weight:500}
   .hhead{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px}
@@ -637,7 +641,13 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   let hmPmY=curY,hmPmM=curM-1; if(hmPmM<1){hmPmM=12;hmPmY--;}
   const hmCapAtual=Math.max(ontem.getDate(),0);
   const hmA=hmDia(curY,curM,hmCapAtual),hmB=hmDia(hmPmY,hmPmM,null);
-  const heatmap={atual:{ano:curY,mes:curM,label:MES[curM-1],firstDow:new Date(curY,curM-1,1).getDay(),dias:hmA,total:r2(hmA.reduce((a,x)=>a+(x.fat||0),0))},anterior:{ano:hmPmY,mes:hmPmM,label:MES[hmPmM-1],firstDow:new Date(hmPmY,hmPmM-1,1).getDay(),dias:hmB,total:r2(hmB.reduce((a,x)=>a+(x.fat||0),0))}};
+  const hmChaves=[...new Set(revF.map(x=>x.date.slice(0,7)))].sort();
+  const hmMeses={};
+  for(const ch of hmChaves){const [yy,mm]=ch.split('-').map(Number);const cap=(yy===curY&&mm===curM)?hmCapAtual:null;hmMeses[ch]=hmDia(yy,mm,cap);}
+  const chAtual=`${curY}-${String(curM).padStart(2,'0')}`, chAnterior=`${hmPmY}-${String(hmPmM).padStart(2,'0')}`;
+  const heatmap={chaveAtual:chAtual,chaveAnterior:chAnterior,chaves:hmChaves,meses:hmMeses,
+    atual:{ano:curY,mes:curM,label:MES[curM-1],firstDow:new Date(curY,curM-1,1).getDay(),dias:hmA,total:r2(hmA.reduce((a,x)=>a+(x.fat||0),0))},
+    anterior:{ano:hmPmY,mes:hmPmM,label:MES[hmPmM-1],firstDow:new Date(hmPmY,hmPmM-1,1).getDay(),dias:hmB,total:r2(hmB.reduce((a,x)=>a+(x.fat||0),0))}};
   const inQ=(x)=>yOf(x.date)===curY&&triOf(mOf(x.date))===curQcal&&x.date<=ateMes;
   const revQ=revF.filter(inQ),adsQ=adsF.filter(inQ);
   const fQ=r2(soma(revQ,'faturamento')),iQ=r2(soma(adsQ,'custo')),rcQ=r2(soma(adsQ,'receita'));
@@ -678,7 +688,7 @@ const fNum2=v=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:2,
 function comp(v){const a=Math.abs(v||0);if(a>=1e6)return 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' Mi';if(a>=1e3)return 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' Mil';return fBRL0.format(v||0);}
 let TC={tick:'#9aa3b2',grid:'#222838'},ultData=null,ultDiag=null,ultLayout=null,charts=[],canaisDisp=[],maxData=null,anos=[],sortable=null;
 let state={de:null,ate:null,gran:'dia',nivel:null,canais:null,compara:'mes',perfil:null};
-let aba='geral';let compMode='ontem';
+let aba='geral';let compMode='ontem';let hmSelA=null,hmSelB=null;
 const METAS_IDS=['metasbar','metasq','tri','metas'];
 const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp'];
 function tabOf(id){return METAS_IDS.includes(id)?'metas':(COMPAR_IDS.includes(id)?'comparativos':'geral');}
@@ -737,18 +747,26 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </div>
     ${mostrarMes?'<canvas id="chProj" style="margin-top:14px"></canvas>':'<div class="sub" style="margin-top:12px;text-align:center;padding:10px;border:1px dashed var(--line);border-radius:10px">📈 O gráfico diário aparece a partir do 5º dia com vendas no mês.</div>'}
     </div>`;})()));
-  blocks.push(bloco('heatmap','',(()=>{const hm=d.heatmap;if(!hm)return '<div class="card"><div class="empty">sem dados</div></div>';
-    const all=[...hm.atual.dias,...hm.anterior.dias].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mn=all.length?Math.min(...all):0,mx=all.length?Math.max(...all):1;
+  blocks.push(bloco('heatmap','',(()=>{const hm=d.heatmap;if(!hm||!hm.chaves||!hm.chaves.length)return '<div class="card"><div class="empty">sem dados p/ o mapa de calor</div></div>';
+    const CH=hm.chaves;
+    if(!hmSelA||!CH.includes(hmSelA)) hmSelA=hm.chaveAnterior&&CH.includes(hm.chaveAnterior)?hm.chaveAnterior:CH[Math.max(CH.length-2,0)];
+    if(!hmSelB||!CH.includes(hmSelB)) hmSelB=hm.chaveAtual&&CH.includes(hm.chaveAtual)?hm.chaveAtual:CH[CH.length-1];
+    const MESN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const lbl=k=>{const[y,m]=k.split('-');return MESN[+m-1]+' '+y;};
+    const dA=hm.meses[hmSelA]||[],dB=hm.meses[hmSelB]||[];
+    const all=[...dA,...dB].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mn=all.length?Math.min(...all):0,mx=all.length?Math.max(...all):1;
     const fmtk=n=>n>=1000?Math.round(n/1000)+'k':String(Math.round(n));
     const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     const cor=f=>{if(f==null||f<=0)return['#101010','#1c1c1c','#444'];const t=(f-mn)/((mx-mn)||1);return[`rgba(234,83,57,${(0.14+0.62*t).toFixed(2)})`,`rgba(234,83,57,${(0.4+0.5*t).toFixed(2)})`,'#fff2ee'];};
-    const stats=(m)=>{const ds=m.dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=Object.entries(byDow).map(([k,v])=>({dow:+k,avg:v.reduce((a,z)=>a+z,0)/v.length}));const bestDow=avgDow.reduce((a,b)=>b.avg>a.avg?b:a),worstDow=avgDow.reduce((a,b)=>b.avg<a.avg?b:a);return {tot,avg,best,worst,bestDow,worstDow};};
-    const cal=(m)=>{const st=stats(m);let cells='';for(let i=0;i<m.firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of m.dias){const c=cor(x.fat);const tip=x.fat==null?`Dia ${x.d}: sem dados`:`${DOW[x.dow]} ${x.d}: ${comp(x.fat)}`;const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;cells+=`<div class="hcell${isB?' best':''}${isW?' worst':''}" style="background:${c[0]};border-color:${c[1]}" title="${tip}"><span class="hd" style="color:${c[2]}">${x.d}</span>${(x.fat==null||x.fat<=0)?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}
+    const stats=(dias)=>{const ds=dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=Object.entries(byDow).map(([k,v])=>({dow:+k,avg:v.reduce((a,z)=>a+z,0)/v.length}));const bestDow=avgDow.reduce((a,b)=>b.avg>a.avg?b:a),worstDow=avgDow.reduce((a,b)=>b.avg<a.avg?b:a);return {tot,avg,best,worst,bestDow,worstDow};};
+    const cal=(key,dias,side)=>{const st=stats(dias);const[y,m]=key.split('-');const firstDow=new Date(+y,+m-1,1).getDay();let cells='';for(let i=0;i<firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of dias){const c=cor(x.fat);const tip=x.fat==null?`Dia ${x.d}: sem dados`:`${DOW[x.dow]} ${x.d}: ${comp(x.fat)}`;const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;cells+=`<div class="hcell${isB?' best':''}${isW?' worst':''}" style="background:${c[0]};border-color:${c[1]}" title="${tip}"><span class="hd" style="color:${c[2]}">${x.d}</span>${(x.fat==null||x.fat<=0)?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}
       const foot=st?`<div class="hstats"><div class="hst"><span class="sl">🏆 Melhor</span><span class="sv">${DOW[st.best.dow]} ${st.best.d} · ${comp(st.best.fat)}</span></div><div class="hst"><span class="sl">🔻 Mais fraco</span><span class="sv">${DOW[st.worst.dow]} ${st.worst.d} · ${comp(st.worst.fat)}</span></div><div class="hst"><span class="sl">📊 Média/dia</span><span class="sv">${comp(st.avg)}</span></div><div class="hst"><span class="sl">📈 Dia forte</span><span class="sv">${DOW[st.bestDow.dow]} (${comp(st.bestDow.avg)})</span></div><div class="hst"><span class="sl">📉 Dia fraco</span><span class="sv">${DOW[st.worstDow.dow]} (${comp(st.worstDow.avg)})</span></div></div>`:'<div class="hstats"><div class="sub">sem vendas no mês</div></div>';
-      return `<div class="cal"><h4>${m.label} <span class="tot">${comp(m.total)}</span></h4><div class="hhead">${DOW.map(dd=>`<span>${dd}</span>`).join('')}</div><div class="hgrid">${cells}</div>${foot}</div>`;};
-    const sA=stats(hm.anterior),sB=stats(hm.atual);const cmp=(sA&&sB&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
-    const cmpStr=cmp==null?'':`<div class="hcmp">Média diária de <b>${hm.atual.label}</b> está <b style="color:${cmp>=0?'var(--pos)':'var(--neg)'}">${cmp>=0?'+':''}${cmp.toFixed(0)}%</b> vs ${hm.anterior.label}</div>`;
-    return `<div class="card"><h2><span class="ttl">${H()} Mapa de calor — faturamento por dia</span><span class="tag">${hm.anterior.label} vs ${hm.atual.label} · mesma escala</span></h2><div class="cals">${cal(hm.anterior)}${cal(hm.atual)}</div>${cmpStr}<div class="hlegend">menos <span class="ramp"><i style="background:rgba(234,83,57,.14)"></i><i style="background:rgba(234,83,57,.30)"></i><i style="background:rgba(234,83,57,.48)"></i><i style="background:rgba(234,83,57,.64)"></i><i style="background:rgba(234,83,57,.76)"></i></span> mais<span style="margin-left:auto">🏆 contorno verde · 🔻 tracejado · hover p/ valor</span></div></div>`;})()));
+      const opts=CH.map(k=>`<option value="${k}"${k===key?' selected':''}>${lbl(k)}</option>`).join('');
+      const nav=`<div class="calhd"><div class="calnav"><button onclick="hmNav('${side}',-1)">◀</button><select onchange="hmSet('${side}',this.value)">${opts}</select><button onclick="hmNav('${side}',1)">▶</button></div><span class="tot">${comp(st?st.tot:0)}</span></div>`;
+      return `<div class="cal">${nav}<div class="hhead">${DOW.map(dd=>`<span>${dd}</span>`).join('')}</div><div class="hgrid">${cells}</div>${foot}</div>`;};
+    const sA=stats(dA),sB=stats(dB);const cmp=(sA&&sB&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
+    const cmpStr=cmp==null?'':`<div class="hcmp">Média diária de <b>${lbl(hmSelB)}</b> está <b style="color:${cmp>=0?'var(--pos)':'var(--neg)'}">${cmp>=0?'+':''}${cmp.toFixed(0)}%</b> vs ${lbl(hmSelA)}</div>`;
+    return `<div class="card"><h2><span class="ttl">${H()} Mapa de calor — faturamento por dia</span><span class="tag">escolha os meses · mesma escala</span></h2><div class="cals">${cal(hmSelA,dA,'A')}${cal(hmSelB,dB,'B')}</div>${cmpStr}<div class="hlegend">menos <span class="ramp"><i style="background:rgba(234,83,57,.14)"></i><i style="background:rgba(234,83,57,.30)"></i><i style="background:rgba(234,83,57,.48)"></i><i style="background:rgba(234,83,57,.64)"></i><i style="background:rgba(234,83,57,.76)"></i></span> mais<span style="margin-left:auto">🏆 contorno verde · 🔻 tracejado · hover p/ valor</span></div></div>`;})()));
   if(mostrarQuarter)blocks.push(bloco('resumoquarter','',`<div class="card"><h2><span class="ttl">${H()} Resumo do quarter</span><span class="tag">${d.resumoQuarter.quarter} · acumulado</span></h2><div class="kgrid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
     <div class="kpi"><p class="eyebrow">Faturamento</p><div class="val num">${comp(d.resumoQuarter.faturamento)}</div><div class="sub">${d.resumoQuarter.atingidoPct!=null?d.resumoQuarter.atingidoPct.toFixed(0)+'% da meta ('+comp(d.resumoQuarter.meta)+')':'sem meta'}</div></div>
     <div class="kpi"><p class="eyebrow">ROAS</p><div class="val num">${fNum2(d.resumoQuarter.roas)}</div><div class="sub">faturamento ÷ custo ADS</div></div>
@@ -919,6 +937,8 @@ document.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>setRange(b.da
 document.getElementById('btnAplicar').onclick=()=>{marcaRange('');state.de=document.getElementById('de').value;state.ate=document.getElementById('ate').value;atualizaShowing('personalizado');carregar();};
 window.setGran=(g)=>{state.gran=g;carregar();};
 window.setCompMode=(m)=>{compMode=m;if(ultData)render(ultData);};
+window.hmSet=(side,val)=>{if(side==='A')hmSelA=val;else hmSelB=val;if(ultData)render(ultData);};
+window.hmNav=(side,dir)=>{const CH=(ultData&&ultData.heatmap&&ultData.heatmap.chaves)||[];const cur=side==='A'?hmSelA:hmSelB;let i=CH.indexOf(cur)+dir;if(i<0)i=0;if(i>=CH.length)i=CH.length-1;if(side==='A')hmSelA=CH[i];else hmSelB=CH[i];if(ultData)render(ultData);};
 document.getElementById('btnConfig').onclick=abrirConfig;document.getElementById('btnFechar').onclick=fecharConfig;document.getElementById('btnSalvar').onclick=salvarConfig;
 
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
