@@ -22,18 +22,25 @@
   html[data-theme=light] .brandlogo.dark{display:block}
   /* splash de carregamento */
   .tendline{font-size:12.5px;margin-top:10px;padding:9px 12px;border-radius:9px;background:rgba(241,143,51,.10);border:1px solid rgba(241,143,51,.3);color:var(--accent2)}
-  .cals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+  .cals{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px;align-items:stretch}
   @media(max-width:640px){.cals{grid-template-columns:1fr}}
+  .cal{display:flex;flex-direction:column}
   .cal h4{font-family:var(--display);font-size:13px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline}
   .cal h4 .tot{font-family:var(--body);font-size:12px;color:var(--muted);font-weight:500}
   .hhead{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px}
   .hhead span{text-align:center;font-size:9px;color:var(--muted);text-transform:uppercase}
   .hgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
   .hcell{aspect-ratio:1;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px}
-  .hcell.empty{background:transparent;border:0}
-  .hcell .hd{font-size:11px;font-weight:600;line-height:1}
-  .hcell .hv{font-size:9px;opacity:.9;line-height:1}
-  .hlegend{display:flex;gap:8px;align-items:center;margin-top:13px;font-size:11px;color:var(--muted)}
+  .hcell.empty{background:transparent!important;border:0!important}
+  .hcell .hd{font-size:11px;font-weight:700;line-height:1}
+  .hcell .hv{font-size:9px;line-height:1;font-weight:600}
+  .hcell.best{outline:2px solid var(--pos);outline-offset:-1px}
+  .hcell.worst{outline:2px dashed rgba(229,86,60,.7);outline-offset:-1px}
+  .hstats{margin-top:auto;padding-top:11px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line2)}
+  .hst{display:flex;justify-content:space-between;gap:10px;font-size:12px}
+  .hst .sl{color:var(--muted)}.hst .sv{color:var(--ink);font-weight:600;text-align:right}
+  .hcmp{margin-top:14px;text-align:center;font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px}
+  .hlegend{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:11px;color:var(--muted)}
   .ramp{display:inline-flex;gap:2px}.ramp i{width:14px;height:12px;border-radius:2px;display:inline-block}
   .splash{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:60px 20px;min-height:62vh}
   #gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px}
@@ -95,7 +102,9 @@
   .barrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
   .barrow+.barrow{margin-top:9px;padding-top:9px;border-top:1px solid var(--line2)}
   .grp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .ctrls .barrow .chip,.ctrls .barrow select,.ctrls .barrow button,.ctrls .barrow input[type=date]{height:30px;box-sizing:border-box;display:inline-flex;align-items:center;padding-top:0;padding-bottom:0}
+  .ctrls .barrow{flex:0 0 100%;width:100%}
+  .ctrls .barrow .chip,.ctrls .barrow select,.ctrls .barrow button,.ctrls .barrow input[type=date]{height:32px;box-sizing:border-box;display:inline-flex;align-items:center;padding-top:0;padding-bottom:0;vertical-align:middle}
+  .ctrls .barrow>.grp:first-child>.lbl:first-child{min-width:78px;display:inline-block}
   .chip{border-radius:999px;padding:6px 13px;font-size:12.5px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);cursor:pointer;font-family:var(--body)}
   .chip.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
   .showing{font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line2);border-radius:8px;padding:7px 12px;margin:10px 0 0;display:inline-block}
@@ -624,7 +633,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const fatMesAntMP=r2(soma(revF.filter(x=>yOf(x.date)===maY&&mOf(x.date)===maM&&dOf(x.date)<=diasCorr),'faturamento'));
   const vsMesAnterior=fatMesAntMP?pct(fMes,fatMesAntMP):null;
   const resumoMes={de:deMes,ate:ateMes,mesLabel:MES[curM-1],faturamento:fMes,investimento:iMes,receitaAds:rcMes,roas:iMes?r2(fMes/iMes):null,meta:metaMesAjustCur,metaBase:metaMesCal,acumulado:acumCurR,atingidoPct:metaMesAjustCur?r2(fMes/metaMesAjustCur*100):null,diasCorr,diasMesCur,metaProp,vsMetaProp,fatMesAntMP,vsMesAnterior};
-  const hmDia=(ano,mes,cap)=>{const nd=diasNoMes(ano,mes);const arr=[];for(let dd=1;dd<=nd;dd++){arr.push((cap!=null&&dd>cap)?{d:dd,fat:null}:{d:dd,fat:r2(soma(revF.filter(x=>yOf(x.date)===ano&&mOf(x.date)===mes&&dOf(x.date)===dd),'faturamento'))});}return arr;};
+  const hmDia=(ano,mes,cap)=>{const nd=diasNoMes(ano,mes);const arr=[];for(let dd=1;dd<=nd;dd++){const dow=new Date(ano,mes-1,dd).getDay();arr.push((cap!=null&&dd>cap)?{d:dd,dow,fat:null}:{d:dd,dow,fat:r2(soma(revF.filter(x=>yOf(x.date)===ano&&mOf(x.date)===mes&&dOf(x.date)===dd),'faturamento'))});}return arr;};
   let hmPmY=curY,hmPmM=curM-1; if(hmPmM<1){hmPmM=12;hmPmY--;}
   const hmCapAtual=Math.max(ontem.getDate(),0);
   const hmA=hmDia(curY,curM,hmCapAtual),hmB=hmDia(hmPmY,hmPmM,null);
@@ -729,12 +738,17 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     ${mostrarMes?'<canvas id="chProj" style="margin-top:14px"></canvas>':'<div class="sub" style="margin-top:12px;text-align:center;padding:10px;border:1px dashed var(--line);border-radius:10px">📈 O gráfico diário aparece a partir do 5º dia com vendas no mês.</div>'}
     </div>`;})()));
   blocks.push(bloco('heatmap','',(()=>{const hm=d.heatmap;if(!hm)return '<div class="card"><div class="empty">sem dados</div></div>';
-    const all=[...hm.atual.dias,...hm.anterior.dias].filter(x=>x.fat!=null).map(x=>x.fat);const mn=all.length?Math.min(...all):0,mx=all.length?Math.max(...all):1;
+    const all=[...hm.atual.dias,...hm.anterior.dias].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mn=all.length?Math.min(...all):0,mx=all.length?Math.max(...all):1;
     const fmtk=n=>n>=1000?Math.round(n/1000)+'k':String(Math.round(n));
-    const cor=f=>{if(f==null)return['#0d0d0d','#181818','#3a3a3a'];const t=(f-mn)/((mx-mn)||1);return[`rgba(234,83,57,${(0.10+0.52*t).toFixed(2)})`,`rgba(234,83,57,${(0.3+0.5*t).toFixed(2)})`,t>0.5?'#f7e3dd':'#d8b3a9'];};
     const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const cal=(m)=>{let cells='';for(let i=0;i<m.firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of m.dias){const c=cor(x.fat);const tip=x.fat==null?`Dia ${x.d}: sem dados`:`${m.label} ${x.d}: ${comp(x.fat)}`;cells+=`<div class="hcell" style="background:${c[0]};border-color:${c[1]}" title="${tip}"><span class="hd" style="color:${c[2]}">${x.d}</span>${x.fat==null?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}return `<div class="cal"><h4>${m.label} <span class="tot">${comp(m.total)}</span></h4><div class="hhead">${DOW.map(dd=>`<span>${dd}</span>`).join('')}</div><div class="hgrid">${cells}</div></div>`;};
-    return `<div class="card"><h2><span class="ttl">${H()} Mapa de calor — faturamento por dia</span><span class="tag">${hm.anterior.label} vs ${hm.atual.label} · mesma escala</span></h2><div class="cals">${cal(hm.anterior)}${cal(hm.atual)}</div><div class="hlegend">menos <span class="ramp"><i style="background:rgba(234,83,57,.10)"></i><i style="background:rgba(234,83,57,.24)"></i><i style="background:rgba(234,83,57,.38)"></i><i style="background:rgba(234,83,57,.52)"></i><i style="background:rgba(234,83,57,.62)"></i></span> mais<span style="margin-left:auto">passe o mouse num dia p/ o valor</span></div></div>`;})()));
+    const cor=f=>{if(f==null||f<=0)return['#101010','#1c1c1c','#444'];const t=(f-mn)/((mx-mn)||1);return[`rgba(234,83,57,${(0.14+0.62*t).toFixed(2)})`,`rgba(234,83,57,${(0.4+0.5*t).toFixed(2)})`,'#fff2ee'];};
+    const stats=(m)=>{const ds=m.dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=Object.entries(byDow).map(([k,v])=>({dow:+k,avg:v.reduce((a,z)=>a+z,0)/v.length}));const bestDow=avgDow.reduce((a,b)=>b.avg>a.avg?b:a),worstDow=avgDow.reduce((a,b)=>b.avg<a.avg?b:a);return {tot,avg,best,worst,bestDow,worstDow};};
+    const cal=(m)=>{const st=stats(m);let cells='';for(let i=0;i<m.firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of m.dias){const c=cor(x.fat);const tip=x.fat==null?`Dia ${x.d}: sem dados`:`${DOW[x.dow]} ${x.d}: ${comp(x.fat)}`;const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;cells+=`<div class="hcell${isB?' best':''}${isW?' worst':''}" style="background:${c[0]};border-color:${c[1]}" title="${tip}"><span class="hd" style="color:${c[2]}">${x.d}</span>${(x.fat==null||x.fat<=0)?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}
+      const foot=st?`<div class="hstats"><div class="hst"><span class="sl">🏆 Melhor</span><span class="sv">${DOW[st.best.dow]} ${st.best.d} · ${comp(st.best.fat)}</span></div><div class="hst"><span class="sl">🔻 Mais fraco</span><span class="sv">${DOW[st.worst.dow]} ${st.worst.d} · ${comp(st.worst.fat)}</span></div><div class="hst"><span class="sl">📊 Média/dia</span><span class="sv">${comp(st.avg)}</span></div><div class="hst"><span class="sl">📈 Dia forte</span><span class="sv">${DOW[st.bestDow.dow]} (${comp(st.bestDow.avg)})</span></div><div class="hst"><span class="sl">📉 Dia fraco</span><span class="sv">${DOW[st.worstDow.dow]} (${comp(st.worstDow.avg)})</span></div></div>`:'<div class="hstats"><div class="sub">sem vendas no mês</div></div>';
+      return `<div class="cal"><h4>${m.label} <span class="tot">${comp(m.total)}</span></h4><div class="hhead">${DOW.map(dd=>`<span>${dd}</span>`).join('')}</div><div class="hgrid">${cells}</div>${foot}</div>`;};
+    const sA=stats(hm.anterior),sB=stats(hm.atual);const cmp=(sA&&sB&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
+    const cmpStr=cmp==null?'':`<div class="hcmp">Média diária de <b>${hm.atual.label}</b> está <b style="color:${cmp>=0?'var(--pos)':'var(--neg)'}">${cmp>=0?'+':''}${cmp.toFixed(0)}%</b> vs ${hm.anterior.label}</div>`;
+    return `<div class="card"><h2><span class="ttl">${H()} Mapa de calor — faturamento por dia</span><span class="tag">${hm.anterior.label} vs ${hm.atual.label} · mesma escala</span></h2><div class="cals">${cal(hm.anterior)}${cal(hm.atual)}</div>${cmpStr}<div class="hlegend">menos <span class="ramp"><i style="background:rgba(234,83,57,.14)"></i><i style="background:rgba(234,83,57,.30)"></i><i style="background:rgba(234,83,57,.48)"></i><i style="background:rgba(234,83,57,.64)"></i><i style="background:rgba(234,83,57,.76)"></i></span> mais<span style="margin-left:auto">🏆 contorno verde · 🔻 tracejado · hover p/ valor</span></div></div>`;})()));
   if(mostrarQuarter)blocks.push(bloco('resumoquarter','',`<div class="card"><h2><span class="ttl">${H()} Resumo do quarter</span><span class="tag">${d.resumoQuarter.quarter} · acumulado</span></h2><div class="kgrid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
     <div class="kpi"><p class="eyebrow">Faturamento</p><div class="val num">${comp(d.resumoQuarter.faturamento)}</div><div class="sub">${d.resumoQuarter.atingidoPct!=null?d.resumoQuarter.atingidoPct.toFixed(0)+'% da meta ('+comp(d.resumoQuarter.meta)+')':'sem meta'}</div></div>
     <div class="kpi"><p class="eyebrow">ROAS</p><div class="val num">${fNum2(d.resumoQuarter.roas)}</div><div class="sub">faturamento ÷ custo ADS</div></div>
