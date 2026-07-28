@@ -48,6 +48,25 @@
   .gbl{font-size:9px;color:var(--faint);text-transform:uppercase}
   .hinsight{margin-top:11px;font-size:12.5px;color:var(--ink);line-height:1.5;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .hinsight b{color:var(--pos)}
+  .insbar{margin-top:13px;padding-top:12px;border-top:1px solid var(--line2);display:flex;flex-direction:column;gap:6px}
+  .insbar .ins{font-size:12.5px;color:var(--ink);line-height:1.45}
+  .insbar .ins b{font-weight:700}.insbar .up{color:var(--pos)}.insbar .dn{color:var(--accent)}
+  .insbar .insbox{background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-top:4px}
+  .ttbl{margin-top:4px}
+  .trow{display:grid;grid-template-columns:44px 1fr 74px 84px;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+  .trow:last-child{border-bottom:0}
+  .trow .tm{font-weight:700}.trow .tv{color:var(--ink)}.trow .td{font-weight:600;text-align:right}.trow .tc{color:var(--muted);font-size:11px;text-align:right}
+  .cd{display:inline-block;width:7px;height:7px;border-radius:50%;vertical-align:middle;margin-right:4px}
+  .cd.cdA{background:var(--pos)}.cd.cdM{background:var(--accent2)}.cd.cdB{background:var(--neg)}
+  .tnote{font-size:10.5px;color:var(--faint);margin-top:8px}
+  .clg{display:block;margin-bottom:9px}
+  .clgtop{display:flex;align-items:center;gap:7px}
+  .clg .cnm{flex:1;font-size:12.5px}
+  .clg .lv{font-size:12px;font-weight:600}
+  .clg .cpj{color:var(--faint);font-weight:500;font-size:11px}
+  .clg .cbar{position:relative;height:6px;background:#0c0c0c;border:1px solid var(--line2);border-radius:5px;overflow:hidden;margin-top:5px}
+  .clg .cfant{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.10),rgba(255,255,255,.10) 4px,transparent 4px,transparent 8px);border-radius:5px}
+  .clg .cfill{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
   .hcmp{margin-top:14px;text-align:center;font-size:12.5px;color:var(--muted);background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px}
   .hlegend{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:11px;color:var(--muted)}
   .ramp{display:inline-flex;gap:2px}.ramp i{width:14px;height:12px;border-radius:2px;display:inline-block}
@@ -577,6 +596,27 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const comparativoAnos={anos:anosAsc,linhas:linhaFor(diaCap),totais:totalFor(diaCap),linhasCheio:linhaFor(null),totaisCheio:totalFor(null)};
   const totaisAnuais=anosAsc.map(y=>({ano:y,total:r2(soma(revF.filter(x=>yOf(x.date)===y),'faturamento'))}));
   const evolucaoAno={labels:MES,series:anosAsc.map(y=>({ano:y,dados:MES.map((_,i)=>r2(soma(revF.filter(x=>yOf(x.date)===y&&mOf(x.date)===i+1),'faturamento')))}))};
+  // ===== PROJEÇÃO POR CANAL + TENDÊNCIA/SAZONALIDADE =====
+  const _viewCur=(yOf(ate)===curY&&mOf(ate)===curM);
+  const _diasCorrC=Math.max(ontem.getDate(),1), _diasMesC=diasNoMes(curY,curM);
+  const projFatorCanal=_viewCur?(_diasMesC/_diasCorrC):1;
+  porCanal.forEach(o=>{o.proj=r2(o.faturamento*projFatorCanal);});
+  let _maY=curY,_maM=curM-1; if(_maM<1){_maM=12;_maY--;}
+  const canaisComp=canaisSel.map(canal=>{const at=mapCanal.get(canal)||0;const ant=soma(revF.filter(x=>x.canal===canal&&x.date>=deC&&x.date<=ateC),'faturamento');const mesAnt=soma(revF.filter(x=>x.canal===canal&&yOf(x.date)===_maY&&mOf(x.date)===_maM),'faturamento');const proj=at*projFatorCanal;return {canal,atual:r2(at),anterior:r2(ant),varPct:pct(at,ant),proj:r2(proj),mesAnt:r2(mesAnt),projVarMesAnt:mesAnt?pct(proj,mesAnt):null};}).filter(o=>o.atual>0||o.anterior>0);
+  const _mesesAno=MES.map((nome,i)=>({mes:nome,mesNum:i+1,val:r2(fatYM(curY,i+1,null))})).filter(x=>x.val>0);
+  const melhorMes=_mesesAno.length?_mesesAno.reduce((a,b)=>b.val>a.val?b:a):null;
+  const _cresc=MES.map((nome,i)=>{const a=fatYM(curY,i+1,null),b=fatYM(curY-1,i+1,null);return {mes:nome,mesNum:i+1,pct:b?pct(a,b):null,a};}).filter(x=>x.a>0&&x.pct!=null);
+  const maiorCresc=_cresc.length?_cresc.reduce((a,b)=>(b.pct>a.pct?b:a)):null;
+  const acum=(y,ateM)=>{let sAc=0;for(let mm=1;mm<=ateM;mm++)sAc+=fatYM(y,mm,(mm===curM&&y===curY)?diaCap:null);return sAc;};
+  const acumCur=acum(curY,curM),acumPrev=acum(curY-1,curM);
+  const crescimentoAno=acumPrev?(acumCur/acumPrev-1):null;
+  // confiança = 2024 e 2025 concordam na variação do mês vs mês anterior?
+  const momVar=(y,m)=>{const prevM=m===1?12:m-1,prevY=m===1?y-1:y;const a=fatYM(y,m,null),b=fatYM(prevY,prevM,null);return (a>0&&b>0)?(a/b-1):null;};
+  const confMes=(m)=>{const c24=momVar(curY-2,m),c25=momVar(curY-1,m);if(c24==null&&c25==null)return 'baixa';if(c24==null||c25==null)return 'média';if(Math.sign(c24)!==Math.sign(c25))return 'baixa';return Math.abs(c24-c25)<0.12?'alta':'média';};
+  const tendMeses=[];let _anc=r2(fatYM(curY,curM,diaCap)*projFatorCanal);
+  for(let k=1;k<=3;k++){let mm=curM+k,yy=curY;while(mm>12){mm-=12;yy++;}const prevYear=fatYM(yy-1,mm,null);const fc=(crescimentoAno!=null&&prevYear>0)?prevYear*(1+crescimentoAno):prevYear;const vp=_anc?pct(fc,_anc):null;const dir=(vp==null)?'flat':(vp>2?'up':(vp<-2?'down':'flat'));tendMeses.push({mes:MES[mm-1],mesNum:mm,ano:yy,forecast:r2(fc),varPct:vp,dir,conf:confMes(mm),temBase:prevYear>0});_anc=fc;}
+  const tendencia={crescimentoAno:crescimentoAno!=null?r2(crescimentoAno*100):null,meses:tendMeses,soma3:r2(tendMeses.reduce((a,x)=>a+x.forecast,0))};
+  const comparativoInsights={melhorMes,maiorCresc};
 
   const nivelDoAno=(real)=>{const ls=['M1','M2','M3','M4'].map(n=>{const lv=cfg.metas.niveis[n]||{};return {nivel:n,meta:['q1','q2','q3','q4'].reduce((s,q)=>s+(Number(lv[q])||0),0)};}).filter(x=>x.meta>0).sort((a,b)=>a.meta-b.meta);let at=null,prox=null;for(const l of ls){if(real+0.001>=l.meta)at=l.nivel;else{prox=l;break;}}return {nivelAtingido:at,proxNivel:prox?prox.nivel:null,metaProx:prox?r2(prox.meta):null,faltaProx:prox?r2(prox.meta-real):0,niveis:ls.map(l=>({nivel:l.nivel,meta:r2(l.meta)}))};};
   const nivQ=['M1','M2','M3','M4'].map(n=>({nivel:n,meta:Number((cfg.metas.niveis[n]||{})['q'+qSel])||0})).filter(x=>x.meta>0).sort((a,b)=>a.meta-b.meta);
@@ -679,7 +719,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     erros,diagnostico:diag,
     cards:{faturamentoPeriodo:r2(faturamentoPeriodo),crescimentoPeriodo,comparaLabel,investimento:r2(investimento),receitaAds:r2(receitaAds),roasGeral,metaRoas:Number(cfg.metas.roas)||0,roasAtingido:(Number(cfg.metas.roas)||0)?(roasGeral!=null&&roasGeral>=cfg.metas.roas):null,triAtual,metaAnual:r2(metaAnual),atingimentoAnual,faturamentoAno:r2(faturamentoAno),faltaAnual:metaAnual?r2(Math.max(metaAnual-faturamentoAno,0)):null},
     porCanal,roasPorCanal,trimestres,tabelaMetas,realizadoTri:realTri,comparativoMensal,
-    pace,comparativoAnos,totaisAnuais,evolucaoAno,
+    pace,comparativoAnos,totaisAnuais,evolucaoAno,canaisComp,comparativoInsights,tendencia,
     evolucao,evolucaoInvest,evolucaoCanal,roasDiario,projecao,metasResumo,
     resumoMes,resumoQuarter,semaforo,acumulado,historicoLY,heatmap,
   };
@@ -810,7 +850,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
   blocks.push(bloco('canal','b6',`<div class="card"><h2><span class="ttl">${H()} Faturamento por canal</span><span class="tag">período</span></h2><div class="canalwrap"><div class="canaldon"><canvas id="chCanal" height="190"></canvas></div><ul class="legend" id="legCanal"></ul></div></div>`));
   blocks.push(bloco('tri','b6',`<div class="card"><h2><span class="ttl">${H()} Trimestres vs meta</span><span class="tag">${d.anoRef} · ${d.nivelSelecionado}</span></h2>
     <div class="triprog">${d.trimestres.map(t=>{const p=t.atingimento||0;const cl=p>=100?'pos':p>=70?'mid':'low';return `<div class="tp"><div class="tphead"><b>${t.trimestre}</b><span style="color:${pcolor(t.atingimento)}">${t.atingimento!=null?t.atingimento.toFixed(0)+'%':'—'}</span></div><div class="bar"><span class="${cl}" style="width:${Math.min(p,100)}%"></span></div><div class="tpsub num">${comp(t.realizado)} <span>/ meta ${comp(t.meta)}</span></div><div class="tplv">${t.proxNivel?`atingiu <b style="color:${pcolor(t.atingimento)}">${t.nivelAtingido||'—'}</b> · falta ${comp(t.faltaProx)} p/ <b>${t.proxNivel}</b>`:`nível máximo: <b>${t.nivelAtingido||'—'}</b>`}</div></div>`;}).join('')}</div></div>`));
-  if(mostrarMes)blocks.push(bloco('evcanal','',`<div class="card"><h2><span class="ttl">${H()} Evolução diária por canal</span><span class="tag">período</span></h2><canvas id="chEvCanal"></canvas></div>`));
+  if(mostrarMes)blocks.push(bloco('evcanal','',(()=>{const cc=d.canaisComp||[];let ins='';if(cc.length){const cres=cc.filter(x=>x.varPct!=null&&x.varPct>0).sort((a,b)=>b.varPct-a.varPct)[0];const cai=cc.filter(x=>x.varPct!=null&&x.varPct<0).sort((a,b)=>a.varPct-b.varPct)[0];const abaixo=cc.filter(x=>x.projVarMesAnt!=null&&x.projVarMesAnt<-1).sort((a,b)=>a.projVarMesAnt-b.projVarMesAnt)[0];const dest=cc.slice().sort((a,b)=>b.atual-a.atual)[0];const L=[];if(cres)L.push(`<div class="ins">Crescendo: <b class="up">${cres.canal}</b> (+${cres.varPct.toFixed(0)}% vs período anterior)</div>`);if(cai)L.push(`<div class="ins">Caindo: <b class="dn">${cai.canal}</b> (${cai.varPct.toFixed(0)}%)</div>`);if(abaixo)L.push(`<div class="ins"><b>${abaixo.canal}</b> deve fechar abaixo do mês passado (proj. ${abaixo.projVarMesAnt.toFixed(0)}%)</div>`);if(dest)L.push(`<div class="ins">Destaque do período: <b>${dest.canal}</b> (${comp(dest.atual)})</div>`);ins=`<div class="insbar">${L.slice(0,4).join('')}</div>`;}return `<div class="card"><h2><span class="ttl">${H()} Evolução diária por canal</span><span class="tag">período</span></h2><canvas id="chEvCanal"></canvas>${ins}</div>`;})()));
   blocks.push(bloco('roascanal','b6',`<div class="card"><h2><span class="ttl">${H()} ROAS por canal</span><span class="tag">faturamento ÷ custo</span></h2><div class="roasrow" id="roasRows"></div></div>`));
   blocks.push(bloco('metas','b6',`<div class="card"><h2><span class="ttl">${H()} Metas por nível</span><span class="tag">${d.anoRef} · atingido por trimestre (fixo)</span></h2>
     <div class="tw"><table><thead><tr><th>Nível</th><th>Q1</th><th>Q2</th><th>Q3</th><th>Q4</th><th>Anual</th></tr></thead><tbody>
@@ -820,13 +860,15 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </tbody></table></div><div class="sub num">Realizado ${d.anoRef}: Q1 ${comp(rt['1'])} · Q2 ${comp(rt['2'])} · Q3 ${comp(rt['3'])} · Q4 ${comp(rt['4'])}</div></div>`));
   blocks.push(bloco('evano','',`<div class="card"><h2><span class="ttl">${H()} Evolução por ano</span><span class="tag">faturamento mensal · todos os anos</span></h2><canvas id="chEvAno"></canvas>
     <div class="anosrow">${d.totaisAnuais.map(t=>`<div class="anocard"><div class="lbl">${t.ano}</div><div class="num" style="font-weight:700">${comp(t.total)}</div></div>`).join('')}</div></div>`));
+  const CI=d.comparativoInsights||{},TD=d.tendencia||{};
+  let insComp='';{const L=[];if(CI.melhorMes)L.push(`<div class="ins">Melhor mês do ano: <b>${CI.melhorMes.mes}</b> (${comp(CI.melhorMes.val)})</div>`);if(CI.maiorCresc&&CI.maiorCresc.pct!=null)L.push(`<div class="ins">Maior crescimento: <b class="up">${CI.maiorCresc.mes}</b> (+${CI.maiorCresc.pct.toFixed(0)}% vs ${A[A.length-2]})</div>`);if(TD.crescimentoAno!=null)L.push(`<div class="ins insbox">Seguindo a sazonalidade e o ritmo do ano (${TD.crescimentoAno>=0?'+':''}${TD.crescimentoAno.toFixed(0)}% no acumulado), os próximos 3 meses tendem a somar ~${comp(TD.soma3)}.</div>`);if(TD.meses&&TD.meses.length){const ar=dir=>dir==='up'?'↗':dir==='down'?'↘':'→';const c2=dir=>dir==='up'?'var(--pos)':dir==='down'?'var(--accent)':'var(--muted)';const dot=c=>`<span class="cd ${c==='alta'?'cdA':c==='média'?'cdM':'cdB'}"></span>`;const rows=TD.meses.map(m=>`<div class="trow"><span class="tm">${m.mes}</span><span class="tv">${m.temBase?'~'+comp(m.forecast):'sem base'}</span><span class="td" style="color:${c2(m.dir)}">${(m.temBase&&m.varPct!=null)?ar(m.dir)+' '+(m.varPct>0?'+':'')+m.varPct.toFixed(0)+'%':''}</span><span class="tc">${dot(m.conf)}${m.conf}</span></div>`).join('');L.push(`<p class="eyebrow" style="margin-top:13px">Tendência dos próximos meses · sazonalidade</p><div class="ttbl">${rows}</div><div class="tnote">● alta ● média ● baixa = o quanto os anos anteriores concordam nesse mês</div>`);}insComp=`<div class="insbar">${L.join('')}</div>`;}
   const CAlin=compMode==='cheio'?d.comparativoAnos.linhasCheio:d.comparativoAnos.linhas;
   const CAtot=compMode==='cheio'?d.comparativoAnos.totaisCheio:d.comparativoAnos.totais;
   blocks.push(bloco('comp','',`<div class="card"><h2><span class="ttl">${H()} Comparativo mensal</span><span class="miniseg"><button onclick="setCompMode('ontem')" class="${compMode==='ontem'?'on':''}">Até ontem</button><button onclick="setCompMode('cheio')" class="${compMode==='cheio'?'on':''}">Mês cheio</button></span></h2>
     <div class="tw"><table><thead><tr><th>Mês</th>${A.map(y=>`<th>${y}</th>`).join('')}${hasVar?`<th>Var ${A[A.length-2]}→${A[A.length-1]}</th>`:''}</tr></thead><tbody>
     ${CAlin.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
     <tr class="hl"><td><b>Total</b></td>${CAtot.map(t=>`<td class="num"><b>${comp(t)}</b></td>`).join('')}${hasVar?(()=>{const v=CAtot[A.length-2]?(CAtot[A.length-1]-CAtot[A.length-2])/CAtot[A.length-2]*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
-    </tbody></table></div></div>`));
+    </tbody></table></div>${insComp}</div>`));
   const ORDEM=['mesatual','heatmap','resumoquarter','acumulado','canal','roascanal','ev','inv','roasdia','evcanal','evano','comp','metasbar','metasq','tri','metas'];
   blocks.sort((a,b)=>{const ga=(a.match(/data-block="([^"]+)"/)||[])[1],gb=(b.match(/data-block="([^"]+)"/)||[])[1];const ia=ORDEM.indexOf(ga),ib=ORDEM.indexOf(gb);return (ia<0?99:ia)-(ib<0?99:ib);});
   const visiveis=blocks.filter(b=>{const id=(b.match(/data-block="([^"]+)"/)||[])[1];return tabOf(id)===aba;});
@@ -888,7 +930,9 @@ function gauge(id,p){const v=p==null?0:Math.max(0,Math.min(p,100));const col=p>=
   charts.push(new Chart(document.getElementById(id),{type:'doughnut',data:{datasets:[{data:[v,Math.max(100-v,0)],backgroundColor:[col,TC.grid],borderWidth:0}]},options:{maintainAspectRatio:false,cutout:'74%',plugins:{legend:{display:false},tooltip:{enabled:false}}}}));}
 function desCanal(pc){charts.push(new Chart(document.getElementById('chCanal'),{type:'doughnut',data:{labels:pc.map(c=>c.canal),datasets:[{data:pc.map(c=>c.faturamento),backgroundColor:pc.map((c,i)=>cor(c.canal,i)),borderWidth:0}]},options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fBRL2.format(c.parsed)}}}}}));
   const t=pc.reduce((s,c)=>s+c.faturamento,0)||1;
-  document.getElementById('legCanal').innerHTML=pc.map((c,i)=>`<li><span class="sw" style="background:${cor(c.canal,i)}"></span><span>${c.canal}</span><span class="lv num">${fBRL2.format(c.faturamento)} · ${(c.faturamento/t*100).toFixed(1)}%</span></li>`).join('');}
+  const cpp=n=>n>=1e6?'R$ '+(n/1e6).toFixed(2).replace('.',',')+' mi':'R$ '+Math.round(n/1e3)+' mil';
+  const mxp=Math.max(...pc.map(c=>c.proj||c.faturamento),1);
+  document.getElementById('legCanal').innerHTML=pc.map((c,i)=>{const wF=Math.round(c.faturamento/mxp*100),wP=Math.round((c.proj||c.faturamento)/mxp*100);const showP=c.proj&&c.proj>c.faturamento*1.01;return `<li class="clg"><div class="clgtop"><span class="sw" style="background:${cor(c.canal,i)}"></span><span class="cnm">${c.canal}</span><span class="lv num">${cpp(c.faturamento)}${showP?` <span class="cpj">→ ${cpp(c.proj)}</span>`:''}</span></div><div class="cbar">${showP?`<div class="cfant" style="width:${wP}%"></div>`:''}<div class="cfill" style="width:${wF}%;background:${cor(c.canal,i)}"></div></div></li>`;}).join('');}
 function desRoas(roas,meta){const mx=Math.max(...roas.map(r=>r.roas||0),meta||0,1);
   document.getElementById('roasRows').innerHTML = roas.length ? roas.map((r,i)=>{const ok=meta&&r.roas!=null&&r.roas>=meta;const c=ok?'#c3d72c':(meta&&r.roas!=null?'#fb7185':cor(r.canal,i));const w=Math.max((r.roas||0)/mx*100,2);
     return `<div class="r"><span>${r.canal}</span><span class="bar"><span style="width:${w}%;background:${c}"></span></span><span class="roasnum num" style="color:${c}">${fNum2(r.roas)}</span></div>`;}).join('') : '<div class="empty">Sem dados de ADS no período.</div>';}
