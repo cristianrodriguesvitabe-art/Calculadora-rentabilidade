@@ -48,6 +48,13 @@
   .gbl{font-size:9px;color:var(--faint);text-transform:uppercase}
   .hinsight{margin-top:11px;font-size:12.5px;color:var(--ink);line-height:1.5;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .hinsight b{color:var(--pos)}
+  #hmtip{position:fixed;z-index:9998;background:#0c0c0c;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .1s;box-shadow:0 8px 24px rgba(0,0,0,.5);min-width:180px;max-width:260px}
+  #hmtip.on{opacity:1}
+  #hmtip .th{font-weight:700;margin-bottom:6px;color:var(--ink);border-bottom:1px solid var(--line2);padding-bottom:5px}
+  #hmtip .tr{display:flex;justify-content:space-between;gap:14px;margin-top:3px}
+  #hmtip .tr .cn{color:var(--muted)}#hmtip .tr .cv{color:var(--ink);font-weight:600;white-space:nowrap}
+  #hmtip .cpct{color:var(--muted);font-weight:500;font-size:11px;margin-left:3px}
+  #hmtip .tt{display:flex;justify-content:space-between;gap:14px;margin-top:6px;padding-top:5px;border-top:1px solid var(--line2);font-weight:700}
   .insbar{margin-top:13px;padding-top:12px;border-top:1px solid var(--line2);display:flex;flex-direction:column;gap:6px}
   .insbar .ins{font-size:12.5px;color:var(--ink);line-height:1.45}
   .insbar .ins b{font-weight:700}.insbar .up{color:var(--pos)}.insbar .dn{color:var(--accent)}
@@ -683,7 +690,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const fatMesAntMP=r2(soma(revF.filter(x=>yOf(x.date)===maY&&mOf(x.date)===maM&&dOf(x.date)<=diasCorr),'faturamento'));
   const vsMesAnterior=fatMesAntMP?pct(fMes,fatMesAntMP):null;
   const resumoMes={de:deMes,ate:ateMes,mesLabel:MES[curM-1],faturamento:fMes,investimento:iMes,receitaAds:rcMes,roas:iMes?r2(fMes/iMes):null,meta:metaMesAjustCur,metaBase:metaMesCal,acumulado:acumCurR,atingidoPct:metaMesAjustCur?r2(fMes/metaMesAjustCur*100):null,diasCorr,diasMesCur,metaProp,vsMetaProp,fatMesAntMP,vsMesAnterior};
-  const hmDia=(ano,mes,cap)=>{const nd=diasNoMes(ano,mes);const arr=[];for(let dd=1;dd<=nd;dd++){const dow=new Date(ano,mes-1,dd).getDay();arr.push((cap!=null&&dd>cap)?{d:dd,dow,fat:null}:{d:dd,dow,fat:r2(soma(revF.filter(x=>yOf(x.date)===ano&&mOf(x.date)===mes&&dOf(x.date)===dd),'faturamento'))});}return arr;};
+  const hmDia=(ano,mes,cap)=>{const nd=diasNoMes(ano,mes);const arr=[];for(let dd=1;dd<=nd;dd++){const dow=new Date(ano,mes-1,dd).getDay();if(cap!=null&&dd>cap){arr.push({d:dd,dow,fat:null,canais:[]});continue;}const rows=revF.filter(x=>yOf(x.date)===ano&&mOf(x.date)===mes&&dOf(x.date)===dd);const mp=new Map();for(const r of rows){mp.set(r.canal,(mp.get(r.canal)||0)+(r.faturamento||0));}const cc=[...mp.entries()].map(([canal,v])=>({canal,fat:r2(v)})).filter(o=>o.fat>0).sort((a,b)=>b.fat-a.fat);arr.push({d:dd,dow,fat:r2(soma(rows,'faturamento')),canais:cc});}return arr;};
   let hmPmY=curY,hmPmM=curM-1; if(hmPmM<1){hmPmM=12;hmPmY--;}
   const hmCapAtual=Math.max(ontem.getDate(),0);
   const hmA=hmDia(curY,curM,hmCapAtual),hmB=hmDia(hmPmY,hmPmM,null);
@@ -805,11 +812,11 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     const cor=f=>{if(f==null||f<=0)return['#101010','#1c1c1c','#444'];const t=(f-mn)/((mx-mn)||1);return[`rgba(234,83,57,${(0.14+0.62*t).toFixed(2)})`,`rgba(234,83,57,${(0.4+0.5*t).toFixed(2)})`,'#fff2ee'];};
     const stats=(dias)=>{const ds=dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=[0,1,2,3,4,5,6].map(dw=>{const v=byDow[dw]||[];return{dow:dw,avg:v.length?v.reduce((a,z)=>a+z,0)/v.length:0,n:v.length};});const wd=avgDow.filter(x=>x.n>0);const bestDow=wd.reduce((a,b)=>b.avg>a.avg?b:a),worstDow=wd.reduce((a,b)=>b.avg<a.avg?b:a);return {tot,avg,best,worst,avgDow,bestDow,worstDow};};
-    const cal=(key,dias,side)=>{const st=stats(dias);const[y,m]=key.split('-');const firstDow=new Date(+y,+m-1,1).getDay();let cells='';for(let i=0;i<firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of dias){const c=cor(x.fat);const tip=x.fat==null?`Dia ${x.d}: sem dados`:`${DOW[x.dow]} ${x.d}: ${comp(x.fat)}`;const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;cells+=`<div class="hcell${isB?' best':''}${isW?' worst':''}" style="background:${c[0]};border-color:${c[1]}" title="${tip}"><span class="hd" style="color:${c[2]}">${x.d}</span>${(x.fat==null||x.fat<=0)?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}
+    const cal=(key,dias,side)=>{const st=stats(dias);const[y,m]=key.split('-');const firstDow=new Date(+y,+m-1,1).getDay();let cells='';for(let i=0;i<firstDow;i++)cells+='<div class="hcell empty"></div>';for(const x of dias){const c=cor(x.fat);const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;const dd=(x.fat==null||x.fat<=0)?'':` data-day='${JSON.stringify({d:x.d,dow:x.dow,fat:x.fat,canais:(x.canais||[]).slice(0,5)}).replace(/'/g,'&#39;')}'`;cells+=`<div class="hcell${isB?' best':''}${isW?' worst':''}"${dd} style="background:${c[0]};border-color:${c[1]}"><span class="hd" style="color:${c[2]}">${x.d}</span>${(x.fat==null||x.fat<=0)?'':`<span class="hv" style="color:${c[2]}">${fmtk(x.fat)}</span>`}</div>`;}
       let foot='<div class="hfoot"><div class="sub" style="color:var(--muted)">sem vendas no mês</div></div>';
       if(st){const mxD=Math.max(...st.avgDow.map(x=>x.avg),1);
         const DIAF=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-        const bars=st.avgDow.map(x=>{const h=x.n>0?Math.max(Math.round(x.avg/mxD*100),8):0;const isB=x.dow===st.bestDow.dow&&x.n>0;return `<div class="gbar" title="${DOW[x.dow]}: ${x.n>0?comp(x.avg)+'/dia':'sem dados'}"><div class="gbf" style="height:${h}%;background:${isB?'var(--pos)':'#3a3a3a'}"></div><span class="gbl">${DOW[x.dow]}</span></div>`;}).join('');
+        const bars=st.avgDow.map(x=>{const h=x.n>0?Math.max(Math.round(x.avg/mxD*100),8):0;const isB=x.dow===st.bestDow.dow&&x.n>0;return `<div class="gbar"${x.n>0?` data-avg="${fmtk(x.avg)}" data-dia="${DOW[x.dow]}"`:''}><div class="gbf" style="height:${h}%;background:${isB?'var(--pos)':'#3a3a3a'}"></div><span class="gbl">${DOW[x.dow]}</span></div>`;}).join('');
         const queda=st.bestDow.avg?Math.round((1-st.worstDow.avg/st.bestDow.avg)*100):0;
         const ins=`Seu dia mais forte é <b>${DIAF[st.bestDow.dow]}</b> (${comp(st.bestDow.avg)}/dia)${queda>0?`; o mais fraco é <b>${DIAF[st.worstDow.dow]}</b> (~${queda}% abaixo)`:''}.`;
         foot=`<div class="hfoot"><div class="hfeb">média por dia da semana · geral ${comp(st.avg)}/dia</div><div class="gweek">${bars}</div><div class="hinsight">${ins}</div></div>`;
@@ -996,6 +1003,19 @@ window.setGran=(g)=>{state.gran=g;carregar();};
 window.setCompMode=(m)=>{compMode=m;if(ultData)render(ultData);};
 window.hmSet=(side,val)=>{if(side==='A')hmSelA=val;else hmSelB=val;if(ultData)render(ultData);};
 window.hmNav=(side,dir)=>{const CH=(ultData&&ultData.heatmap&&ultData.heatmap.chaves)||[];const cur=side==='A'?hmSelA:hmSelB;let i=CH.indexOf(cur)+dir;if(i<0)i=0;if(i>=CH.length)i=CH.length-1;if(side==='A')hmSelA=CH[i];else hmSelB=CH[i];if(ultData)render(ultData);};
+function hmComp(n){const a=Math.abs(n);return a>=1e6?'R$ '+(n/1e6).toFixed(2).replace('.',',')+' mi':'R$ '+Math.round(n/1e3)+' mil';}
+(function(){const DN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  const T=()=>document.getElementById('hmtip');
+  function move(e){const t=T();if(!t)return;const p=12;let x=e.clientX+p,y=e.clientY+p;const r=t.getBoundingClientRect();if(x+r.width>innerWidth)x=e.clientX-r.width-p;if(y+r.height>innerHeight)y=e.clientY-r.height-p;t.style.left=x+'px';t.style.top=y+'px';}
+  function show(html,e){const t=T();if(!t)return;t.innerHTML=html;t.classList.add('on');move(e);}
+  function hide(){const t=T();if(t)t.classList.remove('on');}
+  document.addEventListener('mouseover',e=>{const el=e.target.closest?e.target.closest('.hcell[data-day],.gbar[data-avg]'):null;if(!el){return;}
+    if(el.classList.contains('hcell')){try{const d=JSON.parse(el.dataset.day);let h='<div class="th">Dia '+d.d+' · '+DN[d.dow]+'</div>';for(const c of (d.canais||[])){const pc=d.fat?Math.round(c.fat/d.fat*100):0;h+='<div class="tr"><span class="cn">'+c.canal+'</span><span class="cv">'+hmComp(c.fat)+' <span class="cpct">'+pc+'%</span></span></div>';}h+='<div class="tt"><span>Total</span><span>'+hmComp(d.fat)+'</span></div>';show(h,e);}catch(_){ }}
+    else{show('<div class="th">'+el.dataset.dia+'</div><div class="tr"><span class="cn">média/dia</span><span class="cv">'+el.dataset.avg+'</span></div>',e);}
+  });
+  document.addEventListener('mousemove',e=>{const t=T();if(t&&t.classList.contains('on'))move(e);});
+  document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.hcell[data-day],.gbar[data-avg]'))hide();});
+})();
 document.getElementById('btnConfig').onclick=abrirConfig;document.getElementById('btnFechar').onclick=fecharConfig;document.getElementById('btnSalvar').onclick=salvarConfig;
 
 function lsGet(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
@@ -1076,5 +1096,6 @@ document.getElementById('gateBtn').onclick=tentarEntrar;
 document.getElementById('gatePass').addEventListener('keydown',e=>{if(e.key==='Enter')tentarEntrar();});
 (function(){let ok=false;try{ok=localStorage.getItem('painel_auth')===SENHA_HASH;}catch(e){}if(ok){document.getElementById('gate').remove();iniciarPainel();}else{const g=document.getElementById('gate');g.style.display='flex';document.getElementById('gatePass').focus();}})();
 </script>
+<div id="hmtip"></div>
 </body>
 </html>
