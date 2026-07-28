@@ -60,9 +60,10 @@
   .cd.cdA{background:var(--pos)}.cd.cdM{background:var(--accent2)}.cd.cdB{background:var(--neg)}
   .tnote{font-size:10.5px;color:var(--faint);margin-top:8px}
   .clg{display:block;margin-bottom:9px}
-  .clgtop{display:flex;align-items:center;gap:7px}
+  .legend li.clg{display:block;grid-template-columns:none}
+  .clg .clgtop{display:flex;align-items:center;gap:7px;width:100%}
   .clg .cnm{flex:1;font-size:12.5px}
-  .clg .lv{font-size:12px;font-weight:600}
+  .clg .lv{font-size:12px;font-weight:600;white-space:nowrap;text-align:right}
   .clg .cpj{color:var(--faint);font-weight:500;font-size:11px}
   .clg .cbar{position:relative;height:6px;background:#0c0c0c;border:1px solid var(--line2);border-radius:5px;overflow:hidden;margin-top:5px}
   .clg .cfant{position:absolute;left:0;top:0;bottom:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.10),rgba(255,255,255,.10) 4px,transparent 4px,transparent 8px);border-radius:5px}
