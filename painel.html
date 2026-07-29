@@ -285,7 +285,7 @@
 
 const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM6NRFxSThFzMqIyJyE18h1lI1nuMvTKuzMKW-aoyJwfC031l_Q0NJSChBFVTUQJUrRLGjIM9gyOwq';
 const GIDS = { adsRenova:'432173951', adsTiktok:'178673841', retroRenova:'80783708', retroTiktok:'611256132' };
-const rawCsvUrl = (gid) => `${SHEET_BASE}/pub?gid=${gid}&single=true&output=csv`;
+const rawCsvUrl = (gid) => `${SHEET_BASE}/pub?gid=${gid}&single=true&output=csv&_cb=${Date.now()}`;
 const PROXIES = [
   (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
   (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
