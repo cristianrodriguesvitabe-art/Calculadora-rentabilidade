@@ -691,6 +691,18 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const fatMesAntMP=r2(soma(revF.filter(x=>yOf(x.date)===maY&&mOf(x.date)===maM&&dOf(x.date)<=diasCorr),'faturamento'));
   const vsMesAnterior=fatMesAntMP?pct(fMes,fatMesAntMP):null;
   const resumoMes={de:deMes,ate:ateMes,mesLabel:MES[curM-1],faturamento:fMes,investimento:iMes,receitaAds:rcMes,roas:iMes?r2(fMes/iMes):null,meta:metaMesAjustCur,metaBase:metaMesCal,acumulado:acumCurR,atingidoPct:metaMesAjustCur?r2(fMes/metaMesAjustCur*100):null,diasCorr,diasMesCur,metaProp,vsMetaProp,fatMesAntMP,vsMesAnterior};
+  // ===== FECHAMENTO DE MÊS (quando o filtro é um mês civil completo) =====
+  const mesCompleto=!!(de&&ate&&de.slice(0,7)===ate.slice(0,7)&&de.slice(8,10)==='01'&&(+ate.slice(8,10))===diasNoMes(+ate.slice(0,4),+ate.slice(5,7)));
+  let fechamento=null;
+  if(mesCompleto){
+    const fY=pRefY,fM=pRefM;const inFM=x=>yOf(x.date)===fY&&mOf(x.date)===fM;
+    const fatF=r2(soma(revF.filter(inFM),'faturamento'));
+    const invF=r2(soma(adsF.filter(inFM),'custo'));
+    const recF=r2(soma(adsF.filter(inFM),'receita'));
+    const metaF=metaMesAjust;
+    const fatAntCheio=r2(soma(revF.filter(x=>yOf(x.date)===pmY&&mOf(x.date)===pm),'faturamento'));
+    fechamento={mesLabel:MES[fM-1],ano:fY,mesAntLabel:MES[pm-1],faturado:fatF,meta:metaF,metaBase:r2(metaMesCur.meta),acumulado:acumRollover,atingidoPct:metaF?r2(fatF/metaF*100):null,falta:r2(Math.max(metaF-fatF,0)),sobra:r2(Math.max(fatF-metaF,0)),fatMesAntCheio:fatAntCheio,vsMesAntCheio:fatAntCheio?pct(fatF,fatAntCheio):null,roas:invF?r2(fatF/invF):null,investimento:invF,receitaAds:recF};
+  }
   const hmDia=(ano,mes,cap)=>{const nd=diasNoMes(ano,mes);const arr=[];for(let dd=1;dd<=nd;dd++){const dow=new Date(ano,mes-1,dd).getDay();if(cap!=null&&dd>cap){arr.push({d:dd,dow,fat:null,canais:[]});continue;}const rows=revF.filter(x=>yOf(x.date)===ano&&mOf(x.date)===mes&&dOf(x.date)===dd);const mp=new Map();for(const r of rows){mp.set(r.canal,(mp.get(r.canal)||0)+(r.faturamento||0));}const cc=[...mp.entries()].map(([canal,v])=>({canal,fat:r2(v)})).filter(o=>o.fat>0).sort((a,b)=>b.fat-a.fat);arr.push({d:dd,dow,fat:r2(soma(rows,'faturamento')),canais:cc});}return arr;};
   let hmPmY=curY,hmPmM=curM-1; if(hmPmM<1){hmPmM=12;hmPmY--;}
   const hmCapAtual=Math.max(ontem.getDate(),0);
@@ -730,7 +742,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     porCanal,roasPorCanal,trimestres,tabelaMetas,realizadoTri:realTri,comparativoMensal,
     pace,comparativoAnos,totaisAnuais,evolucaoAno,canaisComp,comparativoInsights,tendencia,
     evolucao,evolucaoInvest,evolucaoCanal,roasDiario,projecao,metasResumo,
-    resumoMes,resumoQuarter,semaforo,acumulado,historicoLY,heatmap,
+    resumoMes,resumoQuarter,semaforo,acumulado,historicoLY,heatmap,mesCompleto,fechamento,
   };
 }
 
@@ -783,6 +795,21 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
   const tri=c.triAtual;const rp=c.metaRoas?`<span class="pill ${c.roasAtingido?'ok':'bad'}">meta ${c.metaRoas}</span>`:'';const gran=d.periodo.gran;const A=d.comparativoAnos.anos;const hasVar=A.length>=2;
   const blocks=[];
   blocks.push(bloco('mesatual','',(()=>{const pm=pj.projecaoMes;const rm=d.resumoMes;const fp=v=>v==null?'—':(v>0?'+':'')+v.toFixed(0)+'%';const cp=v=>v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)';const cbg=v=>'var(--surface2)';const cbd=v=>'var(--line)';const sc=d.semaforo.status;const scol=sc==='verde'?'var(--pos)':sc==='amarelo'?'var(--accent2)':sc==='vermelho'?'var(--neg)':'var(--muted)';
+    if(d.mesCompleto&&d.fechamento){const fc=d.fechamento;const pcolor=p=>p==null?'var(--muted)':p>=100?'var(--pos)':p>=85?'var(--accent2)':'var(--neg)';const fpp=v=>v==null?'—':(v>0?'+':'')+v.toFixed(0)+'%';const cpv=v=>v==null?'var(--muted)':v>0?'var(--pos)':v<0?'var(--neg)':'var(--muted)';const stTxt=fc.atingidoPct>=100?'Meta batida':fc.atingidoPct>=85?'Perto da meta':'Abaixo da meta';const stCol=fc.atingidoPct>=100?'var(--pos)':fc.atingidoPct>=85?'var(--accent2)':'var(--neg)';const discMeta=(fc.acumulado&&Math.abs(fc.acumulado)>1)?` <span style="color:var(--muted)">(${comp(fc.metaBase)} base ${fc.acumulado>0?'+ '+comp(fc.acumulado)+' acúmulo':'− '+comp(-fc.acumulado)+' superávit'})</span>`:'';
+      return `<div class="card" style="border-left:4px solid ${stCol}">
+      <div class="statusbar"><span class="sfdot" style="background:${stCol}"></span><span class="sflabel">Fechamento de ${fc.mesLabel} ${fc.ano} · ${stTxt}</span><span class="right"><span class="upd" id="updInfo"></span><button onclick="copiarResumo()" id="btnCopiar">📋 Copiar resumo</button></span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <div style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 13px"><p class="eyebrow">vs meta</p><div class="num" style="font-family:var(--display);font-weight:700;font-size:22px;color:${pcolor(fc.atingidoPct)}">${fpp(fc.atingidoPct!=null?fc.atingidoPct-100:null)}</div></div>
+        <div style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 13px"><p class="eyebrow">vs ${fc.mesAntLabel} (mês cheio)</p><div class="num" style="font-family:var(--display);font-weight:700;font-size:22px;color:${cpv(fc.vsMesAntCheio)}">${fpp(fc.vsMesAntCheio)}</div></div>
+      </div>
+      <div class="projhero fat" style="margin-top:14px"><div class="projtop"><div><p class="eyebrow">Faturado em ${fc.mesLabel} · mês fechado</p><div class="projbig num">${comp(fc.faturado)}</div></div><div class="projpct num" style="color:${pcolor(fc.atingidoPct)}">${fc.atingidoPct!=null?fc.atingidoPct.toFixed(0)+'%':'—'}<span>da meta do mês</span></div></div><div class="projbar"><span class="pf" style="width:${Math.min(fc.atingidoPct||0,100)}%"></span><span class="pp" style="width:${100-Math.min(fc.atingidoPct||0,100)}%"></span></div><div class="sub">meta do mês ${comp(fc.meta)}${discMeta} · ${fc.falta>0?'ficou <b style="color:var(--neg)">'+comp(fc.falta)+'</b> abaixo':'superou em <b style="color:var(--pos)">'+comp(fc.sobra)+'</b>'}</div></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
+        <div class="projhero info" style="flex:1;min-width:180px;margin:0"><p class="eyebrow">ROAS</p><div class="projbig num" style="font-size:24px">${fc.roas!=null?fNum2(fc.roas):'—'}</div><div class="sub" style="margin-top:2px">faturamento ÷ custo ADS</div></div>
+        <div class="projhero info" style="flex:1;min-width:180px;margin:0"><p class="eyebrow">Investimento ADS</p><div class="projbig num" style="font-size:24px">${comp(fc.investimento)}</div><div class="sub" style="margin-top:2px">custo dos anúncios</div></div>
+        <div class="projhero info" style="flex:1;min-width:180px;margin:0"><p class="eyebrow">Receita de ADS</p><div class="projbig num" style="font-size:24px">${comp(fc.receitaAds)}</div><div class="sub" style="margin-top:2px">só anúncios</div></div>
+      </div>
+      ${mostrarMes?'<canvas id="chProj" style="margin-top:14px"></canvas>':''}
+      </div>`;}
     const feitoPct=pm.meta?Math.min(pm.realizado/pm.meta*100,100):0;const projPct=pm.meta?Math.min(pm.projetado/pm.meta*100,100):0;const ext=Math.max(projPct-feitoPct,0);const restam=Math.max(pm.diasMes-pm.diasDecorridos,0);const falta=Math.max(pm.meta-pm.realizado,0);const pctf=pm.meta?pm.realizado/pm.meta*100:null;const necDia=restam>0?falta/restam:0;
     return `<div class="card" style="border-left:4px solid ${scol}">
     <div class="statusbar"><span class="sfdot sf-${sc}"></span><span class="sflabel">${d.semaforo.label}</span><span class="right"><span class="upd" id="updInfo"></span><button onclick="copiarResumo()" id="btnCopiar">📋 Copiar resumo</button></span></div>
@@ -1031,6 +1058,26 @@ function salvaPref(chave,valor){if(!state.perfil)return;const prefs=lsGet('prefs
 document.getElementById('perfilSel').onchange=e=>{state.perfil=e.target.value;try{localStorage.setItem('perfil',state.perfil);}catch(x){}carregarPrefs();if(ultData)render(ultData);};
 document.getElementById('btnNovoPerfil').onclick=()=>{const nome=(prompt('Nome do novo perfil:')||'').trim();if(!nome)return;let perfis=lsGet('perfis',[])||[];if(!perfis.includes(nome))perfis.push(nome);lsSet('perfis',perfis);lsSet('prefs:'+nome,{theme:document.documentElement.getAttribute('data-theme')||'dark'});try{localStorage.setItem('perfil',nome);}catch(x){}initPerfis();if(ultData)render(ultData);};
 function copiarResumo(){if(!ultData)return;
+  if(ultData.mesCompleto&&ultData.fechamento){const fc=ultData.fechamento;
+    const fmtC=n=>{const a=Math.abs(n);const sg=n<0?'-':'';return a>=1e6?sg+'R$ '+(a/1e6).toFixed(2).replace('.',',')+' mi':'R$ '+sg+Math.round(a/1e3)+' mil';};
+    const emoji=fc.atingidoPct>=100?'🟢':fc.atingidoPct>=85?'🟠':'🔴';
+    const stTxt=fc.atingidoPct>=100?'Meta batida':fc.atingidoPct>=85?'Perto da meta':'Abaixo da meta';
+    const now=new Date();const dd=String(now.getDate()).padStart(2,'0'),mo=String(now.getMonth()+1).padStart(2,'0'),hh=String(now.getHours()).padStart(2,'0'),mi=String(now.getMinutes()).padStart(2,'0');
+    const L=[];
+    L.push('*📊 Renova Be — Fechamento de '+fc.mesLabel+' '+fc.ano+'*');
+    L.push('');
+    L.push('*Faturado:* '+fmtC(fc.faturado)+' de '+fmtC(fc.meta)+' _(meta do mês)_');
+    L.push('*Atingido:* '+emoji+' '+(fc.atingidoPct!=null?fc.atingidoPct.toFixed(0)+'%':'—')+' · '+stTxt);
+    if(fc.falta>0) L.push('*Ficou abaixo:* '+fmtC(fc.falta)); else if(fc.sobra>0) L.push('*Superou em:* '+fmtC(fc.sobra));
+    if(fc.vsMesAntCheio!=null) L.push('*vs '+fc.mesAntLabel+' (mês cheio):* '+(fc.vsMesAntCheio>0?'+':'')+fc.vsMesAntCheio.toFixed(0)+'%');
+    L.push('');
+    L.push('*ROAS:* '+(fc.roas!=null?fc.roas.toFixed(2).replace('.',','):'—')+'  ·  *Invest.:* '+fmtC(fc.investimento)+'  ·  *Receita ADS:* '+fmtC(fc.receitaAds));
+    L.push('_Fechamento gerado em '+dd+'/'+mo+' às '+hh+':'+mi+'_');
+    const t=L.join('\n');
+    const done=()=>{const b=document.getElementById('btnCopiar');if(b){const o=b.textContent;b.textContent='✅ Copiado!';setTimeout(()=>b.textContent=o,1500);}};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(()=>prompt('Copie o resumo:',t));}else prompt('Copie o resumo:',t);
+    return;
+  }
   const r=ultData.resumoMes,pj=ultData.projecao.projecaoMes,s=ultData.semaforo,q=ultData.resumoQuarter,mm=ultData.projecao.mesesMeta||[];
   const cfg=getConfig(),niveis=cfg.metas.niveis,principal=cfg.metas.nivelPrincipal;
   const fmtC=n=>{const a=Math.abs(n);const sg=n<0?'-':'';return a>=1e6?sg+'R$ '+(a/1e6).toFixed(2).replace('.',',')+' mi':'R$ '+sg+Math.round(a/1e3)+' mil';};
