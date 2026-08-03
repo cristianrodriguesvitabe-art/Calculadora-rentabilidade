@@ -55,6 +55,25 @@
   #hmtip .tr .cn{color:var(--muted)}#hmtip .tr .cv{color:var(--ink);font-weight:600;white-space:nowrap}
   #hmtip .cpct{color:var(--muted);font-weight:500;font-size:11px;margin-left:3px}
   #hmtip .tt{display:flex;justify-content:space-between;gap:14px;margin-top:6px;padding-top:5px;border-top:1px solid var(--line2);font-weight:700}
+  .nivrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .nchip{flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;padding:8px 11px;display:flex;flex-direction:column;gap:2px}
+  .nchip .nl{font-family:var(--display);font-weight:700;font-size:14px}
+  .nchip .nvv{font-size:12px;color:var(--ink);font-weight:600}
+  .fsec{margin-top:16px;padding-top:14px;border-top:1px solid var(--line2)}
+  .fsec h3{font-family:var(--display);font-size:13px;margin:0 0 10px}
+  .qrow{display:grid;grid-template-columns:34px 1fr 48px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+  .qrow:last-child{border-bottom:0}
+  .qrow .qn{font-family:var(--display);font-weight:700}
+  .qrow .qv{font-weight:600}.qrow .qv .qmeta{color:var(--muted);font-weight:500;font-size:11.5px}
+  .qrow .qp{text-align:right;font-weight:700;font-family:var(--display)}
+  .qrow .qs{grid-column:1/-1;font-size:11px;font-weight:600;margin-top:-2px}
+  .arowh{display:grid;grid-template-columns:52px 1fr 1fr 52px;gap:10px;margin-top:2px;padding-bottom:6px;border-bottom:1px solid var(--line2);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
+  .arowh span:nth-child(2),.arowh span:nth-child(3),.arowh span:last-child{text-align:right}
+  .arow{display:grid;grid-template-columns:52px 1fr 1fr 52px;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line2);font-size:12.5px}
+  .arow:last-child{border-bottom:0}
+  .arow .am{font-weight:600;color:var(--muted)}.arow .af{font-weight:600;text-align:right}.arow .ame{color:var(--muted);text-align:right}.arow .ap{text-align:right;font-weight:700;font-family:var(--display)}
+  .atot{display:grid;grid-template-columns:52px 1fr 1fr 52px;gap:10px;margin-top:8px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;font-weight:700}
+  .atot span:nth-child(2),.atot span:nth-child(3){text-align:right}.atot .apt{text-align:right;font-family:var(--display)}
   .insbar{margin-top:13px;padding-top:12px;border-top:1px solid var(--line2);display:flex;flex-direction:column;gap:6px}
   .insbar .ins{font-size:12.5px;color:var(--ink);line-height:1.45}
   .insbar .ins b{font-weight:700}.insbar .up{color:var(--pos)}.insbar .dn{color:var(--accent)}
@@ -238,6 +257,7 @@
       <div class="grp">
         <span class="lbl">Quando</span>
         <button class="chip" data-range="mes">Mês vigente</button>
+        <button class="chip" data-range="ultmes">Último mês</button>
         <button class="chip" data-range="ano">Este ano</button>
         <button class="chip" data-range="anoant">Ano passado</button>
         <button class="chip" data-range="30d">Últimos 30 dias</button>
@@ -701,7 +721,18 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     const recF=r2(soma(adsF.filter(inFM),'receita'));
     const metaF=metaMesAjust;
     const fatAntCheio=r2(soma(revF.filter(x=>yOf(x.date)===pmY&&mOf(x.date)===pm),'faturamento'));
-    fechamento={mesLabel:MES[fM-1],ano:fY,mesAntLabel:MES[pm-1],faturado:fatF,meta:metaF,metaBase:r2(metaMesCur.meta),acumulado:acumRollover,atingidoPct:metaF?r2(fatF/metaF*100):null,falta:r2(Math.max(metaF-fatF,0)),sobra:r2(Math.max(fatF-metaF,0)),fatMesAntCheio:fatAntCheio,vsMesAntCheio:fatAntCheio?pct(fatF,fatAntCheio):null,roas:invF?r2(fatF/invF):null,investimento:invF,receitaAds:recF};
+    // níveis do mês (meta = quarter÷3 de cada nível)
+    const nivMes=['M1','M2','M3','M4'].map(n=>{const mq=Number((cfg.metas.niveis[n]||{})['q'+pQ])||0;const metaN=mq/3;return {nivel:n,meta:r2(metaN),falta:r2(Math.max(metaN-fatF,0)),atingido:fatF+0.001>=metaN};}).filter(x=>x.meta>0);
+    const faltantes=nivMes.filter(x=>!x.atingido).sort((a,b)=>a.falta-b.falta);
+    const maisProxMes=faltantes.length?faltantes[0].nivel:null;
+    // trimestres Jan até o quarter do mês fechado
+    const qDoFech=pQ;
+    const quarters=[];
+    for(let qq=1;qq<=qDoFech;qq++){const realQ=r2(soma(revF.filter(x=>yOf(x.date)===fY&&triOf(mOf(x.date))===qq),'faturamento'));const metaQ2=Number((cfg.metas.niveis[cfg.metas.nivelPrincipal]||{})['q'+qq])||0;const nv=nivelDoQuarter(qq,realQ);quarters.push({q:qq,real:realQ,meta:r2(metaQ2),pct:metaQ2?r2(realQ/metaQ2*100):null,emAndamento:(fY===curY&&qq===triOf(curM)),nivelAtingido:nv.nivelAtingido,proxNivel:nv.proxNivel,faltaProx:nv.faltaProx});}
+    // resumo do ano jan -> mês do fechamento (faturado, meta M2 do mês, %)
+    const anoMeses=[];let totFatAno=0,totMetaAno=0;
+    for(let mm=1;mm<=fM;mm++){const fatM=r2(soma(revF.filter(x=>yOf(x.date)===fY&&mOf(x.date)===mm),'faturamento'));const metaM=r2((Number((cfg.metas.niveis[cfg.metas.nivelPrincipal]||{})['q'+triOf(mm)])||0)/3);totFatAno+=fatM;totMetaAno+=metaM;anoMeses.push({mes:MES[mm-1],mesNum:mm,fat:fatM,meta:metaM,pct:metaM?r2(fatM/metaM*100):null});}
+    fechamento={mesLabel:MES[fM-1],ano:fY,mesAntLabel:MES[pm-1],faturado:fatF,meta:metaF,metaBase:r2(metaMesCur.meta),acumulado:acumRollover,atingidoPct:metaF?r2(fatF/metaF*100):null,falta:r2(Math.max(metaF-fatF,0)),sobra:r2(Math.max(fatF-metaF,0)),fatMesAntCheio:fatAntCheio,vsMesAntCheio:fatAntCheio?pct(fatF,fatAntCheio):null,roas:invF?r2(fatF/invF):null,investimento:invF,receitaAds:recF,niveisMes:nivMes,maisProxMes,quarters,anoMeses,totalAno:r2(totFatAno),metaAno:r2(totMetaAno),pctAno:totMetaAno?r2(totFatAno/totMetaAno*100):null};
   }
   const hmDia=(ano,mes,cap)=>{const nd=diasNoMes(ano,mes);const arr=[];for(let dd=1;dd<=nd;dd++){const dow=new Date(ano,mes-1,dd).getDay();if(cap!=null&&dd>cap){arr.push({d:dd,dow,fat:null,canais:[]});continue;}const rows=revF.filter(x=>yOf(x.date)===ano&&mOf(x.date)===mes&&dOf(x.date)===dd);const mp=new Map();for(const r of rows){mp.set(r.canal,(mp.get(r.canal)||0)+(r.faturamento||0));}const cc=[...mp.entries()].map(([canal,v])=>({canal,fat:r2(v)})).filter(o=>o.fat>0).sort((a,b)=>b.fat-a.fat);arr.push({d:dd,dow,fat:r2(soma(rows,'faturamento')),canais:cc});}return arr;};
   let hmPmY=curY,hmPmM=curM-1; if(hmPmM<1){hmPmM=12;hmPmY--;}
@@ -803,11 +834,15 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
         <div style="flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 13px"><p class="eyebrow">vs ${fc.mesAntLabel} (mês cheio)</p><div class="num" style="font-family:var(--display);font-weight:700;font-size:22px;color:${cpv(fc.vsMesAntCheio)}">${fpp(fc.vsMesAntCheio)}</div></div>
       </div>
       <div class="projhero fat" style="margin-top:14px"><div class="projtop"><div><p class="eyebrow">Faturado em ${fc.mesLabel} · mês fechado</p><div class="projbig num">${comp(fc.faturado)}</div></div><div class="projpct num" style="color:${pcolor(fc.atingidoPct)}">${fc.atingidoPct!=null?fc.atingidoPct.toFixed(0)+'%':'—'}<span>da meta do mês</span></div></div><div class="projbar"><span class="pf" style="width:${Math.min(fc.atingidoPct||0,100)}%"></span><span class="pp" style="width:${100-Math.min(fc.atingidoPct||0,100)}%"></span></div><div class="sub">meta do mês ${comp(fc.meta)}${discMeta} · ${fc.falta>0?'ficou <b style="color:var(--neg)">'+comp(fc.falta)+'</b> abaixo':'superou em <b style="color:var(--pos)">'+comp(fc.sobra)+'</b>'}</div></div>
+      <p class="eyebrow" style="margin-top:15px;margin-bottom:0">quanto ficou de cada nível (mês)</p>
+      <div class="nivrow">${(fc.niveisMes||[]).map(x=>{const atg=x.atingido;const c=atg?'var(--pos)':(x.nivel===fc.maisProxMes?'var(--accent2)':'var(--muted)');return `<div class="nchip"><span class="nl" style="color:${c}">${x.nivel}</span><span class="nvv">${atg?'✔️ atingido':'faltou '+comp(x.falta)}</span></div>`;}).join('')}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">
         <div class="projhero info" style="flex:1;min-width:180px;margin:0"><p class="eyebrow">ROAS</p><div class="projbig num" style="font-size:24px">${fc.roas!=null?fNum2(fc.roas):'—'}</div><div class="sub" style="margin-top:2px">faturamento ÷ custo ADS</div></div>
         <div class="projhero info" style="flex:1;min-width:180px;margin:0"><p class="eyebrow">Investimento ADS</p><div class="projbig num" style="font-size:24px">${comp(fc.investimento)}</div><div class="sub" style="margin-top:2px">custo dos anúncios</div></div>
         <div class="projhero info" style="flex:1;min-width:180px;margin:0"><p class="eyebrow">Receita de ADS</p><div class="projbig num" style="font-size:24px">${comp(fc.receitaAds)}</div><div class="sub" style="margin-top:2px">só anúncios</div></div>
       </div>
+      <div class="fsec"><h3>Trimestres ${fc.ano}</h3>${(fc.quarters||[]).map(x=>{const parts=[];if(x.emAndamento)parts.push('<span style="color:var(--accent2)">em andamento</span>');parts.push(x.nivelAtingido?'<span style="color:var(--pos)">atingiu '+x.nivelAtingido+'</span>':'<span style="color:var(--neg)">abaixo de M1</span>');if(x.proxNivel)parts.push('<span style="color:var(--muted)">faltou '+comp(x.faltaProx)+' p/ '+x.proxNivel+'</span>');else if(x.nivelAtingido==='M4')parts.push('<span style="color:var(--pos)">✔️ nível máximo</span>');return `<div class="qrow"><span class="qn">Q${x.q}</span><span class="qv">${comp(x.real)} <span class="qmeta">/ ${comp(x.meta)}</span></span><span class="qp" style="color:${pcolor(x.pct)}">${x.pct!=null?x.pct.toFixed(0)+'%':'—'}</span><span class="qs">${parts.join(' · ')}</span></div>`;}).join('')}</div>
+      <div class="fsec"><h3>Faturamento do ano · Jan a ${fc.mesLabel} ${fc.ano}</h3><div class="arowh"><span>Mês</span><span>Faturado</span><span>Meta</span><span>%</span></div>${(fc.anoMeses||[]).map(r=>`<div class="arow"><span class="am">${r.mes}</span><span class="af">${comp(r.fat)}</span><span class="ame">${comp(r.meta)}</span><span class="ap" style="color:${pcolor(r.pct)}">${r.pct!=null?r.pct.toFixed(0)+'%':'—'}</span></div>`).join('')}<div class="atot"><span>Total</span><span>${comp(fc.totalAno)}</span><span>${comp(fc.metaAno)}</span><span class="apt" style="color:${pcolor(fc.pctAno)}">${fc.pctAno!=null?fc.pctAno.toFixed(0)+'%':'—'}</span></div></div>
       ${mostrarMes?'<canvas id="chProj" style="margin-top:14px"></canvas>':''}
       </div>`;}
     const feitoPct=pm.meta?Math.min(pm.realizado/pm.meta*100,100):0;const projPct=pm.meta?Math.min(pm.projetado/pm.meta*100,100):0;const ext=Math.max(projPct-feitoPct,0);const restam=Math.max(pm.diasMes-pm.diasDecorridos,0);const falta=Math.max(pm.meta-pm.realizado,0);const pctf=pm.meta?pm.realizado/pm.meta*100:null;const necDia=restam>0?falta/restam:0;
@@ -979,11 +1014,12 @@ function aplicarLayout(){const prefs=lsGet('prefs:'+state.perfil,{})||{};const o
 
 // período
 function marcaRange(tipo){document.querySelectorAll('[data-range]').forEach(b=>b.classList.toggle('on',b.dataset.range===tipo));atualizaShowing(tipo);}
-const RANGE_LBL={mes:'Mês vigente',ano:'Este ano',anoant:'Ano passado','30d':'Últimos 30 dias',tudo:'Período completo',q1:'Q1',q2:'Q2',q3:'Q3',q4:'Q4'};
+const RANGE_LBL={mes:'Mês vigente',ultmes:'Último mês',ano:'Este ano',anoant:'Ano passado','30d':'Últimos 30 dias',tudo:'Período completo',q1:'Q1',q2:'Q2',q3:'Q3',q4:'Q4'};
 function fmtBR(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4):'—';}
 function atualizaShowing(tipo){const el=document.getElementById('showing');if(!el)return;const nome=RANGE_LBL[tipo]||'Período personalizado';const de=state.de||(document.getElementById('de')||{}).value;const ate=state.ate||(document.getElementById('ate')||{}).value;const nc=(state.canais&&state.canais.length)?state.canais.length:(canaisDisp.length||0);el.innerHTML=`Mostrando: <span class="cor">${nome}</span> · <b>${fmtBR(de)}</b> até <b>${fmtBR(ate)}</b>${nc?` · <b>${nc} ${nc===1?'canal':'canais'}</b>`:''}`;}
 function setRange(tipo){marcaRange(tipo);const ey=anos[anos.length-1]||new Date().getFullYear();const hoje=new Date();const ontem=new Date(hoje);ontem.setDate(ontem.getDate()-1);const isoD=isoLocal;const pad=n=>String(n).padStart(2,'0');
   if(tipo==='mes'){state.de=isoD(new Date(hoje.getFullYear(),hoje.getMonth(),1));state.ate=isoD(ontem);}
+  else if(tipo==='ultmes'){const pmDate=new Date(hoje.getFullYear(),hoje.getMonth()-1,1);const y=pmDate.getFullYear(),m=pmDate.getMonth();state.de=isoD(new Date(y,m,1));state.ate=isoD(new Date(y,m+1,0));}
   else if(tipo==='ano'){state.de=ey+'-01-01';state.ate=(maxData&&+maxData.slice(0,4)===ey)?maxData:ey+'-12-31';}
   else if(tipo==='anoant'){state.de=(ey-1)+'-01-01';state.ate=(ey-1)+'-12-31';}
   else if(tipo==='30d'){const e=maxData||isoD(hoje);const dt=new Date(e);dt.setDate(dt.getDate()-29);state.de=isoD(dt);state.ate=e;}
@@ -1071,6 +1107,9 @@ function copiarResumo(){if(!ultData)return;
     if(fc.falta>0) L.push('*Ficou abaixo:* '+fmtC(fc.falta)); else if(fc.sobra>0) L.push('*Superou em:* '+fmtC(fc.sobra));
     if(fc.vsMesAntCheio!=null) L.push('*vs '+fc.mesAntLabel+' (mês cheio):* '+(fc.vsMesAntCheio>0?'+':'')+fc.vsMesAntCheio.toFixed(0)+'%');
     L.push('');
+    if(fc.niveisMes&&fc.niveisMes.length){L.push('*Níveis do mês:*');for(const x of fc.niveisMes){L.push('  '+x.nivel+': '+(x.atingido?'✔️ atingido':'faltou '+fmtC(x.falta)));}L.push('');}
+    if(fc.quarters&&fc.quarters.length){L.push('*Trimestres '+fc.ano+':*');for(const x of fc.quarters){const st=[];if(x.emAndamento)st.push('em andamento');st.push(x.nivelAtingido?'atingiu '+x.nivelAtingido:'abaixo de M1');if(x.proxNivel)st.push('faltou '+fmtC(x.faltaProx)+' p/ '+x.proxNivel);L.push('  Q'+x.q+': '+fmtC(x.real)+' / '+fmtC(x.meta)+' ('+(x.pct!=null?x.pct.toFixed(0)+'%':'—')+') · '+st.join(' · '));}L.push('');}
+    if(fc.anoMeses&&fc.anoMeses.length){L.push('*Faturamento do ano (Jan a '+fc.mesLabel+'):*');for(const r of fc.anoMeses){L.push('  '+r.mes+': '+fmtC(r.fat)+' / '+fmtC(r.meta)+' ('+(r.pct!=null?r.pct.toFixed(0)+'%':'—')+')');}L.push('  *Total:* '+fmtC(fc.totalAno)+' / '+fmtC(fc.metaAno)+' ('+(fc.pctAno!=null?fc.pctAno.toFixed(0)+'%':'—')+')');L.push('');}
     L.push('*ROAS:* '+(fc.roas!=null?fc.roas.toFixed(2).replace('.',','):'—')+'  ·  *Invest.:* '+fmtC(fc.investimento)+'  ·  *Receita ADS:* '+fmtC(fc.receitaAds));
     L.push('_Fechamento gerado em '+dd+'/'+mo+' às '+hh+':'+mi+'_');
     const t=L.join('\n');
