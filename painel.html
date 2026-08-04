@@ -132,6 +132,12 @@
   .hh-live-chips{display:flex;flex-wrap:wrap;gap:8px}
   .hh-chip{font-size:12px;padding:4px 9px;border:1px solid var(--line);border-radius:999px;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
   .hh-dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .hh-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .hh-controls label{font-size:12px;color:var(--muted)}
+  .hh-controls select{height:28px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:7px;font-family:var(--body);font-size:12.5px;padding:0 8px;cursor:pointer}
+  .hh-resumo{display:flex;gap:22px;flex-wrap:wrap;margin:10px 0 14px;font-size:13px;color:var(--muted)}
+  .hh-resumo b{color:var(--ink);font-family:var(--display);font-size:16px;font-weight:600;display:block;margin-top:2px}
+  .hh-resumo .up{color:#3fae6a}.hh-resumo .down{color:#d1584f}
   .kgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .eyebrow{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
   .kpi .val{font-weight:700;font-size:20px;letter-spacing:-.01em}.kpi .val.sm{font-size:17px}
@@ -1242,24 +1248,104 @@ function renderHoraHoraLive(){
     <div class="hh-live-chips">${chips}</div>
   </div>`;
 }
+function diasDisponiveis(){
+  const set=new Set((horaHoraCache.linhas||[]).map(l=>l.date));
+  return [...set].sort().reverse(); // mais recente primeiro
+}
+function fmtDiaLabel(iso){
+  const [y,m,d]=iso.split('-');
+  const hojeStr=hojeISO();
+  const ontem=new Date();ontem.setDate(ontem.getDate()-1);
+  const ontemStr=isoLocal(ontem);
+  if(iso===hojeStr)return `${d}/${m}/${y} (hoje)`;
+  if(iso===ontemStr)return `${d}/${m}/${y} (ontem)`;
+  return `${d}/${m}/${y}`;
+}
+// Gera grade de horários de 5 em 5 min até o último horário presente nos dados (dos dois dias)
+function gradeHorarios(linhasA,linhasB){
+  let maxMin=0;
+  [...linhasA,...linhasB].forEach(l=>{
+    const [h,m]=l.time.split(':').map(Number);
+    maxMin=Math.max(maxMin,h*60+m);
+  });
+  const grade=[];
+  for(let t=0;t<=maxMin;t+=5)grade.push(String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'));
+  return grade;
+}
+// Projeta uma série na grade de horários, carregando o último valor conhecido (dados são acumulados no dia)
+function projetarNaGrade(grade,linhas,extrator){
+  const ordenadas=[...linhas].sort((a,b)=>a.time.localeCompare(b.time));
+  let idx=0,ultimo=0;
+  return grade.map(t=>{
+    while(idx<ordenadas.length&&ordenadas[idx].time<=t){ultimo=extrator(ordenadas[idx]);idx++;}
+    return ultimo;
+  });
+}
+let hhDiaPrincipal=null,hhDiaComparar=null;
 function renderHoraHoraPanel(){
   const el=document.getElementById('horaHoraPanel');if(!el)return;
   TC=tc();
-  const hoje=hojeISO();
-  const linhasHoje=(horaHoraCache.linhas||[]).filter(l=>l.date===hoje);
-  const canais=horaHoraCache.canais||[];
+  const dias=diasDisponiveis();
   if(hhChart){try{hhChart.destroy();}catch(e){}hhChart=null;}
-  if(!linhasHoje.length){
-    el.innerHTML='<div class="card"><div class="empty">Sem dados de hoje ainda. O gráfico aparece assim que o Bling registrar a primeira atualização do dia.</div></div>';
+  if(!dias.length){
+    el.innerHTML='<div class="card"><div class="empty">Sem dados ainda. O gráfico aparece assim que o Bling registrar a primeira atualização do dia.</div></div>';
     return;
   }
-  el.innerHTML=`<div class="card"><h2><span class="ttl">${H()} Evolução do faturamento hoje</span><span class="tag">acumulado ao longo do dia · por canal</span></h2><canvas id="chHoraHora" height="110"></canvas></div>`;
-  const labels=linhasHoje.map(l=>l.time);
-  const ds=canais.map((c,i)=>({label:c,data:linhasHoje.map(l=>l.porCanal[c]||0),borderColor:cor(c,i),backgroundColor:'transparent',tension:.25,pointRadius:0,borderWidth:2}));
-  ds.push({label:'Total',data:linhasHoje.map(l=>l.total),borderColor:TC.tick,borderDash:[4,3],fill:false,tension:.25,pointRadius:0,borderWidth:1.6});
+  if(!hhDiaPrincipal||!dias.includes(hhDiaPrincipal))hhDiaPrincipal=dias[0];
+  if(hhDiaComparar===null){
+    const idxP=dias.indexOf(hhDiaPrincipal);
+    hhDiaComparar=dias[idxP+1]||'';
+  }
+  const optsPrincipal=dias.map(d=>`<option value="${d}"${d===hhDiaPrincipal?' selected':''}>${fmtDiaLabel(d)}</option>`).join('');
+  const optsComparar='<option value="">Nenhum</option>'+dias.filter(d=>d!==hhDiaPrincipal).map(d=>`<option value="${d}"${d===hhDiaComparar?' selected':''}>${fmtDiaLabel(d)}</option>`).join('');
+
+  el.innerHTML=`<div class="card">
+    <h2><span class="ttl">${H()} Evolução do faturamento</span><span class="tag">acumulado ao longo do dia · por canal</span></h2>
+    <div class="hh-controls">
+      <label>Dia</label><select id="hhSelPrincipal">${optsPrincipal}</select>
+      <label>Comparar com</label><select id="hhSelComparar">${optsComparar}</select>
+    </div>
+    <div id="hhResumo" class="hh-resumo"></div>
+    <canvas id="chHoraHora" height="110"></canvas>
+  </div>`;
+
+  document.getElementById('hhSelPrincipal').onchange=(e)=>{hhDiaPrincipal=e.target.value;hhDiaComparar=null;renderHoraHoraPanel();};
+  document.getElementById('hhSelComparar').onchange=(e)=>{hhDiaComparar=e.target.value;renderHoraHoraPanel();};
+
+  const canais=horaHoraCache.canais||[];
+  const linhasP=(horaHoraCache.linhas||[]).filter(l=>l.date===hhDiaPrincipal);
+  const linhasC=hhDiaComparar?(horaHoraCache.linhas||[]).filter(l=>l.date===hhDiaComparar):[];
+  const grade=gradeHorarios(linhasP,linhasC);
+
+  const ds=canais.map((c,i)=>({
+    label:c,
+    data:projetarNaGrade(grade,linhasP,l=>l.porCanal[c]||0),
+    borderColor:cor(c,i),backgroundColor:'transparent',tension:.25,pointRadius:0,borderWidth:2,
+  }));
+  ds.push({label:'Total · '+fmtDiaLabel(hhDiaPrincipal),data:projetarNaGrade(grade,linhasP,l=>l.total),borderColor:TC.tick,borderDash:[4,3],fill:false,tension:.25,pointRadius:0,borderWidth:1.8});
+  if(hhDiaComparar){
+    ds.push({label:'Total · '+fmtDiaLabel(hhDiaComparar),data:projetarNaGrade(grade,linhasC,l=>l.total),borderColor:'#9a9a9a',borderDash:[2,2],fill:false,tension:.25,pointRadius:0,borderWidth:1.8});
+  }
+
   const ctx=document.getElementById('chHoraHora').getContext('2d');
   const o=baseLine();o.plugins.tooltip={callbacks:{label:x=>x.dataset.label+': '+comp(x.parsed.y)}};
-  hhChart=new Chart(ctx,{type:'line',data:{labels,datasets:ds},options:o});
+  hhChart=new Chart(ctx,{type:'line',data:{labels:grade,datasets:ds},options:o});
+
+  // resumo comparativo no horário mais recente em comum entre os dois dias
+  const resumoEl=document.getElementById('hhResumo');
+  const totalP=linhasP.length?linhasP[linhasP.length-1].total:0;
+  const horaP=linhasP.length?linhasP[linhasP.length-1].time:'--:--';
+  let html=`<div>Total em ${horaP} (${fmtDiaLabel(hhDiaPrincipal)})<b>${comp(totalP)}</b></div>`;
+  if(hhDiaComparar){
+    const idxGrade=grade.indexOf(horaP);
+    const totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>l.total)[idxGrade]||0;
+    const diff=totalCNoMesmoHorario?((totalP-totalCNoMesmoHorario)/totalCNoMesmoHorario*100):null;
+    const diffTxt=diff===null?'—':(diff>=0?'+':'')+diff.toFixed(1)+'%';
+    const diffClass=diff===null?'':(diff>=0?'up':'down');
+    html+=`<div>No mesmo horário em ${fmtDiaLabel(hhDiaComparar)}<b>${comp(totalCNoMesmoHorario)}</b></div>`;
+    html+=`<div>Variação<b class="${diffClass}">${diffTxt}</b></div>`;
+  }
+  resumoEl.innerHTML=html;
 }
 
 function iniciarPainel(){initPerfis();marcaRange('mes');loadConfigInicial().then(()=>{carregar();carregarHoraHora();setInterval(carregarHoraHora,60000);});}
