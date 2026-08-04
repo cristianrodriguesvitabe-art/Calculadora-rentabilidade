@@ -833,6 +833,14 @@ function tabOf(id){return METAS_IDS.includes(id)?'metas':(COMPAR_IDS.includes(id
 function dc(){charts.forEach(c=>{try{c.destroy()}catch(e){}});charts=[];}
 const DISTINCT=['#ea5339','#0ea5e9','#14b8a6','#f18f33','#ef4444','#a855f7','#ec4899','#c3d72c','#eab308','#f97316','#06b6d4','#8b5cf6'];
 function cor(n,i){n=(n||'').toLowerCase();
+  // canais específicos do Faturamento Hora a Hora — checados primeiro, com
+  // correspondência exata, pra não colidir com as regras genéricas abaixo
+  // (ex: "Guarulhos" contém as letras "gru", que a regra genérica de baixo
+  // usa pra detectar "GRU" — sem isso aqui na frente, os dois caíam na
+  // mesma cor por coincidência)
+  if(n==='meli mg full')return '#c99a3a';
+  if(n==='meli guarulhos')return '#8b5cf6';
+  if(n==='meli mg')return '#f2c200';
   if(n==='mercado livre mg'||n==='mercado livre')return '#f2c200';
   if(n.includes('gru')||n.includes('matriz')||n.includes('full')||n.includes('flex'))return '#e0a800';
   if(n.includes('amazon'))return '#ff9900';if(n.includes('shopee'))return '#ee4d2d';
