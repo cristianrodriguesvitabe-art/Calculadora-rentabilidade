@@ -1261,26 +1261,72 @@ function fmtDiaLabel(iso){
   if(iso===ontemStr)return `${d}/${m}/${y} (ontem)`;
   return `${d}/${m}/${y}`;
 }
-// Gera grade de horários de 5 em 5 min até o último horário presente nos dados (dos dois dias)
-function gradeHorarios(linhasA,linhasB){
-  let maxMin=0;
-  [...linhasA,...linhasB].forEach(l=>{
-    const [h,m]=l.time.split(':').map(Number);
-    maxMin=Math.max(maxMin,h*60+m);
-  });
-  const grade=[];
-  for(let t=0;t<=maxMin;t+=5)grade.push(String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'));
-  return grade;
-}
-// Projeta uma série na grade de horários, carregando o último valor conhecido (dados são acumulados no dia)
-function projetarNaGrade(grade,linhas,extrator){
+// (a antiga gradeHorarios foi substituída pela gradeCompleta, que sempre
+// cobre o dia inteiro — necessário pra desenhar a linha de projeção no futuro)
+// Projeta uma série na grade de horários, carregando o último valor conhecido
+// (dados são acumulados no dia). Com truncar=true, não estende o último valor
+// pro futuro além do último ponto real — fica em branco (útil pra não fazer
+// a linha do dia em andamento parecer "achatada" depois do horário atual).
+function projetarNaGrade(grade,linhas,extrator,truncar){
   const ordenadas=[...linhas].sort((a,b)=>a.time.localeCompare(b.time));
+  if(!ordenadas.length)return grade.map(()=>truncar?null:0);
+  const ultimoTempo=ordenadas[ordenadas.length-1].time;
   let idx=0,ultimo=0;
   return grade.map(t=>{
+    if(truncar&&t>ultimoTempo)return null;
     while(idx<ordenadas.length&&ordenadas[idx].time<=t){ultimo=extrator(ordenadas[idx]);idx++;}
     return ultimo;
   });
 }
+// Grade fixa do dia inteiro (00:00 a 23:55, de 5 em 5 min) — usada tanto pro
+// eixo do gráfico quanto pro cálculo do perfil típico de acumulação
+function gradeCompleta(){
+  const g=[];
+  for(let t=0;t<1440;t+=5)g.push(String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'));
+  return g;
+}
+// Um dia só entra como referência pro perfil típico se teve registro tarde
+// o suficiente (>=23:30) — ou seja, se o dia realmente "fechou" no sistema
+function diasCompletos(){
+  const ultimoPorDia={};
+  (horaHoraCache.linhas||[]).forEach(l=>{
+    if(!ultimoPorDia[l.date]||l.time>ultimoPorDia[l.date].time)ultimoPorDia[l.date]=l;
+  });
+  return Object.keys(ultimoPorDia).filter(d=>ultimoPorDia[d].time>='23:30'&&ultimoPorDia[d].total>0);
+}
+// Perfil típico: pra cada horário do dia, qual fração (0 a 1) do faturamento
+// final já costuma ter entrado, em média, nos dias de referência informados
+function perfilTipico(diasRef){
+  const grade=gradeCompleta();
+  const soma=new Array(grade.length).fill(0);
+  const contagem=new Array(grade.length).fill(0);
+  diasRef.forEach(d=>{
+    const linhasDia=(horaHoraCache.linhas||[]).filter(l=>l.date===d);
+    if(!linhasDia.length)return;
+    const finalTotal=linhasDia[linhasDia.length-1].total;
+    if(!finalTotal)return;
+    const proj=projetarNaGrade(grade,linhasDia,l=>l.total);
+    proj.forEach((v,i)=>{if(v!=null){soma[i]+=v/finalTotal;contagem[i]++;}});
+  });
+  return grade.map((t,i)=>contagem[i]?soma[i]/contagem[i]:null);
+}
+// Projeta o fechamento do dia informado (tipicamente "hoje"), usando o
+// perfil típico dos demais dias completos como referência
+function projetarFechamento(diaAlvo){
+  const diasRef=diasCompletos().filter(d=>d!==diaAlvo);
+  if(diasRef.length<1)return null;
+  const linhasAlvo=(horaHoraCache.linhas||[]).filter(l=>l.date===diaAlvo);
+  if(!linhasAlvo.length)return null;
+  const ultima=linhasAlvo[linhasAlvo.length-1];
+  if(ultima.time>='23:30')return null; // dia já fechado, não faz sentido projetar
+  const perfil=perfilTipico(diasRef);
+  const idxAtual=gradeCompleta().indexOf(ultima.time);
+  if(idxAtual<0)return null;
+  const fracaoAtual=perfil[idxAtual];
+  if(!fracaoAtual||fracaoAtual<0.02)return null; // cedo demais pra confiar
+  return{projecao:ultima.total/fracaoAtual,baseDias:diasRef.length,horaAtual:ultima.time,totalAtual:ultima.total,perfil};
+}
+
 let hhDiaPrincipal=null,hhDiaComparar=null;
 function renderHoraHoraPanel(){
   const el=document.getElementById('horaHoraPanel');if(!el)return;
@@ -1315,16 +1361,25 @@ function renderHoraHoraPanel(){
   const canais=horaHoraCache.canais||[];
   const linhasP=(horaHoraCache.linhas||[]).filter(l=>l.date===hhDiaPrincipal);
   const linhasC=hhDiaComparar?(horaHoraCache.linhas||[]).filter(l=>l.date===hhDiaComparar):[];
-  const grade=gradeHorarios(linhasP,linhasC);
+  const grade=gradeCompleta();
+  const proj=projetarFechamento(hhDiaPrincipal);
 
   const ds=canais.map((c,i)=>({
     label:c,
-    data:projetarNaGrade(grade,linhasP,l=>l.porCanal[c]||0),
-    borderColor:cor(c,i),backgroundColor:'transparent',tension:.25,pointRadius:0,borderWidth:2,
+    data:projetarNaGrade(grade,linhasP,l=>l.porCanal[c]||0,true),
+    borderColor:cor(c,i),backgroundColor:'transparent',tension:.25,pointRadius:0,borderWidth:2,spanGaps:false,
   }));
-  ds.push({label:'Total · '+fmtDiaLabel(hhDiaPrincipal),data:projetarNaGrade(grade,linhasP,l=>l.total),borderColor:TC.tick,borderDash:[4,3],fill:false,tension:.25,pointRadius:0,borderWidth:1.8});
+  ds.push({label:'Total · '+fmtDiaLabel(hhDiaPrincipal),data:projetarNaGrade(grade,linhasP,l=>l.total,true),borderColor:TC.tick,borderDash:[4,3],fill:false,tension:.25,pointRadius:0,borderWidth:1.8,spanGaps:false});
   if(hhDiaComparar){
-    ds.push({label:'Total · '+fmtDiaLabel(hhDiaComparar),data:projetarNaGrade(grade,linhasC,l=>l.total),borderColor:'#9a9a9a',borderDash:[2,2],fill:false,tension:.25,pointRadius:0,borderWidth:1.8});
+    ds.push({label:'Total · '+fmtDiaLabel(hhDiaComparar),data:projetarNaGrade(grade,linhasC,l=>l.total,true),borderColor:'#9a9a9a',borderDash:[2,2],fill:false,tension:.25,pointRadius:0,borderWidth:1.8,spanGaps:false});
+  }
+  if(proj){
+    const idxAtual=grade.indexOf(proj.horaAtual);
+    ds.push({
+      label:'Projeção de fechamento',
+      data:grade.map((t,i)=>(i<idxAtual||proj.perfil[i]==null)?null:proj.projecao*proj.perfil[i]),
+      borderColor:'#c9974e',borderDash:[1,3],fill:false,tension:.25,pointRadius:0,borderWidth:1.6,spanGaps:true,
+    });
   }
 
   const ctx=document.getElementById('chHoraHora').getContext('2d');
@@ -1344,6 +1399,10 @@ function renderHoraHoraPanel(){
     const diffClass=diff===null?'':(diff>=0?'up':'down');
     html+=`<div>No mesmo horário em ${fmtDiaLabel(hhDiaComparar)}<b>${comp(totalCNoMesmoHorario)}</b></div>`;
     html+=`<div>Variação<b class="${diffClass}">${diffTxt}</b></div>`;
+  }
+  if(proj){
+    const aviso=proj.baseDias<3?` <span style="font-weight:400">(baseado em só ${proj.baseDias} dia${proj.baseDias>1?'s':''} — melhora com o tempo)</span>`:` <span style="font-weight:400">(baseado em ${proj.baseDias} dias)</span>`;
+    html+=`<div>Projeção de fechamento hoje<b>${comp(proj.projecao)}${aviso}</b></div>`;
   }
   resumoEl.innerHTML=html;
 }
