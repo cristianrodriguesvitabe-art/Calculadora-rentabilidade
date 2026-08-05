@@ -1360,7 +1360,7 @@ function renderHoraHoraPanel(){
       <label>Comparar com</label><select id="hhSelComparar">${optsComparar}</select>
     </div>
     <div id="hhResumo" class="hh-resumo"></div>
-    <canvas id="chHoraHora" height="340"></canvas>
+    <div style="position:relative;height:420px"><canvas id="chHoraHora"></canvas></div>
   </div>`;
 
   document.getElementById('hhSelPrincipal').onchange=(e)=>{hhDiaPrincipal=e.target.value;hhDiaComparar=null;renderHoraHoraPanel();};
@@ -1391,7 +1391,7 @@ function renderHoraHoraPanel(){
   }
 
   const ctx=document.getElementById('chHoraHora').getContext('2d');
-  const o=baseLine();o.plugins.tooltip={callbacks:{label:x=>x.dataset.label+': '+comp(x.parsed.y)}};
+  const o=baseLine();o.maintainAspectRatio=false;o.plugins.tooltip={callbacks:{label:x=>x.dataset.label+': '+comp(x.parsed.y)}};
   hhChart=new Chart(ctx,{type:'line',data:{labels:grade,datasets:ds},options:o});
 
   // resumo comparativo no horário mais recente em comum entre os dois dias
