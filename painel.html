@@ -47,6 +47,18 @@
   .daybar.best .dbf{background:var(--pos);opacity:1}
   .daybar.worst .dbf{background:var(--neg);opacity:.45}
   .daybar .dbl{font-size:8px;color:var(--muted);margin-top:3px}
+  .daybars2{display:flex;align-items:flex-end;gap:2px;height:74px;margin:4px 0 5px;overflow-x:auto}
+  .daybarslot{flex:1;min-width:9px;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+  .dbpair{display:flex;align-items:flex-end;gap:1px;width:100%;height:100%}
+  .dbf{flex:1;border-radius:2px 2px 0 0;cursor:pointer;transition:opacity .1s}
+  .daybarslot:hover .dbf{opacity:.85}
+  .daybarslot .dbl{font-size:8px;color:var(--muted);margin-top:3px}
+  .daylegend{display:flex;gap:16px;margin:2px 0 4px;font-size:11.5px}
+  .daylegend span{display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+  .daylegend i{width:9px;height:9px;border-radius:3px;display:inline-block}
+  .segsm{display:inline-flex;background:#101010;border:1px solid var(--line);border-radius:8px;padding:2px;margin:8px 0 4px;gap:2px}
+  .segsm button{border:0;background:transparent;color:var(--muted);font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer}
+  .segsm button.on{background:var(--line);color:var(--ink)}
   .hfoot{margin-top:auto;padding-top:12px;border-top:1px solid var(--line2)}
   .hfeb{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:9px}
   .gweek{display:flex;align-items:flex-end;gap:7px;height:46px}
@@ -856,7 +868,7 @@ const fNum2=v=>(v==null?'—':v.toLocaleString('pt-BR',{minimumFractionDigits:2,
 function comp(v){const a=Math.abs(v||0);if(a>=1e6)return 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' Mi';if(a>=1e3)return 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+' Mil';return fBRL0.format(v||0);}
 let TC={tick:'#9aa3b2',grid:'#222838'},ultData=null,ultDiag=null,ultLayout=null,charts=[],canaisDisp=[],maxData=null,anos=[],sortable=null;
 let state={de:null,ate:null,gran:'dia',nivel:null,canais:null,compara:'mes',perfil:null};
-let aba='geral';let compMode='ontem';let hmSelA=null,hmSelB=null;
+let aba='geral';let compMode='ontem';let hmSelA=null,hmSelB=null;let hmView='dia';
 const METAS_IDS=['metasbar','metasq','tri','metas'];
 const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp'];
 function tabOf(id){return METAS_IDS.includes(id)?'metas':(COMPAR_IDS.includes(id)?'comparativos':'geral');}
@@ -946,44 +958,95 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </div>
     ${mostrarMes?'<canvas id="chProj" style="margin-top:14px"></canvas>':'<div class="sub" style="margin-top:12px;text-align:center;padding:10px;border:1px dashed var(--line);border-radius:10px">📈 O gráfico diário aparece a partir do 5º dia com vendas no mês.</div>'}
     </div>`;})()));
-  blocks.push(bloco('heatmap','',(()=>{const hm=d.heatmap;if(!hm||!hm.chaves||!hm.chaves.length)return '<div class="card"><div class="empty">sem dados p/ o mapa de calor</div></div>';
+  blocks.push(bloco('heatmap','',(()=>{const hm=d.heatmap;if(!hm||!hm.chaves||!hm.chaves.length)return '<div class="card"><div class="empty">sem dados p/ o gráfico de faturamento por dia</div></div>';
     const CH=hm.chaves;
-    if(!hmSelA||!CH.includes(hmSelA)) hmSelA=hm.chaveAnterior&&CH.includes(hm.chaveAnterior)?hm.chaveAnterior:CH[Math.max(CH.length-2,0)];
-    if(!hmSelB||!CH.includes(hmSelB)) hmSelB=hm.chaveAtual&&CH.includes(hm.chaveAtual)?hm.chaveAtual:CH[CH.length-1];
+    if(hmSelB===null||!CH.includes(hmSelB)) hmSelB=hm.chaveAtual&&CH.includes(hm.chaveAtual)?hm.chaveAtual:CH[CH.length-1];
+    if(hmSelA===null) hmSelA=hm.chaveAnterior&&CH.includes(hm.chaveAnterior)?hm.chaveAnterior:(CH[Math.max(CH.length-2,0)]||'');
+    else if(hmSelA!==''&&!CH.includes(hmSelA)) hmSelA=hm.chaveAnterior&&CH.includes(hm.chaveAnterior)?hm.chaveAnterior:(CH[Math.max(CH.length-2,0)]||'');
     const MESN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const lbl=k=>{const[y,m]=k.split('-');return MESN[+m-1]+' '+y;};
-    const dA=hm.meses[hmSelA]||[],dB=hm.meses[hmSelB]||[];
-    const all=[...dA,...dB].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mn=all.length?Math.min(...all):0,mx=all.length?Math.max(...all):1;
-    const fmtk=n=>n>=1000?Math.round(n/1000)+'k':String(Math.round(n));
+    const dB=hm.meses[hmSelB]||[],dA=hmSelA?(hm.meses[hmSelA]||[]):[];
+    const all=[...dB,...dA].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mx=all.length?Math.max(...all):1;
     const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const cor=f=>{if(f==null||f<=0)return['#101010','#1c1c1c','#4a4642'];const t=(f-mn)/((mx-mn)||1);return[`rgba(234,83,57,${(0.06+0.30*t).toFixed(2)})`,`rgba(234,83,57,${(0.16+0.34*t).toFixed(2)})`,`rgba(255,242,238,${(0.55+0.25*t).toFixed(2)})`];};
-    const stats=(dias)=>{const ds=dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=[0,1,2,3,4,5,6].map(dw=>{const v=byDow[dw]||[];return{dow:dw,avg:v.length?v.reduce((a,z)=>a+z,0)/v.length:0,n:v.length};});const wd=avgDow.filter(x=>x.n>0);const bestDow=wd.reduce((a,b)=>b.avg>a.avg?b:a),worstDow=wd.reduce((a,b)=>b.avg<a.avg?b:a);return {tot,avg,best,worst,avgDow,bestDow,worstDow};};
-    const cal=(key,dias,side)=>{const st=stats(dias);
-      const barras=dias.map(x=>{const isB=st&&x.fat===st.best.fat&&x.fat>0,isW=st&&x.fat===st.worst.fat&&x.fat>0;
-        const h=(x.fat!=null&&x.fat>0&&mx>0)?Math.max(Math.round(x.fat/mx*100),4):2;
-        const dd=(x.fat==null||x.fat<=0)?'':` data-day='${JSON.stringify({d:x.d,dow:x.dow,fat:x.fat,canais:(x.canais||[]).slice(0,5)}).replace(/'/g,'&#39;')}'`;
-        return `<div class="daybar${isB?' best':''}${isW?' worst':''}"${dd}><div class="dbf" style="height:${h}%"></div><span class="dbl">${x.d}</span></div>`;}).join('');
-      let foot='<div class="hfoot"><div class="sub" style="color:var(--muted)">sem vendas no mês</div></div>';
-      if(st){const mxD=Math.max(...st.avgDow.map(x=>x.avg),1);
-        const DIAF=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-        const ranking=st.avgDow.map(x=>{const isB=x.dow===st.bestDow.dow&&x.n>0;const pct=x.n>0?Math.max(Math.round(x.avg/mxD*100),4):0;
-          return `<div class="hh-rank-row"><span class="hh-rank-name">${DOW[x.dow]}</span><span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pct}%;background:${isB?'var(--pos)':'var(--muted)'}"></span></span><span class="hh-rank-valor num">${x.n>0?comp(x.avg):'—'}</span></div>`;}).join('');
-        const queda=st.bestDow.avg?Math.round((1-st.worstDow.avg/st.bestDow.avg)*100):0;
-        const ins=`Seu dia mais forte é <b>${DIAF[st.bestDow.dow]}</b> (${comp(st.bestDow.avg)}/dia)${queda>0?`; o mais fraco é <b>${DIAF[st.worstDow.dow]}</b> (~${queda}% abaixo)`:''}.`;
-        foot=`<div class="hfoot"><div class="hh-stats" style="margin:2px 0 10px">
-            <div class="hh-stat" style="padding:9px 12px"><span class="hh-stat-label">Melhor dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(st.best.fat)}</span><span class="hh-stat-sub">dia ${st.best.d}</span></div>
-            <div class="hh-stat" style="padding:9px 12px"><span class="hh-stat-label">Pior dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(st.worst.fat)}</span><span class="hh-stat-sub">dia ${st.worst.d}</span></div>
-            <div class="hh-stat" style="padding:9px 12px"><span class="hh-stat-label">Média/dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(st.avg)}</span><span class="hh-stat-sub">geral do mês</span></div>
-          </div>
-          <div class="hh-rank">${ranking}</div>
-          <div class="hinsight" style="margin-top:8px">${ins}</div></div>`;
-      }
-      const opts=CH.map(k=>`<option value="${k}"${k===key?' selected':''}>${lbl(k)}</option>`).join('');
-      const nav=`<div class="calhd"><div class="calnav"><button onclick="hmNav('${side}',-1)">◀</button><select onchange="hmSet('${side}',this.value)">${opts}</select><button onclick="hmNav('${side}',1)">▶</button></div><span class="tot">${comp(st?st.tot:0)}</span></div>`;
-      return `<div class="cal">${nav}<div class="daybars">${barras}</div>${foot}</div>`;};
-    const sA=stats(dA),sB=stats(dB);const cmp=(sA&&sB&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
-    const cmpStr=cmp==null?'':`<div class="hcmp">Média diária de <b>${lbl(hmSelB)}</b> está <b style="color:${cmp>=0?'var(--pos)':'var(--neg)'}">${cmp>=0?'+':''}${cmp.toFixed(0)}%</b> vs ${lbl(hmSelA)}</div>`;
-    return `<div class="card"><h2><span class="ttl">${H()} Faturamento por dia</span><span class="tag">escolha os meses · barras na mesma escala</span></h2><div class="cals">${cal(hmSelA,dA,'A')}${cal(hmSelB,dB,'B')}</div>${cmpStr}<div class="hlegend" style="color:var(--muted);font-size:11.5px">cada barra é um dia do mês · passe o mouse pra ver o detalhe por canal</div></div>`;})()));
+    const stats=(dias)=>{const ds=dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=[0,1,2,3,4,5,6].map(dw=>{const v=byDow[dw]||[];return{dow:dw,avg:v.length?v.reduce((a,z)=>a+z,0)/v.length:0,n:v.length};});const wd=avgDow.filter(x=>x.n>0);const bestDow=wd.length?wd.reduce((a,b)=>b.avg>a.avg?b:a):null,worstDow=wd.length?wd.reduce((a,b)=>b.avg<a.avg?b:a):null;return {tot,avg,best,worst,avgDow,bestDow,worstDow};};
+    const sB=stats(dB),sA=hmSelA?stats(dA):null;
+    if(!sB)return `<div class="card"><div class="empty">sem vendas em ${lbl(hmSelB)}</div></div>`;
+    const cmpPct=(sA&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
+    const COR_A='rgba(143,134,129,.95)',COR_B='rgba(143,134,129,.28)';
+
+    // -------- barras por dia (pareadas, mesma escala) --------
+    const maxDias=Math.max(dB.length,dA.length);
+    let barras='';
+    for(let i=0;i<maxDias;i++){
+      const xB=dB[i]||null,xA=dA[i]||null;
+      const vB=xB&&xB.fat>0?xB.fat:0,vA=xA&&xA.fat>0?xA.fat:0;
+      const hB=(mx>0&&vB>0)?Math.max(Math.round(vB/mx*100),3):2;
+      const hA=(mx>0&&vA>0)?Math.max(Math.round(vA/mx*100),3):2;
+      const isBest=sB.best&&vB===sB.best.fat&&vB>0;
+      const dayNum=xB?xB.d:(xA?xA.d:i+1);
+      const dd=(xB&&xB.fat>0)?` data-day='${JSON.stringify({d:xB.d,dow:xB.dow,fat:xB.fat,canais:(xB.canais||[]).slice(0,5)}).replace(/'/g,'&#39;')}'`:'';
+      barras+=`<div class="daybarslot"><div class="dbpair">
+        <div class="dbf dbf-a"${dd} style="height:${hB}%;background:${isBest?'var(--pos)':COR_A}"></div>
+        ${hmSelA?`<div class="dbf dbf-b" style="height:${hA}%;background:${COR_B}"></div>`:''}
+      </div><span class="dbl">${dayNum}</span></div>`;
+    }
+
+    // -------- ranking por dia da semana (pareado) --------
+    const mxDow=Math.max(...sB.avgDow.map(x=>x.avg),...(sA?sA.avgDow.map(x=>x.avg):[0]),1);
+    const cols=hmSelA?'40px 1fr 62px 1fr 62px':'40px 1fr 62px';
+    let ranking='';
+    for(let dw=0;dw<7;dw++){
+      const xB=sB.avgDow[dw],xA=sA?sA.avgDow[dw]:null;
+      const isBest=sB.bestDow&&xB.dow===sB.bestDow.dow&&xB.n>0;
+      const pctB=xB.n>0?Math.max(Math.round(xB.avg/mxDow*100),4):0;
+      const pctA=(xA&&xA.n>0)?Math.max(Math.round(xA.avg/mxDow*100),4):0;
+      ranking+=`<div class="hh-rank-row" style="grid-template-columns:${cols}">
+        <span class="hh-rank-name">${DOW[dw]}</span>
+        <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pctB}%;background:${isBest?'var(--pos)':COR_A}"></span></span>
+        <span class="hh-rank-valor num">${xB.n>0?comp(xB.avg):'—'}</span>
+        ${hmSelA?`<span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pctA}%;background:${COR_B}"></span></span><span class="hh-rank-valor num" style="color:var(--muted)">${(xA&&xA.n>0)?comp(xA.avg):'—'}</span>`:''}
+      </div>`;
+    }
+
+    // -------- cards de destaque --------
+    const stat2=hmSelA
+      ?`<div class="hh-stat"><span class="hh-stat-label">${lbl(hmSelA)} (comparação)</span><span class="hh-stat-value num" style="font-size:16px;color:var(--muted)">${comp(sA?sA.tot:0)}</span></div>`
+      :`<div class="hh-stat"><span class="hh-stat-label">Melhor dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.best.fat)}</span><span class="hh-stat-sub">dia ${sB.best.d}</span></div>`;
+    const stat3=hmSelA
+      ?`<div class="hh-stat"><span class="hh-stat-label">Variação média/dia</span><span class="hh-stat-value num" style="font-size:16px;color:${cmpPct!=null&&cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct!=null?(cmpPct>=0?'+':'')+cmpPct.toFixed(0)+'%':'—'}</span></div>`
+      :`<div class="hh-stat"><span class="hh-stat-label">Pior dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.worst.fat)}</span><span class="hh-stat-sub">dia ${sB.worst.d}</span></div>`;
+
+    // -------- legenda + insight --------
+    const legenda=hmSelA?`<div class="daylegend">
+        <span><i style="background:${COR_A}"></i>${lbl(hmSelB)} (atual)</span>
+        <span><i style="background:${COR_B}"></i>${lbl(hmSelA)} (comparação)</span>
+      </div>`:'';
+    const DIAF=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+    let ins='';
+    if(sB.bestDow&&sB.worstDow){const queda=sB.bestDow.avg?Math.round((1-sB.worstDow.avg/sB.bestDow.avg)*100):0;
+      ins=`Seu dia mais forte é <b>${DIAF[sB.bestDow.dow]}</b> (${comp(sB.bestDow.avg)}/dia)${queda>0?`; o mais fraco é <b>${DIAF[sB.worstDow.dow]}</b> (~${queda}% abaixo)`:''}.`;}
+    if(cmpPct!=null)ins+=` ${lbl(hmSelB)} está <b style="color:${cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct>=0?'+':''}${cmpPct.toFixed(0)}%</b> vs ${lbl(hmSelA)} na média diária.`;
+
+    const optsB=CH.map(k=>`<option value="${k}"${k===hmSelB?' selected':''}>${lbl(k)}</option>`).join('');
+    const optsA='<option value="">Nenhum</option>'+CH.filter(k=>k!==hmSelB).map(k=>`<option value="${k}"${k===hmSelA?' selected':''}>${lbl(k)}</option>`).join('');
+
+    return `<div class="card"><h2><span class="ttl">${H()} Faturamento por dia</span><span class="tag">1 mês por vez · compare quando quiser</span></h2>
+      <div class="hh-controls">
+        <label>Mês</label><select onchange="hmSet('B',this.value)">${optsB}</select>
+        <label>Comparar com</label><select onchange="hmSet('A',this.value)">${optsA}</select>
+      </div>
+      ${legenda}
+      <div class="hh-stats" style="margin:10px 0">
+        <div class="hh-stat"><span class="hh-stat-label">${lbl(hmSelB)}${hmSelA?' (atual)':''}</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.tot)}</span></div>
+        ${stat2}
+        ${stat3}
+      </div>
+      <div class="segsm"><button onclick="hmSetView('dia')" class="${hmView==='semana'?'':'on'}">Por dia</button><button onclick="hmSetView('semana')" class="${hmView==='semana'?'on':''}">Por dia da semana</button></div>
+      <div class="daybars2" style="display:${hmView==='semana'?'none':'flex'}">${barras}</div>
+      <div class="hh-rank" style="display:${hmView==='semana'?'flex':'none'}">${ranking}</div>
+      <div class="hinsight" style="margin-top:10px">${ins}</div>
+      <div class="hlegend" style="color:var(--muted);font-size:11px;margin-top:6px">cada barra é um dia do mês · passe o mouse pra ver o detalhe por canal</div>
+    </div>`;})()));
   if(mostrarQuarter)blocks.push(bloco('resumoquarter','',`<div class="card"><h2><span class="ttl">${H()} Resumo do quarter</span><span class="tag">${d.resumoQuarter.quarter} · acumulado</span></h2><div class="kgrid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
     <div class="kpi"><p class="eyebrow">Faturamento</p><div class="val num">${comp(d.resumoQuarter.faturamento)}</div><div class="sub">${d.resumoQuarter.atingidoPct!=null?d.resumoQuarter.atingidoPct.toFixed(0)+'% da meta ('+comp(d.resumoQuarter.meta)+')':'sem meta'}</div></div>
     <div class="kpi"><p class="eyebrow">ROAS</p><div class="val num">${fNum2(d.resumoQuarter.roas)}</div><div class="sub">faturamento ÷ custo ADS</div></div>
@@ -1169,6 +1232,7 @@ window.setGran=(g)=>{state.gran=g;carregar();};
 window.setCompMode=(m)=>{compMode=m;if(ultData)render(ultData);};
 window.hmSet=(side,val)=>{if(side==='A')hmSelA=val;else hmSelB=val;if(ultData)render(ultData);};
 window.hmNav=(side,dir)=>{const CH=(ultData&&ultData.heatmap&&ultData.heatmap.chaves)||[];const cur=side==='A'?hmSelA:hmSelB;let i=CH.indexOf(cur)+dir;if(i<0)i=0;if(i>=CH.length)i=CH.length-1;if(side==='A')hmSelA=CH[i];else hmSelB=CH[i];if(ultData)render(ultData);};
+window.hmSetView=(v)=>{hmView=v;if(ultData)render(ultData);};
 function hmComp(n){const a=Math.abs(n);return a>=1e6?'R$ '+(n/1e6).toFixed(2).replace('.',',')+' mi':'R$ '+Math.round(n/1e3)+' mil';}
 (function(){const DN=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
   const T=()=>document.getElementById('hmtip');
