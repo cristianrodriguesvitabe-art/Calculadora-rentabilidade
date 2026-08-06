@@ -870,7 +870,7 @@ let TC={tick:'#9aa3b2',grid:'#222838'},ultData=null,ultDiag=null,ultLayout=null,
 let state={de:null,ate:null,gran:'dia',nivel:null,canais:null,compara:'mes',perfil:null};
 let aba='geral';let compMode='ontem';let hmSelA=null,hmSelB=null;let hmView='dia';
 const METAS_IDS=['metasbar','metasq','tri','metas'];
-const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp'];
+const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp','heatmap'];
 function tabOf(id){return METAS_IDS.includes(id)?'metas':(COMPAR_IDS.includes(id)?'comparativos':'geral');}
 function dc(){charts.forEach(c=>{try{c.destroy()}catch(e){}});charts=[];}
 const DISTINCT=['#ea5339','#0ea5e9','#14b8a6','#f18f33','#ef4444','#a855f7','#ec4899','#c3d72c','#eab308','#f97316','#06b6d4','#8b5cf6'];
