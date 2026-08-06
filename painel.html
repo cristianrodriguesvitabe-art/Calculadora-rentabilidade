@@ -1650,7 +1650,19 @@ function renderHoraHoraPanel(){
   hhChartRitmo=new Chart(ctxR,{type:'bar',data:{labels:horasLabel,datasets:dsRitmo},options:oR});
 }
 
-function iniciarPainel(){initPerfis();marcaRange('mes');loadConfigInicial().then(()=>{carregar();carregarHoraHora();setInterval(carregarHoraHora,60000);});}
+function iniciarPainel(){initPerfis();marcaRange('mes');loadConfigInicial().then(()=>{
+  carregar();
+  carregarHoraHora();
+  setInterval(carregarHoraHora,60000);
+  // Atualiza o painel geral (Visão Geral/Comparativos/Metas) a cada 5 minutos,
+  // sem precisar recarregar a página. Pula a atualização se a tela de
+  // Configurações estiver aberta, pra não interromper quem estiver editando.
+  setInterval(()=>{
+    const overlay=document.getElementById('overlay');
+    if(overlay&&overlay.classList.contains('on'))return;
+    carregar();
+  },5*60*1000);
+});}
 const SENHA_HASH='67bbcf0f6bc3b1a9dab958390286991f93de9b477500a4fe534f624039e9fa14';
 async function sha256hex(str){const b=new TextEncoder().encode(str);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('');}
 async function tentarEntrar(){const el=document.getElementById('gatePass');const h=await sha256hex(el.value);if(h===SENHA_HASH){try{localStorage.setItem('painel_auth',SENHA_HASH);}catch(e){}document.getElementById('gate').remove();iniciarPainel();}else{document.getElementById('gateErr').style.display='block';el.value='';el.focus();}}
