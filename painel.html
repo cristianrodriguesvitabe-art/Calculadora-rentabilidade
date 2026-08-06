@@ -969,8 +969,12 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     const all=[...dB,...dA].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mx=all.length?Math.max(...all):1;
     const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
     const stats=(dias)=>{const ds=dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=[0,1,2,3,4,5,6].map(dw=>{const v=byDow[dw]||[];return{dow:dw,avg:v.length?v.reduce((a,z)=>a+z,0)/v.length:0,n:v.length};});const wd=avgDow.filter(x=>x.n>0);const bestDow=wd.length?wd.reduce((a,b)=>b.avg>a.avg?b:a):null,worstDow=wd.length?wd.reduce((a,b)=>b.avg<a.avg?b:a):null;return {tot,avg,best,worst,avgDow,bestDow,worstDow};};
-    const sB=stats(dB),sA=hmSelA?stats(dA):null;
+    const sB=stats(dB),sAcompleto=hmSelA?stats(dA):null;
     if(!sB)return `<div class="card"><div class="empty">sem vendas em ${lbl(hmSelB)}</div></div>`;
+    // "mesmo período": corta o mês de comparação nos mesmos dias que o mês atual
+    // já tem dados (evita comparar 5 dias de agosto com os 31 dias de julho)
+    const diasComDadosB=dB.filter(x=>x.fat!=null&&x.fat>0).length;
+    const sA=hmSelA?stats(dA.slice(0,diasComDadosB)):null;
     const cmpPct=(sA&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
     const COR_A='rgba(143,134,129,.95)',COR_B='rgba(143,134,129,.28)';
 
@@ -992,11 +996,11 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     }
 
     // -------- ranking por dia da semana (pareado) --------
-    const mxDow=Math.max(...sB.avgDow.map(x=>x.avg),...(sA?sA.avgDow.map(x=>x.avg):[0]),1);
+    const mxDow=Math.max(...sB.avgDow.map(x=>x.avg),...(sAcompleto?sAcompleto.avgDow.map(x=>x.avg):[0]),1);
     const cols=hmSelA?'40px 1fr 62px 1fr 62px':'40px 1fr 62px';
     let ranking='';
     for(let dw=0;dw<7;dw++){
-      const xB=sB.avgDow[dw],xA=sA?sA.avgDow[dw]:null;
+      const xB=sB.avgDow[dw],xA=sAcompleto?sAcompleto.avgDow[dw]:null;
       const isBest=sB.bestDow&&xB.dow===sB.bestDow.dow&&xB.n>0;
       const pctB=xB.n>0?Math.max(Math.round(xB.avg/mxDow*100),4):0;
       const pctA=(xA&&xA.n>0)?Math.max(Math.round(xA.avg/mxDow*100),4):0;
@@ -1010,10 +1014,10 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
 
     // -------- cards de destaque --------
     const stat2=hmSelA
-      ?`<div class="hh-stat"><span class="hh-stat-label">${lbl(hmSelA)} (comparação)</span><span class="hh-stat-value num" style="font-size:16px;color:var(--muted)">${comp(sA?sA.tot:0)}</span></div>`
+      ?`<div class="hh-stat"><span class="hh-stat-label">${lbl(hmSelA)} (comparação)</span><span class="hh-stat-value num" style="font-size:16px;color:var(--muted)">${comp(sAcompleto?sAcompleto.tot:0)}</span></div>`
       :`<div class="hh-stat"><span class="hh-stat-label">Melhor dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.best.fat)}</span><span class="hh-stat-sub">dia ${sB.best.d}</span></div>`;
     const stat3=hmSelA
-      ?`<div class="hh-stat"><span class="hh-stat-label">Variação média/dia</span><span class="hh-stat-value num" style="font-size:16px;color:${cmpPct!=null&&cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct!=null?(cmpPct>=0?'+':'')+cmpPct.toFixed(0)+'%':'—'}</span></div>`
+      ?`<div class="hh-stat"><span class="hh-stat-label">Variação média/dia (mesmo período)</span><span class="hh-stat-value num" style="font-size:16px;color:${cmpPct!=null&&cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct!=null?(cmpPct>=0?'+':'')+cmpPct.toFixed(0)+'%':'—'}</span></div>`
       :`<div class="hh-stat"><span class="hh-stat-label">Pior dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.worst.fat)}</span><span class="hh-stat-sub">dia ${sB.worst.d}</span></div>`;
 
     // -------- legenda + insight --------
@@ -1025,7 +1029,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     let ins='';
     if(sB.bestDow&&sB.worstDow){const queda=sB.bestDow.avg?Math.round((1-sB.worstDow.avg/sB.bestDow.avg)*100):0;
       ins=`Seu dia mais forte é <b>${DIAF[sB.bestDow.dow]}</b> (${comp(sB.bestDow.avg)}/dia)${queda>0?`; o mais fraco é <b>${DIAF[sB.worstDow.dow]}</b> (~${queda}% abaixo)`:''}.`;}
-    if(cmpPct!=null)ins+=` ${lbl(hmSelB)} está <b style="color:${cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct>=0?'+':''}${cmpPct.toFixed(0)}%</b> vs ${lbl(hmSelA)} na média diária.`;
+    if(cmpPct!=null)ins+=` ${lbl(hmSelB)} está <b style="color:${cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct>=0?'+':''}${cmpPct.toFixed(0)}%</b> vs ${lbl(hmSelA)} na média diária (mesmo período: primeiros ${diasComDadosB} dias dos dois meses).`;
 
     const optsB=CH.map(k=>`<option value="${k}"${k===hmSelB?' selected':''}>${lbl(k)}</option>`).join('');
     const optsA='<option value="">Nenhum</option>'+CH.filter(k=>k!==hmSelB).map(k=>`<option value="${k}"${k===hmSelA?' selected':''}>${lbl(k)}</option>`).join('');
