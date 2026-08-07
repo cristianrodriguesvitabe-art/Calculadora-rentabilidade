@@ -1405,7 +1405,7 @@ function maiorAltaDia(){
   if(!linhasHoje.length||!linhasOntem.length)return null;
   const ultima=linhasHoje[linhasHoje.length-1];
   const grade=gradeCompleta();
-  const idxHora=grade.indexOf(ultima.time);
+  const idxHora=idxNaGrade(ultima.time);
   if(idxHora<0)return null;
   const canais=canaisAtivos();
   let melhor=null;
@@ -1449,7 +1449,7 @@ function rankingHtml(canais,linhasP,linhasC,opts){
   let valoresC=null;
   if(linhasC&&linhasC.length){
     const grade=gradeCompleta();
-    const idxHora=grade.indexOf(horaP);
+    const idxHora=idxNaGrade(horaP);
     if(idxHora>=0){
       valoresC={};
       canais.forEach(c=>{valoresC[c]=projetarNaGrade(grade,linhasC,l=>l.porCanal[c]||0)[idxHora]||0;});
@@ -1501,7 +1501,7 @@ function renderHoraHoraLive(){
   const linhasOntem=(horaHoraCache.linhas||[]).filter(l=>l.date===ontemISO());
   const variacao=(()=>{ 
     if(!linhasOntem.length)return '';
-    const grade=gradeCompleta();const idx=grade.indexOf(ultima.time);
+    const grade=gradeCompleta();const idx=idxNaGrade(ultima.time);
     const totOntem=idx>=0?(projetarNaGrade(grade,linhasOntem,l=>totalCanais(l,canais))[idx]||0):0;
     if(!totOntem)return '';
     const diff=(totalHoje-totOntem)/totOntem*100;
@@ -1551,6 +1551,17 @@ function gradeCompleta(){
   for(let t=0;t<1440;t+=5)g.push(String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0'));
   return g;
 }
+// Acha o índice do horário na grade de 5 em 5 min SEM depender de bater
+// exatamente com um múltiplo de 5 — o Apps Script não garante que o gatilho
+// dispare no minuto redondo (pode gravar "13:56" em vez de "13:55"), então
+// grade.indexOf(hora) pode falhar silenciosamente e voltar tudo zerado.
+// Aqui calculamos matematicamente qual "balde" de 5 min aquele horário cai.
+function idxNaGrade(horaStr){
+  const m=String(horaStr||'').match(/^(\d{1,2}):(\d{2})$/);
+  if(!m)return -1;
+  const minutos=(+m[1])*60+(+m[2]);
+  return Math.min(287,Math.max(0,Math.floor(minutos/5)));
+}
 // Um dia só entra como referência pro perfil típico se teve registro tarde
 // o suficiente (>=23:30) — ou seja, se o dia realmente "fechou" no sistema
 function diasCompletos(){
@@ -1587,7 +1598,7 @@ function projetarFechamento(diaAlvo){
   const ultima=linhasAlvo[linhasAlvo.length-1];
   if(ultima.time>='23:30')return null; // dia já fechado, não faz sentido projetar
   const perfil=perfilTipico(diasRef,canais);
-  const idxAtual=gradeCompleta().indexOf(ultima.time);
+  const idxAtual=idxNaGrade(ultima.time);
   if(idxAtual<0)return null;
   const fracaoAtual=perfil[idxAtual];
   if(!fracaoAtual||fracaoAtual<0.02)return null; // cedo demais pra confiar
@@ -1627,7 +1638,7 @@ function renderHoraHoraPanel(){
   const horaP=linhasP.length?linhasP[linhasP.length-1].time:'--:--';
   let variacaoHtml='<span class="hh-stat-sub">sem comparação</span>';
   if(hhDiaComparar){
-    const idxGrade=grade.indexOf(horaP);
+    const idxGrade=idxNaGrade(horaP);
     const totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGrade]||0;
     const diff=totalCNoMesmoHorario?((totalP-totalCNoMesmoHorario)/totalCNoMesmoHorario*100):null;
     if(diff!=null){
@@ -1684,7 +1695,7 @@ function renderHoraHoraPanel(){
     ds.push({label:'Meta do dia',data:grade.map(()=>metaDia),borderColor:'#5b8def',borderDash:[3,3],fill:false,tension:0,pointRadius:0,borderWidth:1.3});
   }
   if(proj){
-    const idxAtual=grade.indexOf(proj.horaAtual);
+    const idxAtual=idxNaGrade(proj.horaAtual);
     ds.push({
       label:'Projeção de fechamento',
       data:grade.map((t,i)=>(i<idxAtual||proj.perfil[i]==null)?null:proj.projecao*proj.perfil[i]),
@@ -1700,7 +1711,7 @@ function renderHoraHoraPanel(){
   const resumoEl=document.getElementById('hhResumo');
   let html=`<div>Total em ${horaP} (${fmtDiaLabel(hhDiaPrincipal)})<b>${comp(totalP)}</b></div>`;
   if(hhDiaComparar){
-    const idxGrade=grade.indexOf(horaP);
+    const idxGrade=idxNaGrade(horaP);
     const totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGrade]||0;
     const diff=totalCNoMesmoHorario?((totalP-totalCNoMesmoHorario)/totalCNoMesmoHorario*100):null;
     const diffTxt=diff===null?'—':(diff>=0?'+':'')+diff.toFixed(1)+'%';
