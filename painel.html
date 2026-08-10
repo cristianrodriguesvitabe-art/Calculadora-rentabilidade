@@ -700,7 +700,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const proximasQ=niveisQ.filter(x=>x.meta>fatQcur).map(x=>({nivel:x.nivel,meta:r2(x.meta),falta:r2(x.meta-fatQcur),faltaDia:r2((x.meta-fatQcur)/diasRestantesQuarter)}));
   const pace={diasPeriodo,mediaDiaPeriodo,fatAnoAtual:r2(fatAnoAtual),diasRestantesMes,faltaMetaAnual:r2(faltaMetaAnual),qAtual:'Q'+curQ,metaQuarter:r2(metaQcur),realizadoQuarter:r2(fatQcur),faltaQuarter:r2(faltaQuarter),diasRestantesQuarter,porDiaQuarter:r2(faltaQuarter/diasRestantesQuarter),diasRestantesAno,proxima:proximasQ[0]||null,proximas:proximasQ};
 
-  const anosAsc=[...anos].filter(y=>y!==2023);
+  const anosAsc=[...anos].filter(y=>y!==2023&&y<=curY);
   const diaCap=hoje.getDate()-1>0?hoje.getDate()-1:1;
   const fatYM=(y,m,cap)=>soma(revF.filter(x=>yOf(x.date)===y&&mOf(x.date)===m&&(!cap||dOf(x.date)<=cap)),'faturamento');
   const linhaFor=(capCur)=>MES.map((nome,i)=>{const m=i+1;const cap=(m===curM)?capCur:null;return {mes:nome,valores:anosAsc.map(y=>r2(fatYM(y,m,cap)))};});
