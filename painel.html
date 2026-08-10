@@ -870,7 +870,7 @@ let TC={tick:'#9aa3b2',grid:'#222838'},ultData=null,ultDiag=null,ultLayout=null,
 let state={de:null,ate:null,gran:'dia',nivel:null,canais:null,compara:'mes',perfil:null};
 let aba='geral';let compMode='ontem';let hmSelA=null,hmSelB=null;let hmView='dia';
 const METAS_IDS=['metasbar','metasq','tri','metas'];
-const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp','heatmap'];
+const COMPAR_IDS=['ev','inv','roasdia','evcanal','evano','comp'];
 function tabOf(id){return METAS_IDS.includes(id)?'metas':(COMPAR_IDS.includes(id)?'comparativos':'geral');}
 function dc(){charts.forEach(c=>{try{c.destroy()}catch(e){}});charts=[];}
 const DISTINCT=['#ea5339','#0ea5e9','#14b8a6','#f18f33','#ef4444','#a855f7','#ec4899','#c3d72c','#eab308','#f97316','#06b6d4','#8b5cf6'];
@@ -971,99 +971,6 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </div>
     ${mostrarMes?'<canvas id="chProj" style="margin-top:14px"></canvas>':'<div class="sub" style="margin-top:12px;text-align:center;padding:10px;border:1px dashed var(--line);border-radius:10px">📈 O gráfico diário aparece a partir do 5º dia com vendas no mês.</div>'}
     </div>`;})()));
-  blocks.push(bloco('heatmap','',(()=>{const hm=d.heatmap;if(!hm||!hm.chaves||!hm.chaves.length)return '<div class="card"><div class="empty">sem dados p/ o gráfico de faturamento por dia</div></div>';
-    const CH=hm.chaves;
-    if(hmSelB===null||!CH.includes(hmSelB)) hmSelB=hm.chaveAtual&&CH.includes(hm.chaveAtual)?hm.chaveAtual:CH[CH.length-1];
-    if(hmSelA===null) hmSelA=hm.chaveAnterior&&CH.includes(hm.chaveAnterior)?hm.chaveAnterior:(CH[Math.max(CH.length-2,0)]||'');
-    else if(hmSelA!==''&&!CH.includes(hmSelA)) hmSelA=hm.chaveAnterior&&CH.includes(hm.chaveAnterior)?hm.chaveAnterior:(CH[Math.max(CH.length-2,0)]||'');
-    const MESN=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    const lbl=k=>{const[y,m]=k.split('-');return MESN[+m-1]+' '+y;};
-    const dB=hm.meses[hmSelB]||[],dA=hmSelA?(hm.meses[hmSelA]||[]):[];
-    const all=[...dB,...dA].filter(x=>x.fat!=null&&x.fat>0).map(x=>x.fat);const mx=all.length?Math.max(...all):1;
-    const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-    const stats=(dias)=>{const ds=dias.filter(x=>x.fat!=null&&x.fat>0);if(!ds.length)return null;const tot=ds.reduce((a,x)=>a+x.fat,0),avg=tot/ds.length;const best=ds.reduce((a,b)=>b.fat>a.fat?b:a),worst=ds.reduce((a,b)=>b.fat<a.fat?b:a);const byDow={};for(const x of ds){(byDow[x.dow]=byDow[x.dow]||[]).push(x.fat);}const avgDow=[0,1,2,3,4,5,6].map(dw=>{const v=byDow[dw]||[];return{dow:dw,avg:v.length?v.reduce((a,z)=>a+z,0)/v.length:0,n:v.length};});const wd=avgDow.filter(x=>x.n>0);const bestDow=wd.length?wd.reduce((a,b)=>b.avg>a.avg?b:a):null,worstDow=wd.length?wd.reduce((a,b)=>b.avg<a.avg?b:a):null;return {tot,avg,best,worst,avgDow,bestDow,worstDow};};
-    const sB=stats(dB),sAcompleto=hmSelA?stats(dA):null;
-    if(!sB)return `<div class="card"><div class="empty">sem vendas em ${lbl(hmSelB)}</div></div>`;
-    // "mesmo período": corta o mês de comparação nos mesmos dias que o mês atual
-    // já tem dados (evita comparar 5 dias de agosto com os 31 dias de julho)
-    const diasComDadosB=dB.filter(x=>x.fat!=null&&x.fat>0).length;
-    const sA=hmSelA?stats(dA.slice(0,diasComDadosB)):null;
-    const cmpPct=(sA&&sA.avg)?((sB.avg-sA.avg)/sA.avg*100):null;
-    const COR_A='rgba(143,134,129,.95)',COR_B='rgba(143,134,129,.28)';
-
-    // -------- barras por dia (pareadas, mesma escala) --------
-    const maxDias=Math.max(dB.length,dA.length);
-    let barras='';
-    for(let i=0;i<maxDias;i++){
-      const xB=dB[i]||null,xA=dA[i]||null;
-      const vB=xB&&xB.fat>0?xB.fat:0,vA=xA&&xA.fat>0?xA.fat:0;
-      const hB=(mx>0&&vB>0)?Math.max(Math.round(vB/mx*100),3):2;
-      const hA=(mx>0&&vA>0)?Math.max(Math.round(vA/mx*100),3):2;
-      const isBest=sB.best&&vB===sB.best.fat&&vB>0;
-      const dayNum=xB?xB.d:(xA?xA.d:i+1);
-      const dd=(xB&&xB.fat>0)?` data-day='${JSON.stringify({d:xB.d,dow:xB.dow,fat:xB.fat,canais:(xB.canais||[]).slice(0,5)}).replace(/'/g,'&#39;')}'`:'';
-      barras+=`<div class="daybarslot"><div class="dbpair">
-        <div class="dbf dbf-a"${dd} style="height:${hB}%;background:${isBest?'var(--pos)':COR_A}"></div>
-        ${hmSelA?`<div class="dbf dbf-b" style="height:${hA}%;background:${COR_B}"></div>`:''}
-      </div><span class="dbl">${dayNum}</span></div>`;
-    }
-
-    // -------- ranking por dia da semana (pareado) --------
-    const mxDow=Math.max(...sB.avgDow.map(x=>x.avg),...(sAcompleto?sAcompleto.avgDow.map(x=>x.avg):[0]),1);
-    const cols=hmSelA?'40px 1fr 62px 1fr 62px':'40px 1fr 62px';
-    let ranking='';
-    for(let dw=0;dw<7;dw++){
-      const xB=sB.avgDow[dw],xA=sAcompleto?sAcompleto.avgDow[dw]:null;
-      const isBest=sB.bestDow&&xB.dow===sB.bestDow.dow&&xB.n>0;
-      const pctB=xB.n>0?Math.max(Math.round(xB.avg/mxDow*100),4):0;
-      const pctA=(xA&&xA.n>0)?Math.max(Math.round(xA.avg/mxDow*100),4):0;
-      ranking+=`<div class="hh-rank-row" style="grid-template-columns:${cols}">
-        <span class="hh-rank-name">${DOW[dw]}</span>
-        <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pctB}%;background:${isBest?'var(--pos)':COR_A}"></span></span>
-        <span class="hh-rank-valor num">${xB.n>0?comp(xB.avg):'—'}</span>
-        ${hmSelA?`<span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pctA}%;background:${COR_B}"></span></span><span class="hh-rank-valor num" style="color:var(--muted)">${(xA&&xA.n>0)?comp(xA.avg):'—'}</span>`:''}
-      </div>`;
-    }
-
-    // -------- cards de destaque --------
-    const stat2=hmSelA
-      ?`<div class="hh-stat"><span class="hh-stat-label">${lbl(hmSelA)} (comparação)</span><span class="hh-stat-value num" style="font-size:16px;color:var(--muted)">${comp(sAcompleto?sAcompleto.tot:0)}</span></div>`
-      :`<div class="hh-stat"><span class="hh-stat-label">Melhor dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.best.fat)}</span><span class="hh-stat-sub">dia ${sB.best.d}</span></div>`;
-    const stat3=hmSelA
-      ?`<div class="hh-stat"><span class="hh-stat-label">Variação média/dia (mesmo período)</span><span class="hh-stat-value num" style="font-size:16px;color:${cmpPct!=null&&cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct!=null?(cmpPct>=0?'+':'')+cmpPct.toFixed(0)+'%':'—'}</span></div>`
-      :`<div class="hh-stat"><span class="hh-stat-label">Pior dia</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.worst.fat)}</span><span class="hh-stat-sub">dia ${sB.worst.d}</span></div>`;
-
-    // -------- legenda + insight --------
-    const legenda=hmSelA?`<div class="daylegend">
-        <span><i style="background:${COR_A}"></i>${lbl(hmSelB)} (atual)</span>
-        <span><i style="background:${COR_B}"></i>${lbl(hmSelA)} (comparação)</span>
-      </div>`:'';
-    const DIAF=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
-    let ins='';
-    if(sB.bestDow&&sB.worstDow){const queda=sB.bestDow.avg?Math.round((1-sB.worstDow.avg/sB.bestDow.avg)*100):0;
-      ins=`Seu dia mais forte é <b>${DIAF[sB.bestDow.dow]}</b> (${comp(sB.bestDow.avg)}/dia)${queda>0?`; o mais fraco é <b>${DIAF[sB.worstDow.dow]}</b> (~${queda}% abaixo)`:''}.`;}
-    if(cmpPct!=null)ins+=` ${lbl(hmSelB)} está <b style="color:${cmpPct>=0?'var(--pos)':'var(--neg)'}">${cmpPct>=0?'+':''}${cmpPct.toFixed(0)}%</b> vs ${lbl(hmSelA)} na média diária (mesmo período: primeiros ${diasComDadosB} dias dos dois meses).`;
-
-    const optsB=CH.map(k=>`<option value="${k}"${k===hmSelB?' selected':''}>${lbl(k)}</option>`).join('');
-    const optsA='<option value="">Nenhum</option>'+CH.filter(k=>k!==hmSelB).map(k=>`<option value="${k}"${k===hmSelA?' selected':''}>${lbl(k)}</option>`).join('');
-
-    return `<div class="card"><h2><span class="ttl">${H()} Faturamento por dia</span><span class="tag">1 mês por vez · compare quando quiser</span></h2>
-      <div class="hh-controls">
-        <label>Mês</label><select onchange="hmSet('B',this.value)">${optsB}</select>
-        <label>Comparar com</label><select onchange="hmSet('A',this.value)">${optsA}</select>
-      </div>
-      ${legenda}
-      <div class="hh-stats" style="margin:10px 0">
-        <div class="hh-stat"><span class="hh-stat-label">${lbl(hmSelB)}${hmSelA?' (atual)':''}</span><span class="hh-stat-value num" style="font-size:16px">${comp(sB.tot)}</span></div>
-        ${stat2}
-        ${stat3}
-      </div>
-      <div class="segsm"><button onclick="hmSetView('dia')" class="${hmView==='semana'?'':'on'}">Por dia</button><button onclick="hmSetView('semana')" class="${hmView==='semana'?'on':''}">Por dia da semana</button></div>
-      <div class="daybars2" style="display:${hmView==='semana'?'none':'flex'}">${barras}</div>
-      <div class="hh-rank" style="display:${hmView==='semana'?'flex':'none'}">${ranking}</div>
-      <div class="hinsight" style="margin-top:10px">${ins}</div>
-      <div class="hlegend" style="color:var(--muted);font-size:11px;margin-top:6px">cada barra é um dia do mês · passe o mouse pra ver o detalhe por canal</div>
-    </div>`;})()));
   if(mostrarQuarter)blocks.push(bloco('resumoquarter','',`<div class="card"><h2><span class="ttl">${H()} Resumo do quarter</span><span class="tag">${d.resumoQuarter.quarter} · acumulado</span></h2><div class="kgrid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))">
     <div class="kpi"><p class="eyebrow">Faturamento</p><div class="val num">${comp(d.resumoQuarter.faturamento)}</div><div class="sub">${d.resumoQuarter.atingidoPct!=null?d.resumoQuarter.atingidoPct.toFixed(0)+'% da meta ('+comp(d.resumoQuarter.meta)+')':'sem meta'}</div></div>
     <div class="kpi"><p class="eyebrow">ROAS</p><div class="val num">${fNum2(d.resumoQuarter.roas)}</div><div class="sub">faturamento ÷ custo ADS</div></div>
@@ -1114,7 +1021,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     ${CAlin.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
     <tr class="hl"><td><b>Total</b></td>${CAtot.map(t=>`<td class="num"><b>${comp(t)}</b></td>`).join('')}${hasVar?(()=>{const v=CAtot[A.length-2]?(CAtot[A.length-1]-CAtot[A.length-2])/CAtot[A.length-2]*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
     </tbody></table></div>${insComp}</div>`));
-  const ORDEM=['mesatual','heatmap','resumoquarter','canal','roascanal','acumulado','ev','inv','roasdia','evcanal','evano','comp','metasbar','metasq','tri','metas'];
+  const ORDEM=['mesatual','resumoquarter','canal','roascanal','acumulado','ev','inv','roasdia','evcanal','evano','comp','metasbar','metasq','tri','metas'];
   blocks.sort((a,b)=>{const ga=(a.match(/data-block="([^"]+)"/)||[])[1],gb=(b.match(/data-block="([^"]+)"/)||[])[1];const ia=ORDEM.indexOf(ga),ib=ORDEM.indexOf(gb);return (ia<0?99:ia)-(ib<0?99:ib);});
   const visiveis=blocks.filter(b=>{const id=(b.match(/data-block="([^"]+)"/)||[])[1];return tabOf(id)===aba;});
   board.innerHTML=visiveis.join('');
