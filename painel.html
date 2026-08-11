@@ -1121,7 +1121,7 @@ document.getElementById('abaSeg').querySelectorAll('button').forEach(b=>b.onclic
   const ehHoraHora=aba==='horahora';
   document.getElementById('board').style.display=ehHoraHora?'none':'';
   document.getElementById('horaHoraPanel').style.display=ehHoraHora?'':'none';
-  document.getElementById('horaHoraLive').style.display=ehHoraHora?'none':'';
+  document.getElementById('horaHoraLive').style.display=(aba==='geral')?'':'none';
   if(ehHoraHora){renderHoraHoraPanel();}else if(ultData){render(ultData);}
 });
 document.getElementById('compSel').onchange=e=>{state.compara=e.target.value;carregar();};
