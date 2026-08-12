@@ -369,8 +369,9 @@ const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM6NRFxSThF
 const GIDS = { adsRenova:'432173951', adsTiktok:'178673841', retroRenova:'80783708', retroTiktok:'611256132', horaHora:'1619182165' };
 const rawCsvUrl = (gid) => `${SHEET_BASE}/pub?gid=${gid}&single=true&output=csv&_cb=${Date.now()}`;
 const PROXIES = [
-  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
   (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  (u) => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
+  (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u), // por último: limite de 1MB/arquivo na conta grátis, pode falhar com o Retroativo (3+ anos de histórico)
 ];
 
 /* -------- CSV parsing (portado de csvSource.js) -------- */
@@ -417,7 +418,7 @@ async function fetchCsvRows(rawUrl) {
     // timeout de 10s por tentativa — se o proxy travar sem responder, desiste
     // dele e passa pro próximo, em vez de ficar esperando pra sempre
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 7000);
     try {
       const res = await fetch(mk(rawUrl), { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -427,7 +428,7 @@ async function fetchCsvRows(rawUrl) {
       return parseCSV(text);
     } catch (e) {
       clearTimeout(timeoutId);
-      lastErr = e.name === 'AbortError' ? new Error('tempo esgotado (proxy não respondeu em 10s)') : e;
+      lastErr = e.name === 'AbortError' ? new Error('tempo esgotado (proxy não respondeu em 7s)') : e;
     }
   }
   throw lastErr || new Error('falha ao ler a planilha');
