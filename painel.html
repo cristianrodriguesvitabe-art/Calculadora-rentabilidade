@@ -1103,7 +1103,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     // dia 1), pra não deixar sobrando espaço vazio nas pontas do gráfico.
     const span=Math.max(ultimoDia-primeiroDia,1);
     const xx=diaNum=>pad+(W-2*pad)*((diaNum-primeiroDia)/span);
-    const yy=v=>Hh-8-(v/max*(Hh-18));
+    const yy=v=>{const h=Math.max((v/max)*(Hh-18),3);return Hh-8-h;};
     const pts=pontos.map(p=>xx(p.d)+','+yy(p.fat)).join(' ');
     const areaPts=pts+' '+xx(pontos[pontos.length-1].d)+','+Hh+' '+xx(pontos[0].d)+','+Hh;
     const dots=pontos.map(p=>{
