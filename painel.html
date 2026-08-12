@@ -1100,7 +1100,9 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
   const visiveis=blocks.filter(b=>{const id=(b.match(/data-block="([^"]+)"/)||[])[1];return tabOf(id)===aba;});
   board.innerHTML=visiveis.join('');
   if(aba==='geral'){
-    desProj(d.projecao);desAcum(d.acumulado);desCanal(d.porCanal);desRoas(d.roasPorCanal,c.metaRoas);
+    desCanal(d.porCanal);desRoas(d.roasPorCanal,c.metaRoas);
+  }else if(aba==='metas'){
+    desProj(d.projecao);desAcum(d.acumulado);
   }else if(aba==='comparativos'){
     if(mostrarMes){desEvol('chEv',d.evolucao,comp);desEvol('chInv',d.evolucaoInvest,comp);desRoasDia(d.roasDiario,c.metaRoas);desEvCanal(d.evolucaoCanal);}
     desEvAno(d.evolucaoAno);
