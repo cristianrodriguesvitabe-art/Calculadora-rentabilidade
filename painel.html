@@ -920,7 +920,10 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     // só alerta se o canal for relevante (média diária de pelo menos R$1.000) —
     // uma queda de 50% num canal que já era pequeno não muda o faturamento
     // total, então não vale a pena distrair com isso
-    if(media>=1000&&pctAbaixo>=30)alertasQueda.push({canal,ontem:r2(valOntem),media:r2(media),pctAbaixo,diaSemana:DIAS_SEMANA[dowOntem]});
+    // só alerta se a queda em REAIS for relevante (≥ R$10.000) — não importa
+    // o percentual: uma queda de 5% num canal gigante pode valer mais que
+    // uma queda de 90% num canal pequeno
+    if((media-valOntem)>=10000)alertasQueda.push({canal,ontem:r2(valOntem),media:r2(media),pctAbaixo,quedaAbs:r2(media-valOntem),diaSemana:DIAS_SEMANA[dowOntem]});
   });
   alertasQueda.sort((a,b)=>b.pctAbaixo-a.pctAbaixo);
 
@@ -1061,16 +1064,16 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
         if(media<1000)return; // canal pequeno nesse horário, não muda o faturamento
         const atual=ultima.porCanal[canal]||0;
         const pctAbaixo=media?(1-atual/media)*100:0;
-        if(pctAbaixo>=40)alertas.push({canal,atual:r2(atual),media:r2(media),pctAbaixo:r2(pctAbaixo),horario:ultima.time});
+        if((media-atual)>=10000)alertas.push({canal,atual:r2(atual),media:r2(media),pctAbaixo:r2(pctAbaixo),quedaAbs:r2(media-atual),horario:ultima.time});
       });
       return alertas.sort((a,b)=>b.pctAbaixo-a.pctAbaixo);
     })();
 
-    if(!al.length&&!alertasHora.length)return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal</span></h2><div class="empty" style="padding:14px 0">✅ Nenhum canal fora do padrão normal — nem no fechamento de ontem, nem no ritmo de hoje.</div></div>`;
-    const rowsDia=al.map(a=>`<div class="ins" style="border-left:3px solid var(--neg);padding-left:10px;margin-bottom:6px">⚠️ <b>${a.canal}</b>: ${comp(a.ontem)} ontem (${a.diaSemana}), <b style="color:var(--neg)">${a.pctAbaixo.toFixed(0)}% abaixo</b> da média histórica de ${a.diaSemana}s (${comp(a.media)})</div>`).join('');
-    const rowsHora=alertasHora.map(a=>`<div class="ins" style="border-left:3px solid var(--accent2);padding-left:10px;margin-bottom:6px">🕐 <b>${a.canal}</b>: ${comp(a.atual)} até ${a.horario} hoje, <b style="color:var(--accent2)">${a.pctAbaixo.toFixed(0)}% abaixo</b> do ritmo normal desse horário (${comp(a.media)})</div>`).join('');
-    return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal · só considera canais com média ≥ R$1.000</span></h2>
-      ${al.length?rowsDia:'<div class="empty" style="padding:6px 0">✅ Fechamento de ontem dentro do padrão normal.</div>'}
+    if(!al.length&&!alertasHora.length)return ''; // nada relevante — some o card por completo
+    const rowsDia=al.map(a=>`<div class="ins" style="border-left:3px solid var(--neg);padding-left:10px;margin-bottom:6px">⚠️ <b>${a.canal}</b>: ${comp(a.ontem)} ontem (${a.diaSemana}), <b style="color:var(--neg)">${comp(a.quedaAbs)} abaixo</b> da média histórica de ${a.diaSemana}s (${comp(a.media)})</div>`).join('');
+    const rowsHora=alertasHora.map(a=>`<div class="ins" style="border-left:3px solid var(--accent2);padding-left:10px;margin-bottom:6px">🕐 <b>${a.canal}</b>: ${comp(a.atual)} até ${a.horario} hoje, <b style="color:var(--accent2)">${comp(a.quedaAbs)} abaixo</b> do ritmo normal desse horário (${comp(a.media)})</div>`).join('');
+    return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda ≥ R$10.000 vs média histórica</span></h2>
+      ${rowsDia}
       ${alertasHora.length?`<div class="secdiv" style="margin-top:${al.length?'10px':'0'}">Ritmo de hoje (ao vivo)</div>${rowsHora}`:''}
       </div>`;})()));
   blocks.push(bloco('fatdiario','',(()=>{
@@ -1090,12 +1093,16 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     const best=pontos.reduce((a,b)=>b.fat>a.fat?b:a);
     const DIAF=['dom','seg','ter','qua','qui','sex','sáb'];
     const max=Math.max(...pontos.map(p=>p.fat),1);
+    const primeiroDia=Math.min(...pontos.map(p=>p.d));
     const ultimoDia=Math.max(...pontos.map(p=>p.d));
     const W=1000,Hh=90,pad=4;
     // posiciona pelo NÚMERO DO DIA real (não pela posição no array) — assim,
     // se faltar o dado de algum dia no meio, aparece um buraco visível no
-    // lugar certo, em vez de comprimir os outros pontos de forma enganosa
-    const xx=diaNum=>pad+(W-2*pad)*(ultimoDia>1?(diaNum-1)/(ultimoDia-1):0);
+    // lugar certo, em vez de comprimir os outros pontos de forma enganosa.
+    // Ancorado no primeiro/último dia que REALMENTE tem dado (não sempre no
+    // dia 1), pra não deixar sobrando espaço vazio nas pontas do gráfico.
+    const span=Math.max(ultimoDia-primeiroDia,1);
+    const xx=diaNum=>pad+(W-2*pad)*((diaNum-primeiroDia)/span);
     const yy=v=>Hh-8-(v/max*(Hh-18));
     const pts=pontos.map(p=>xx(p.d)+','+yy(p.fat)).join(' ');
     const areaPts=pts+' '+xx(pontos[pontos.length-1].d)+','+Hh+' '+xx(pontos[0].d)+','+Hh;
@@ -1113,7 +1120,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     }).join('');
     // rótulos: mostra todos os dias de 1 até o último com dado (não só os
     // que têm ponto), pra deixar claro visualmente se algum dia ficou sem dado
-    const labels=Array.from({length:ultimoDia},(_,i)=>i+1).map(diaNum=>`<span style="position:absolute;left:${xx(diaNum)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${diaNum}</span>`).join('');
+    const labels=Array.from({length:span+1},(_,i)=>primeiroDia+i).map(diaNum=>`<span style="position:absolute;left:${xx(diaNum)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${diaNum}</span>`).join('');
     return `<div class="card">
       <h2><span class="ttl">${H()} Faturamento diário</span><span class="tag">melhor dia: dia ${best.d} (${DIAF[best.dow]}) · ${comp(best.fat)}${pontos.some(p=>p.emAndamento)?' · hoje em andamento':''}</span></h2>
       <svg viewBox="0 0 ${W} ${Hh}" style="width:100%;height:90px;overflow:visible;display:block;margin-top:6px">
