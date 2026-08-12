@@ -8,6 +8,8 @@
 <style>
 @font-face { font-family:'PP Museum'; src:url('fontes/PPMuseum-Regular.otf') format('opentype'); font-weight:400; font-display:swap; }
 </style>
+<style>
+</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
@@ -915,7 +917,10 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     if(n<3)return;
     const media=soma/n;
     const pctAbaixo=media?r2((1-valOntem/media)*100):0;
-    if(pctAbaixo>=30)alertasQueda.push({canal,ontem:r2(valOntem),media:r2(media),pctAbaixo,diaSemana:DIAS_SEMANA[dowOntem]});
+    // só alerta se o canal for relevante (média diária de pelo menos R$1.000) —
+    // uma queda de 50% num canal que já era pequeno não muda o faturamento
+    // total, então não vale a pena distrair com isso
+    if(media>=1000&&pctAbaixo>=30)alertasQueda.push({canal,ontem:r2(valOntem),media:r2(media),pctAbaixo,diaSemana:DIAS_SEMANA[dowOntem]});
   });
   alertasQueda.sort((a,b)=>b.pctAbaixo-a.pctAbaixo);
 
@@ -1032,10 +1037,44 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </div>`;})()));
 
   blocks.push(bloco('alertas','',(()=>{const al=d.alertasQueda||[];
-    if(!al.length)return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal</span></h2><div class="empty" style="padding:14px 0">✅ Nenhum canal fora do padrão normal — ontem bateu com a média histórica desse dia da semana.</div></div>`;
-    const rows=al.map(a=>`<div class="ins" style="border-left:3px solid var(--neg);padding-left:10px;margin-bottom:6px">⚠️ <b>${a.canal}</b>: ${comp(a.ontem)} ontem (${a.diaSemana}), <b style="color:var(--neg)">${a.pctAbaixo.toFixed(0)}% abaixo</b> da média histórica de ${a.diaSemana}s (${comp(a.media)})</div>`).join('');
-    return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal · vs média histórica do dia da semana</span></h2>${rows}</div>`;})()));
+    // -------- versão por horário, usando o Hora a Hora: compara o ritmo do
+    // canal HOJE nesse horário com a média histórica dele nesse MESMO
+    // horário — pega problema no meio do dia, não só no fechamento --------
+    const alertasHora=(()=>{
+      const linhasHoje=(horaHoraCache.linhas||[]).filter(l=>l.date===hojeISO());
+      if(!linhasHoje.length)return [];
+      const ultima=linhasHoje[linhasHoje.length-1];
+      const idx=idxNaGrade(ultima.time);
+      if(idx<0)return [];
+      const grade=gradeCompleta();
+      const todosDias=[...new Set((horaHoraCache.linhas||[]).map(l=>l.date))].filter(dt=>dt!==hojeISO());
+      const canais=horaHoraCache.canais||[];
+      const alertas=[];
+      canais.forEach(canal=>{
+        const valoresHist=todosDias.map(dt=>{
+          const linhasDoDia=(horaHoraCache.linhas||[]).filter(l=>l.date===dt);
+          if(!linhasDoDia.length)return null;
+          return projetarNaGrade(grade,linhasDoDia,l=>l.porCanal[canal]||0)[idx];
+        }).filter(v=>v!=null&&v>0);
+        if(valoresHist.length<3)return; // pouco histórico pra confiar ainda
+        const media=valoresHist.reduce((a,b)=>a+b,0)/valoresHist.length;
+        if(media<1000)return; // canal pequeno nesse horário, não muda o faturamento
+        const atual=ultima.porCanal[canal]||0;
+        const pctAbaixo=media?(1-atual/media)*100:0;
+        if(pctAbaixo>=40)alertas.push({canal,atual:r2(atual),media:r2(media),pctAbaixo:r2(pctAbaixo),horario:ultima.time});
+      });
+      return alertas.sort((a,b)=>b.pctAbaixo-a.pctAbaixo);
+    })();
+
+    if(!al.length&&!alertasHora.length)return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal</span></h2><div class="empty" style="padding:14px 0">✅ Nenhum canal fora do padrão normal — nem no fechamento de ontem, nem no ritmo de hoje.</div></div>`;
+    const rowsDia=al.map(a=>`<div class="ins" style="border-left:3px solid var(--neg);padding-left:10px;margin-bottom:6px">⚠️ <b>${a.canal}</b>: ${comp(a.ontem)} ontem (${a.diaSemana}), <b style="color:var(--neg)">${a.pctAbaixo.toFixed(0)}% abaixo</b> da média histórica de ${a.diaSemana}s (${comp(a.media)})</div>`).join('');
+    const rowsHora=alertasHora.map(a=>`<div class="ins" style="border-left:3px solid var(--accent2);padding-left:10px;margin-bottom:6px">🕐 <b>${a.canal}</b>: ${comp(a.atual)} até ${a.horario} hoje, <b style="color:var(--accent2)">${a.pctAbaixo.toFixed(0)}% abaixo</b> do ritmo normal desse horário (${comp(a.media)})</div>`).join('');
+    return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal · só considera canais com média ≥ R$1.000</span></h2>
+      ${al.length?rowsDia:'<div class="empty" style="padding:6px 0">✅ Fechamento de ontem dentro do padrão normal.</div>'}
+      ${alertasHora.length?`<div class="secdiv" style="margin-top:${al.length?'10px':'0'}">Ritmo de hoje (ao vivo)</div>${rowsHora}`:''}
+      </div>`;})()));
   blocks.push(bloco('fatdiario','',(()=>{
+    const hoje=new Date();
     const hm=d.heatmap;const chaveAtual=hm&&hm.chaveAtual;const diasMes=(chaveAtual&&hm.meses[chaveAtual])||[];
     if(!diasMes.length)return '<div class="card"><div class="empty">sem dados p/ o faturamento diário</div></div>';
     // pontos com dado real (heatmap já corta em ontem); se hoje já tiver
