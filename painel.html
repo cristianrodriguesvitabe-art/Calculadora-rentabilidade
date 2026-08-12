@@ -482,16 +482,20 @@ async function readHoraHoraTab(rawUrl) {
   const rows = await fetchCsvRows(rawUrl);
   if (!rows.length) return { linhas: [], canais: [] };
   const header = rows[0].map((c) => (c||'').trim());
-  // colunas: [0]=Data/Hora, [1..N-2]=canais, [N-1]=Total Geral
-  const canais = header.slice(1, header.length - 1);
+  // colunas identificadas pelo NOME (não pela posição) — assim, adicionar
+  // "Qtd Pedidos" no fim (ou em qualquer lugar) não confunde o parser
+  const idxTotal = header.indexOf('Total Geral');
+  const idxQtd = header.indexOf('Qtd Pedidos');
+  const canais = header.filter((h, i) => i > 0 && i !== idxTotal && i !== idxQtd);
   const linhas = [];
   for (let r = 1; r < rows.length; r++) {
     const dh = parseDataHora(rows[r][0]);
     if (!dh) continue;
     const porCanal = {};
-    canais.forEach((canal, i) => { porCanal[canal] = num(rows[r][i + 1]); });
-    const total = num(rows[r][header.length - 1]);
-    linhas.push({ date: dh.date, time: dh.time, porCanal, total });
+    canais.forEach((canal) => { porCanal[canal] = num(rows[r][header.indexOf(canal)]); });
+    const total = idxTotal >= 0 ? num(rows[r][idxTotal]) : 0;
+    const qtdPedidos = idxQtd >= 0 ? num(rows[r][idxQtd]) : null;
+    linhas.push({ date: dh.date, time: dh.time, porCanal, total, qtdPedidos });
   }
   return { linhas, canais };
 }
@@ -644,7 +648,24 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const porCanal=[...mapCanal.entries()].map(([canal,f])=>({canal,faturamento:r2(f)})).sort((a,b)=>b.faturamento-a.faturamento);
 
   const custoCanal=new Map(); for(const x of adsP) custoCanal.set(x.canal,(custoCanal.get(x.canal)||0)+x.custo);
-  const roasPorCanal=canaisSel.map(canal=>{const f=mapCanal.get(canal)||0,c=custoCanal.get(canal)||0;return {canal,faturamento:r2(f),custo:r2(c),roas:c?r2(f/c):null};}).filter(o=>o.faturamento>0||o.custo>0).sort((a,b)=>(b.roas||0)-(a.roas||0));
+
+  // Tendência de ROAS por canal: últimos 7 dias vs os 7 dias anteriores a
+  // esses — independente do período selecionado no topo do painel, pra
+  // sempre mostrar se o canal está melhorando ou piorando recentemente.
+  const janela=(d0,d1)=>{const a=new Date(hoje);a.setDate(a.getDate()-d0);const b=new Date(hoje);b.setDate(b.getDate()-d1);return {ini:isoLocal(a),fim:isoLocal(b)};};
+  const jRec=janela(7,1),jAnt=janela(14,8);
+  const somaJanela=(arr,campo,ini,fim)=>{const m=new Map();for(const x of arr){if(x.date>=ini&&x.date<=fim)m.set(x.canal,(m.get(x.canal)||0)+x[campo]);}return m;};
+  const fatRec=somaJanela(revF,'faturamento',jRec.ini,jRec.fim),custRec=somaJanela(adsF,'custo',jRec.ini,jRec.fim);
+  const fatAnt=somaJanela(revF,'faturamento',jAnt.ini,jAnt.fim),custAnt=somaJanela(adsF,'custo',jAnt.ini,jAnt.fim);
+
+  const roasPorCanal=canaisSel.map(canal=>{
+    const f=mapCanal.get(canal)||0,c=custoCanal.get(canal)||0;
+    const cR=custRec.get(canal),cA=custAnt.get(canal);
+    const roasRec=(cR)?(fatRec.get(canal)||0)/cR:null;
+    const roasAnt=(cA)?(fatAnt.get(canal)||0)/cA:null;
+    const tendPct=(roasRec!=null&&roasAnt!=null&&roasAnt>0)?r2((roasRec-roasAnt)/roasAnt*100):null;
+    return {canal,faturamento:r2(f),custo:r2(c),roas:c?r2(f/c):null,tendPct};
+  }).filter(o=>o.faturamento>0||o.custo>0).sort((a,b)=>(b.roas||0)-(a.roas||0));
 
   const revAno=revF.filter(x=>yOf(x.date)===anoRef);
   const fatTri=(q)=>soma(revAno.filter(x=>triOf(mOf(x.date))===q),'faturamento');
@@ -850,6 +871,37 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const anoLY=anoRef-1;
   const historicoLY={ano:anoLY,trimestres:[1,2,3,4].map(q=>({q:'Q'+q,total:r2(soma(revF.filter(x=>yOf(x.date)===anoLY&&triOf(mOf(x.date))===q),'faturamento'))})),meses:MES.map((nome,i)=>({mes:nome,total:r2(soma(revF.filter(x=>yOf(x.date)===anoLY&&mOf(x.date)===i+1),'faturamento'))}))};
 
+  // Alerta de queda anômala por canal: compara ONTEM com a média histórica
+  // desse MESMO dia da semana, pra aquele canal — diferente de "abaixo de
+  // ontem", isso pega quando o canal está fora do padrão normal dele (ex:
+  // ruptura de estoque, erro de anúncio), não só uma flutuação diária comum.
+  const ontemD=new Date(hoje);ontemD.setDate(ontemD.getDate()-1);
+  const ontemISOc=isoLocal(ontemD);
+  const dowOntem=ontemD.getDay();
+  const DIAS_SEMANA=['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
+  const porCanalDia=new Map();
+  for(const x of revF){
+    if(!porCanalDia.has(x.canal))porCanalDia.set(x.canal,new Map());
+    const mm=porCanalDia.get(x.canal);
+    mm.set(x.date,(mm.get(x.date)||0)+x.faturamento);
+  }
+  const alertasQueda=[];
+  porCanalDia.forEach((porDia,canal)=>{
+    const valOntem=porDia.get(ontemISOc)||0;
+    if(valOntem<=0)return;
+    let soma=0,n=0;
+    porDia.forEach((v,dateISO)=>{
+      if(dateISO===ontemISOc)return;
+      const dt=new Date(dateISO+'T00:00:00');
+      if(dt.getDay()===dowOntem&&v>0){soma+=v;n++;}
+    });
+    if(n<3)return;
+    const media=soma/n;
+    const pctAbaixo=media?r2((1-valOntem/media)*100):0;
+    if(pctAbaixo>=30)alertasQueda.push({canal,ontem:r2(valOntem),media:r2(media),pctAbaixo,diaSemana:DIAS_SEMANA[dowOntem]});
+  });
+  alertasQueda.sort((a,b)=>b.pctAbaixo-a.pctAbaixo);
+
   return {
     configurado:Boolean(cfg.urls.adsRenova||cfg.urls.retroRenova||cfg.urls.adsTiktok||cfg.urls.retroTiktok),
     periodo:{de,ate:(maxData&&ate&&ate>maxData)?maxData:ate,gran,compara},anoRef,anosDisponiveis:anos,maxData,
@@ -859,7 +911,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     porCanal,roasPorCanal,trimestres,tabelaMetas,realizadoTri:realTri,comparativoMensal,
     pace,comparativoAnos,totaisAnuais,evolucaoAno,canaisComp,comparativoInsights,tendencia,
     evolucao,evolucaoInvest,evolucaoCanal,roasDiario,projecao,metasResumo,
-    resumoMes,resumoQuarter,semaforo,acumulado,historicoLY,heatmap,mesCompleto,fechamento,
+    resumoMes,resumoQuarter,semaforo,acumulado,historicoLY,heatmap,mesCompleto,fechamento,alertasQueda,
   };
 }
 
@@ -962,6 +1014,10 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     </div>
     </div>`;})()));
 
+  blocks.push(bloco('alertas','',(()=>{const al=d.alertasQueda||[];
+    if(!al.length)return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal</span></h2><div class="empty" style="padding:14px 0">✅ Nenhum canal fora do padrão normal — ontem bateu com a média histórica desse dia da semana.</div></div>`;
+    const rows=al.map(a=>`<div class="ins" style="border-left:3px solid var(--neg);padding-left:10px;margin-bottom:6px">⚠️ <b>${a.canal}</b>: ${comp(a.ontem)} ontem (${a.diaSemana}), <b style="color:var(--neg)">${a.pctAbaixo.toFixed(0)}% abaixo</b> da média histórica de ${a.diaSemana}s (${comp(a.media)})</div>`).join('');
+    return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal · vs média histórica do dia da semana</span></h2>${rows}</div>`;})()));
   blocks.push(bloco('metaresumo','',(()=>{const pm=pj.projecaoMes;const rm=d.resumoMes;
     if(d.mesCompleto&&d.fechamento){const fc=d.fechamento;const pcolor=p=>p==null?'var(--muted)':p>=100?'var(--pos)':p>=85?'var(--accent2)':'var(--neg)';const fpp=v=>v==null?'—':(v>0?'+':'')+v.toFixed(0)+'%';
       return `<div class="card">
@@ -1039,7 +1095,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     ${CAlin.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
     <tr class="hl"><td><b>Total</b></td>${CAtot.map(t=>`<td class="num"><b>${comp(t)}</b></td>`).join('')}${hasVar?(()=>{const v=CAtot[A.length-2]?(CAtot[A.length-1]-CAtot[A.length-2])/CAtot[A.length-2]*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
     </tbody></table></div>${insComp}</div>`));
-  const ORDEM=['mesatual','canal','roascanal','metaresumo','resumoquarter','metasbar','metasq','tri','metas','acumulado','ev','inv','roasdia','evcanal','evano','comp'];
+  const ORDEM=['mesatual','alertas','canal','roascanal','metaresumo','resumoquarter','metasbar','metasq','tri','metas','acumulado','ev','inv','roasdia','evcanal','evano','comp'];
   blocks.sort((a,b)=>{const ga=(a.match(/data-block="([^"]+)"/)||[])[1],gb=(b.match(/data-block="([^"]+)"/)||[])[1];const ia=ORDEM.indexOf(ga),ib=ORDEM.indexOf(gb);return (ia<0?99:ia)-(ib<0?99:ib);});
   const visiveis=blocks.filter(b=>{const id=(b.match(/data-block="([^"]+)"/)||[])[1];return tabOf(id)===aba;});
   board.innerHTML=visiveis.join('');
@@ -1105,7 +1161,8 @@ function desCanal(pc){
   document.getElementById('legCanal').innerHTML=pc.map((c,i)=>{const wF=Math.round(c.faturamento/mxp*100),wP=Math.round((c.proj||c.faturamento)/mxp*100);const showP=c.proj&&c.proj>c.faturamento*1.01;return `<li class="clg"><div class="clgtop"><span class="sw" style="background:${cor(c.canal,i)}"></span><span class="cnm">${c.canal}</span><span class="lv num">${cpp(c.faturamento)}${showP?` <span class="cpj">→ ${cpp(c.proj)}</span>`:''}</span></div><div class="cbar">${showP?`<div class="cfant" style="width:${wP}%"></div>`:''}<div class="cfill" style="width:${wF}%;background:${cor(c.canal,i)}"></div></div></li>`;}).join('');}
 function desRoas(roas,meta){const mx=Math.max(...roas.map(r=>r.roas||0),meta||0,1);
   document.getElementById('roasRows').innerHTML = roas.length ? roas.map((r,i)=>{const ok=meta&&r.roas!=null&&r.roas>=meta;const c=ok?'#c3d72c':(meta&&r.roas!=null?'#fb7185':cor(r.canal,i));const w=Math.max((r.roas||0)/mx*100,2);
-    return `<div class="r"><span>${r.canal}</span><span class="bar"><span style="width:${w}%;background:${c}"></span></span><span class="roasnum num" style="color:${c}">${fNum2(r.roas)}</span></div>`;}).join('') : '<div class="empty">Sem dados de ADS no período.</div>';}
+    const tendHtml=r.tendPct==null?'':`<span style="font-size:10px;margin-left:6px;color:${r.tendPct>=0?'#c3d72c':'#e5563c'}" title="ROAS últimos 7 dias vs 7 dias anteriores">${r.tendPct>=0?'↗':'↘'}${r.tendPct>=0?'+':''}${r.tendPct.toFixed(0)}%</span>`;
+    return `<div class="r"><span>${r.canal}</span><span class="bar"><span style="width:${w}%;background:${c}"></span></span><span class="roasnum num" style="color:${c}">${fNum2(r.roas)}${tendHtml}</span></div>`;}).join('') : '<div class="empty">Sem dados de ADS no período.</div>';}
 
 // layout arrastável (por perfil)
 function aplicarLayout(){const prefs=lsGet('prefs:'+state.perfil,{})||{};const ord=prefs['layout_'+aba];if(Array.isArray(ord)&&ord.length){ord.forEach(id=>{const el=board.querySelector('[data-block="'+id+'"]');if(el)board.appendChild(el);});}
@@ -1439,9 +1496,12 @@ function renderHoraHoraLive(){
     const cls=diff>=0?'up':'down';
     return `<span class="hh-live-delta ${cls}">${diff>=0?'+':''}${diff.toFixed(1)}% vs ontem</span>`;
   })();
+  const ticketInfo=(ultima.qtdPedidos!=null&&ultima.qtdPedidos>0)
+    ?`<span style="color:var(--muted);font-size:12px;margin-left:8px">· ${ultima.qtdPedidos} pedidos · ticket médio ${comp(ultima.total/ultima.qtdPedidos)}</span>`
+    :'';
   el.innerHTML=`<div class="card hh-live">
     <div class="hh-live-top"><span>🟢 Faturamento ao vivo · hoje</span><span>atualizado ${ultima.time}</span></div>
-    <div class="hh-live-total num">${comp(totalHoje)} ${variacao}</div>
+    <div class="hh-live-total num">${comp(totalHoje)} ${variacao}${ticketInfo}</div>
     <div class="hh-rank">${rankingHtml(canais,linhasHoje,linhasOntem,{limite:4})}</div>
   </div>`;
 }
@@ -1587,6 +1647,15 @@ function renderHoraHoraPanel(){
   const altaHtml=maiorAlta
     ?`<div class="hh-stat"><span class="hh-stat-label">Maior alta hoje vs ontem</span><span class="hh-stat-value">${maiorAlta.canal}</span><span class="hh-stat-sub up">+${maiorAlta.diff.toFixed(0)}%</span></div>`
     :`<div class="hh-stat"><span class="hh-stat-label">Maior alta hoje vs ontem</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">sem dados de ontem pra comparar</span></div>`;
+  const ultimaLinhaP=linhasP.length?linhasP[linhasP.length-1]:null;
+  const qtdPedidosP=ultimaLinhaP&&ultimaLinhaP.qtdPedidos!=null?ultimaLinhaP.qtdPedidos:null;
+  const ticketMedioP=(qtdPedidosP&&ultimaLinhaP.total)?ultimaLinhaP.total/qtdPedidosP:null;
+  const pedidosHtml=qtdPedidosP!=null
+    ?`<div class="hh-stat"><span class="hh-stat-label">Pedidos · ${fmtDiaLabel(hhDiaPrincipal)}</span><span class="hh-stat-value num">${qtdPedidosP}</span><span class="hh-stat-sub">total das duas contas</span></div>`
+    :'';
+  const ticketHtml=ticketMedioP!=null
+    ?`<div class="hh-stat"><span class="hh-stat-label">Ticket médio</span><span class="hh-stat-value num">${comp(ticketMedioP)}</span><span class="hh-stat-sub">faturamento ÷ pedidos</span></div>`
+    :'';
 
   el.innerHTML=`
   <div class="hh-stats">
@@ -1594,6 +1663,8 @@ function renderHoraHoraPanel(){
     ${projHtml}
     ${metaHtml}
     ${altaHtml}
+    ${pedidosHtml}
+    ${ticketHtml}
   </div>
   <div class="card">
     <h2><span class="ttl">${H()} Canais</span><span class="tag">ordenado por faturamento — respeita o filtro "Canais" do topo</span></h2>
