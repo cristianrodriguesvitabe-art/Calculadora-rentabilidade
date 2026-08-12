@@ -1038,12 +1038,16 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     const best=pontos.reduce((a,b)=>b.fat>a.fat?b:a);
     const DIAF=['dom','seg','ter','qua','qui','sex','sáb'];
     const max=Math.max(...pontos.map(p=>p.fat),1);
+    const ultimoDia=Math.max(...pontos.map(p=>p.d));
     const W=1000,Hh=90,pad=4;
-    const xx=i=>pad+(W-2*pad)*(pontos.length>1?i/(pontos.length-1):0);
+    // posiciona pelo NÚMERO DO DIA real (não pela posição no array) — assim,
+    // se faltar o dado de algum dia no meio, aparece um buraco visível no
+    // lugar certo, em vez de comprimir os outros pontos de forma enganosa
+    const xx=diaNum=>pad+(W-2*pad)*(ultimoDia>1?(diaNum-1)/(ultimoDia-1):0);
     const yy=v=>Hh-8-(v/max*(Hh-18));
-    const pts=pontos.map((p,i)=>xx(i)+','+yy(p.fat)).join(' ');
-    const areaPts=pts+' '+xx(pontos.length-1)+','+Hh+' '+xx(0)+','+Hh;
-    const dots=pontos.map((p,i)=>{
+    const pts=pontos.map(p=>xx(p.d)+','+yy(p.fat)).join(' ');
+    const areaPts=pts+' '+xx(pontos[pontos.length-1].d)+','+Hh+' '+xx(pontos[0].d)+','+Hh;
+    const dots=pontos.map(p=>{
       const isBest=p===best;
       // ticket médio, se soubermos a quantidade de pedidos desse dia (via Hora a Hora)
       let qtdPedidos=p.qtdPedidos,ticketMedio=null;
@@ -1053,11 +1057,13 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
       }
       if(qtdPedidos)ticketMedio=p.fat/qtdPedidos;
       const dd=`data-day='${JSON.stringify({d:p.d,dow:p.dow,fat:p.fat,canais:(p.canais||[]).slice(0,5),qtdPedidos,ticketMedio,emAndamento:p.emAndamento}).replace(/'/g,'&#39;')}'`;
-      return `<circle cx="${xx(i)}" cy="${yy(p.fat)}" r="${isBest?4.5:3}" fill="${isBest?'var(--pos)':'var(--accent)'}" class="daybar" ${dd} style="cursor:pointer"></circle>`;
+      return `<circle cx="${xx(p.d)}" cy="${yy(p.fat)}" r="${isBest?4.5:3}" fill="${isBest?'var(--pos)':'var(--accent)'}" stroke="var(--bg)" stroke-width="1" class="daybar" ${dd} style="cursor:pointer"></circle>`;
     }).join('');
-    const labels=pontos.map((p,i)=>`<span style="position:absolute;left:${xx(i)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${p.d}</span>`).join('');
+    // rótulos: mostra todos os dias de 1 até o último com dado (não só os
+    // que têm ponto), pra deixar claro visualmente se algum dia ficou sem dado
+    const labels=Array.from({length:ultimoDia},(_,i)=>i+1).map(diaNum=>`<span style="position:absolute;left:${xx(diaNum)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${diaNum}</span>`).join('');
     return `<div class="card">
-      <h2><span class="ttl">${H()} Faturamento diário</span><span class="tag">melhor dia: ${DIAF[best.dow]} · ${comp(best.fat)}${pontos.some(p=>p.emAndamento)?' · hoje em andamento':''}</span></h2>
+      <h2><span class="ttl">${H()} Faturamento diário</span><span class="tag">melhor dia: dia ${best.d} (${DIAF[best.dow]}) · ${comp(best.fat)}${pontos.some(p=>p.emAndamento)?' · hoje em andamento':''}</span></h2>
       <svg viewBox="0 0 ${W} ${Hh}" style="width:100%;height:90px;overflow:visible;display:block;margin-top:6px">
         <defs><linearGradient id="gradFatDia" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
         <polygon points="${areaPts}" fill="url(#gradFatDia)"></polygon>
