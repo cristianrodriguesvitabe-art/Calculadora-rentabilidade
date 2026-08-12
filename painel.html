@@ -414,13 +414,21 @@ const limpaCanal = (s) => (s||'').replace(/\benvios\b|\bshop\b/gi, '').replace(/
 async function fetchCsvRows(rawUrl) {
   let lastErr = null;
   for (const mk of PROXIES) {
+    // timeout de 10s por tentativa — se o proxy travar sem responder, desiste
+    // dele e passa pro próximo, em vez de ficar esperando pra sempre
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     try {
-      const res = await fetch(mk(rawUrl));
+      const res = await fetch(mk(rawUrl), { signal: controller.signal });
+      clearTimeout(timeoutId);
       if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
       const text = await res.text();
       if (text.trim().startsWith('<')) { lastErr = new Error('resposta não-CSV'); continue; }
       return parseCSV(text);
-    } catch (e) { lastErr = e; }
+    } catch (e) {
+      clearTimeout(timeoutId);
+      lastErr = e.name === 'AbortError' ? new Error('tempo esgotado (proxy não respondeu em 10s)') : e;
+    }
   }
   throw lastErr || new Error('falha ao ler a planilha');
 }
