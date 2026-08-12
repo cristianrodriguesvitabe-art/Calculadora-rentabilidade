@@ -412,26 +412,30 @@ function parseDate(s) {
 const fillRow = (arr) => { const out = []; let last = ''; for (const v of arr) { const x = (v||'').trim(); if (x) last = x; out.push(last); } return out; };
 const limpaCanal = (s) => (s||'').replace(/\benvios\b|\bshop\b/gi, '').replace(/\s+/g, ' ').trim();
 
-async function fetchCsvRows(rawUrl) {
-  let lastErr = null;
-  for (const mk of PROXIES) {
-    // timeout de 10s por tentativa — se o proxy travar sem responder, desiste
-    // dele e passa pro próximo, em vez de ficar esperando pra sempre
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000);
-    try {
-      const res = await fetch(mk(rawUrl), { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
-      const text = await res.text();
-      if (text.trim().startsWith('<')) { lastErr = new Error('resposta não-CSV'); continue; }
-      return parseCSV(text);
-    } catch (e) {
-      clearTimeout(timeoutId);
-      lastErr = e.name === 'AbortError' ? new Error('tempo esgotado (proxy não respondeu em 7s)') : e;
-    }
+async function tentarProxy_(mk, rawUrl) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 7000);
+  try {
+    const res = await fetch(mk(rawUrl), { signal: controller.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    if (text.trim().startsWith('<')) throw new Error('resposta não-CSV');
+    return parseCSV(text);
+  } finally {
+    clearTimeout(timeoutId);
   }
-  throw lastErr || new Error('falha ao ler a planilha');
+}
+
+async function fetchCsvRows(rawUrl) {
+  // dispara todos os proxies AO MESMO TEMPO e usa o primeiro que responder
+  // com sucesso — assim não importa qual esteja lento hoje, nunca fica
+  // "gastando" tempo esperando um proxy ruim antes de tentar o próximo
+  try {
+    return await Promise.any(PROXIES.map((mk) => tentarProxy_(mk, rawUrl)));
+  } catch (aggErr) {
+    const primeiro = (aggErr && aggErr.errors && aggErr.errors[0]) || null;
+    throw primeiro || new Error('falha ao ler a planilha (todos os proxies falharam)');
+  }
 }
 
 async function readAdsTab(rawUrl, defaultLabel = 'TikTok') {
