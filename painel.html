@@ -1120,7 +1120,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     }).join('');
     // rótulos: mostra todos os dias de 1 até o último com dado (não só os
     // que têm ponto), pra deixar claro visualmente se algum dia ficou sem dado
-    const labels=Array.from({length:span+1},(_,i)=>primeiroDia+i).map(diaNum=>`<span style="position:absolute;left:${xx(diaNum)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${diaNum}</span>`).join('');
+    const labels=pontos.map(p=>`<span style="position:absolute;left:${xx(p.d)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${p.d}</span>`).join('');
     return `<div class="card">
       <h2><span class="ttl">${H()} Faturamento diário</span><span class="tag">melhor dia: dia ${best.d} (${DIAF[best.dow]}) · ${comp(best.fat)}${pontos.some(p=>p.emAndamento)?' · hoje em andamento':''}</span></h2>
       <svg viewBox="0 0 ${W} ${Hh}" style="width:100%;height:90px;overflow:visible;display:block;margin-top:6px">
