@@ -1018,6 +1018,50 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     if(!al.length)return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal</span></h2><div class="empty" style="padding:14px 0">✅ Nenhum canal fora do padrão normal — ontem bateu com a média histórica desse dia da semana.</div></div>`;
     const rows=al.map(a=>`<div class="ins" style="border-left:3px solid var(--neg);padding-left:10px;margin-bottom:6px">⚠️ <b>${a.canal}</b>: ${comp(a.ontem)} ontem (${a.diaSemana}), <b style="color:var(--neg)">${a.pctAbaixo.toFixed(0)}% abaixo</b> da média histórica de ${a.diaSemana}s (${comp(a.media)})</div>`).join('');
     return `<div class="card"><h2><span class="ttl">${H()} Alertas</span><span class="tag">queda atípica por canal · vs média histórica do dia da semana</span></h2>${rows}</div>`;})()));
+  blocks.push(bloco('fatdiario','',(()=>{
+    const hm=d.heatmap;const chaveAtual=hm&&hm.chaveAtual;const diasMes=(chaveAtual&&hm.meses[chaveAtual])||[];
+    if(!diasMes.length)return '<div class="card"><div class="empty">sem dados p/ o faturamento diário</div></div>';
+    // pontos com dado real (heatmap já corta em ontem); se hoje já tiver
+    // valor ao vivo no Hora a Hora, acrescenta como ponto extra "em andamento"
+    const pontos=diasMes.filter(x=>x.fat!=null).map(x=>({d:x.d,dow:x.dow,fat:x.fat,canais:x.canais,emAndamento:false}));
+    const hojeStr=hojeISO?hojeISO():isoLocal(new Date());
+    const linhasHojeHH=(horaHoraCache&&horaHoraCache.linhas||[]).filter(l=>l.date===hojeStr);
+    if(linhasHojeHH.length&&hoje.getMonth()+1===Number(chaveAtual.split('-')[1])&&hoje.getFullYear()===Number(chaveAtual.split('-')[0])){
+      const ultima=linhasHojeHH[linhasHojeHH.length-1];
+      if(!pontos.some(p=>p.d===hoje.getDate())){pontos.push({d:hoje.getDate(),dow:hoje.getDay(),fat:ultima.total,canais:[],emAndamento:true,qtdPedidos:ultima.qtdPedidos});}
+    }
+    if(!pontos.length)return '<div class="card"><div class="empty">sem dados p/ o faturamento diário ainda este mês</div></div>';
+    const best=pontos.reduce((a,b)=>b.fat>a.fat?b:a);
+    const DIAF=['dom','seg','ter','qua','qui','sex','sáb'];
+    const max=Math.max(...pontos.map(p=>p.fat),1);
+    const W=1000,Hh=90,pad=4;
+    const xx=i=>pad+(W-2*pad)*(pontos.length>1?i/(pontos.length-1):0);
+    const yy=v=>Hh-8-(v/max*(Hh-18));
+    const pts=pontos.map((p,i)=>xx(i)+','+yy(p.fat)).join(' ');
+    const areaPts=pts+' '+xx(pontos.length-1)+','+Hh+' '+xx(0)+','+Hh;
+    const dots=pontos.map((p,i)=>{
+      const isBest=p===best;
+      // ticket médio, se soubermos a quantidade de pedidos desse dia (via Hora a Hora)
+      let qtdPedidos=p.qtdPedidos,ticketMedio=null;
+      if(qtdPedidos==null){
+        const lh=(horaHoraCache&&horaHoraCache.linhas||[]).find(l=>{const[yy2,mm2,dd2]=l.date.split('-');return Number(dd2)===p.d&&Number(mm2)===Number(chaveAtual.split('-')[1])&&Number(yy2)===Number(chaveAtual.split('-')[0])&&l.time>='23:30';});
+        if(lh&&lh.qtdPedidos!=null)qtdPedidos=lh.qtdPedidos;
+      }
+      if(qtdPedidos)ticketMedio=p.fat/qtdPedidos;
+      const dd=`data-day='${JSON.stringify({d:p.d,dow:p.dow,fat:p.fat,canais:(p.canais||[]).slice(0,5),qtdPedidos,ticketMedio,emAndamento:p.emAndamento}).replace(/'/g,'&#39;')}'`;
+      return `<circle cx="${xx(i)}" cy="${yy(p.fat)}" r="${isBest?4.5:3}" fill="${isBest?'var(--pos)':'var(--accent)'}" class="daybar" ${dd} style="cursor:pointer"></circle>`;
+    }).join('');
+    const labels=pontos.map((p,i)=>`<span style="position:absolute;left:${xx(i)/W*100}%;transform:translateX(-50%);font-size:9px;color:var(--muted)">${p.d}</span>`).join('');
+    return `<div class="card">
+      <h2><span class="ttl">${H()} Faturamento diário</span><span class="tag">melhor dia: ${DIAF[best.dow]} · ${comp(best.fat)}${pontos.some(p=>p.emAndamento)?' · hoje em andamento':''}</span></h2>
+      <svg viewBox="0 0 ${W} ${Hh}" style="width:100%;height:90px;overflow:visible;display:block;margin-top:6px">
+        <defs><linearGradient id="gradFatDia" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--accent)" stop-opacity="0.35"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+        <polygon points="${areaPts}" fill="url(#gradFatDia)"></polygon>
+        <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="1.8"></polyline>
+        ${dots}
+      </svg>
+      <div style="position:relative;height:14px;margin-top:2px">${labels}</div>
+    </div>`;})()));
   blocks.push(bloco('metaresumo','',(()=>{const pm=pj.projecaoMes;const rm=d.resumoMes;
     if(d.mesCompleto&&d.fechamento){const fc=d.fechamento;const pcolor=p=>p==null?'var(--muted)':p>=100?'var(--pos)':p>=85?'var(--accent2)':'var(--neg)';const fpp=v=>v==null?'—':(v>0?'+':'')+v.toFixed(0)+'%';
       return `<div class="card">
@@ -1095,7 +1139,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     ${CAlin.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
     <tr class="hl"><td><b>Total</b></td>${CAtot.map(t=>`<td class="num"><b>${comp(t)}</b></td>`).join('')}${hasVar?(()=>{const v=CAtot[A.length-2]?(CAtot[A.length-1]-CAtot[A.length-2])/CAtot[A.length-2]*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
     </tbody></table></div>${insComp}</div>`));
-  const ORDEM=['mesatual','alertas','canal','roascanal','metaresumo','resumoquarter','metasbar','metasq','tri','metas','acumulado','ev','inv','roasdia','evcanal','evano','comp'];
+  const ORDEM=['mesatual','alertas','fatdiario','canal','roascanal','metaresumo','resumoquarter','metasbar','metasq','tri','metas','acumulado','ev','inv','roasdia','evcanal','evano','comp'];
   blocks.sort((a,b)=>{const ga=(a.match(/data-block="([^"]+)"/)||[])[1],gb=(b.match(/data-block="([^"]+)"/)||[])[1];const ia=ORDEM.indexOf(ga),ib=ORDEM.indexOf(gb);return (ia<0?99:ia)-(ib<0?99:ib);});
   const visiveis=blocks.filter(b=>{const id=(b.match(/data-block="([^"]+)"/)||[])[1];return tabOf(id)===aba;});
   board.innerHTML=visiveis.join('');
@@ -1245,7 +1289,7 @@ function hmComp(n){const a=Math.abs(n);return a>=1e6?'R$ '+(n/1e6).toFixed(2).re
   function show(html,e){const t=T();if(!t)return;t.innerHTML=html;t.classList.add('on');move(e);}
   function hide(){const t=T();if(t)t.classList.remove('on');}
   document.addEventListener('mouseover',e=>{const el=e.target.closest?e.target.closest('.daybar[data-day]'):null;if(!el){return;}
-    try{const d=JSON.parse(el.dataset.day);let h='<div class="th">Dia '+d.d+' · '+DN[d.dow]+'</div>';for(const c of (d.canais||[])){const pc=d.fat?Math.round(c.fat/d.fat*100):0;h+='<div class="tr"><span class="cn">'+c.canal+'</span><span class="cv">'+hmComp(c.fat)+' <span class="cpct">'+pc+'%</span></span></div>';}h+='<div class="tt"><span>Total</span><span>'+hmComp(d.fat)+'</span></div>';show(h,e);}catch(_){ }
+    try{const d=JSON.parse(el.dataset.day);let h='<div class="th">Dia '+d.d+' · '+DN[d.dow]+(d.emAndamento?' · em andamento':'')+'</div>';for(const c of (d.canais||[])){const pc=d.fat?Math.round(c.fat/d.fat*100):0;h+='<div class="tr"><span class="cn">'+c.canal+'</span><span class="cv">'+hmComp(c.fat)+' <span class="cpct">'+pc+'%</span></span></div>';}h+='<div class="tt"><span>Total</span><span>'+hmComp(d.fat)+'</span></div>';if(d.qtdPedidos!=null){h+='<div class="tr"><span class="cn">Pedidos</span><span class="cv">'+d.qtdPedidos+'</span></div>';h+='<div class="tr"><span class="cn">Ticket médio</span><span class="cv">'+hmComp(d.ticketMedio)+'</span></div>';}show(h,e);}catch(_){ }
   });
   document.addEventListener('mousemove',e=>{const t=T();if(t&&t.classList.contains('on'))move(e);});
   document.addEventListener('mouseout',e=>{if(e.target.closest&&e.target.closest('.daybar[data-day]'))hide();});
