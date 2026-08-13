@@ -575,7 +575,7 @@
 
 <header>
   <div class="bar">
-    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 108</span></div>
+    <div class="brand"><span class="mark">Renova <em>Be</em></span><span class="sub">Rentabilidade · build 109</span></div>
     <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">Local</span></span>
     <nav role="tablist">
       <button class="tab" role="tab" aria-selected="true" data-view="calc">Calculadora</button>
@@ -1045,6 +1045,19 @@
    ============================================================ */
 const SUPABASE_URL = "https://ugceqwceukpgnjfcicbs.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVnY2Vxd2NldWtwZ25qZmNpY2JzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwOTA4MzQsImV4cCI6MjA5ODY2NjgzNH0.23Egcw_w7BvnLqSiJl1yBf-22NBPRnfaIGOwfmBg6nM";
+// ===== MODO DO PROJETO: "calc" (precificação) ou "bi" (fechamento/análise). Trocar SÓ esta linha por arquivo. =====
+const APP_MODE="calc";
+// No projeto BI: cole a URL do projeto Calculadora aqui, pra o botão "cadastrar" abrir lá. Ex.: "https://voce.github.io/calculadora/"
+let CALC_URL="";
+const MODE_VIEWS={calc:["calc","unit","saved","settings"],bi:["dash","sales","stock","saved","settings"]};
+function applyAppMode(){
+  const allow=MODE_VIEWS[APP_MODE];const def=APP_MODE==="bi"?"dash":"calc";if(!allow)return def;
+  document.querySelectorAll(".tab").forEach(t=>{if(!allow.includes(t.dataset.view))t.style.display="none";});
+  document.querySelectorAll(".tabsep").forEach(s=>s.style.display="none");
+  if(APP_MODE==="bi")["goCalc","goCalc3","goCalc5","importMeli","importFiscal","importShopee","importAmz","importShopeeComp","pastePrices"].forEach(id=>{const b=document.getElementById(id);if(b)b.style.display="none";});
+  const sub=document.querySelector(".brand .sub");if(sub)sub.textContent=sub.textContent.replace(/^Rentabilidade/,APP_MODE==="bi"?"BI \u00b7 Fechamento":"Precifica\u00e7\u00e3o");
+  return def;
+}
 /* ============================================================ */
 
 const DEF_CATALOG = [
@@ -3920,6 +3933,7 @@ async function rematchMonth(key){
 }
 // abre a Calculadora pronta pra cadastrar o kit de um anúncio ainda sem custo
 function newKitFromMlb(code,titulo,shopee){
+  if(APP_MODE==="bi"){if(CALC_URL){const u=CALC_URL+(CALC_URL.indexOf("?")>=0?"&":"?")+"sku="+encodeURIComponent(code||"")+"&nome="+encodeURIComponent(titulo||"");window.open(u,"_blank");}else{toast("Cadastre "+(code||"o SKU")+" no projeto Calculadora");}return;}
   loadedSku="";const dup=$("#skuDup");if(dup)dup.style.display="none";
   $("#sku").value=code||"";$("#kitname").value=titulo||"";autoName="__custom__";
   let ci=0;if(shopee){const k=CHANNELS.findIndex(c=>/shopee/i.test(c.n||""));if(k>=0)ci=k;}
@@ -4083,6 +4097,7 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
 
 // ---------- Boot ----------
 (async function(){
+  const _defView=applyAppMode();
   setSync(SUPA_ON?"cloud":"local");
   if(!SUPA_ON){const b=$("#cloudBanner");b.style.display="block";b.innerHTML="<b>Modo local.</b> Para sincronizar entre pessoas, preencha SUPABASE_URL e SUPABASE_ANON_KEY no topo do arquivo.";}
   await loadConfig();
@@ -4090,5 +4105,7 @@ window.addEventListener("focus",()=>{if(SUPA_ON)refreshSkus();});
   {const ps=$("#prodSearch");if(ps)ps.addEventListener("input",e=>renderProdTable(e.target.value));}
   {const ac=$("#abChan");if(ac)ac.addEventListener("change",drawAssumpBarChan);const ax=$("#abCost");if(ax)ax.addEventListener("input",()=>{ABCOST_AUTO=false;drawAssumpBarChan();});}
   await refreshSkus();
+  if(_defView&&_defView!=="calc")switchView(_defView);
+  if(APP_MODE==="calc"){try{const p=new URLSearchParams(location.search);const sk=p.get("sku");if(sk){newKitFromMlb(sk,p.get("nome")||"");toast("Cadastrando "+sk+" (vindo do BI)");}}catch(e){}}
 })();
 </script>
