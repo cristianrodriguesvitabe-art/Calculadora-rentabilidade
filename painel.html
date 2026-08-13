@@ -1566,15 +1566,17 @@ function rankingHtml(canais,linhasP,linhasC,opts){
   const linhasHtml=linhas.map(v=>{
     const pct=Math.max(2,Math.round(v.valor/maxValor*100));
     let deltaHtml='';
+    let tituloComp='';
     if(valoresC){
       const vc=valoresC[v.canal]||0;
+      tituloComp=` title="Dia comparado: ${comp(vc)}"`;
       const diff=vc?((v.valor-vc)/vc*100):(v.valor>0?100:null);
       if(diff!=null){
         const cls=diff>=0?'up':'down';
         deltaHtml=`<span class="hh-rank-delta ${cls}">${diff>=0?'+':''}${diff.toFixed(0)}%</span>`;
       }
     }
-    return `<div class="hh-rank-row">
+    return `<div class="hh-rank-row"${tituloComp}>
       <span class="hh-rank-name"><span class="hh-dot" style="background:${cor(v.canal,v.i)}"></span>${v.canal}</span>
       <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pct}%;background:${cor(v.canal,v.i)}"></span></span>
       <span class="hh-rank-valor num">${comp(v.valor)}</span>
@@ -1765,11 +1767,28 @@ function renderHoraHoraPanel(){
   const ultimaLinhaP=linhasP.length?linhasP[linhasP.length-1]:null;
   const qtdPedidosP=ultimaLinhaP&&ultimaLinhaP.qtdPedidos!=null?ultimaLinhaP.qtdPedidos:null;
   const ticketMedioP=(qtdPedidosP&&ultimaLinhaP.total)?ultimaLinhaP.total/qtdPedidosP:null;
+  // mesma comparação com o dia anterior que o card de Faturamento já faz,
+  // só que pra pedidos e ticket médio, no mesmo horário
+  let qtdPedidosC=null,ticketMedioC=null;
+  if(hhDiaComparar&&linhasC.length){
+    const idxGradeQ=idxNaGrade(horaP);
+    qtdPedidosC=projetarNaGrade(grade,linhasC,l=>l.qtdPedidos!=null?l.qtdPedidos:null)[idxGradeQ];
+    const totalCq=projetarNaGrade(grade,linhasC,l=>l.total)[idxGradeQ];
+    if(qtdPedidosC&&totalCq)ticketMedioC=totalCq/qtdPedidosC;
+  }
+  const deltaSub=(atual,comparado,unidadeFmt)=>{
+    if(comparado==null||!comparado)return{html:'',titulo:''};
+    const diff=(atual-comparado)/comparado*100;
+    const cls=diff>=0?'up':'down';
+    return {html:`<span class="hh-stat-sub ${cls}">${diff>=0?'+':''}${diff.toFixed(0)}% vs ${fmtDiaLabel(hhDiaComparar)}</span>`,titulo:` title="${fmtDiaLabel(hhDiaComparar)}: ${unidadeFmt(comparado)}"`};
+  };
+  const dPedidos=qtdPedidosP!=null?deltaSub(qtdPedidosP,qtdPedidosC,v=>Math.round(v)+' pedidos'):{html:'<span class="hh-stat-sub">total das duas contas</span>',titulo:''};
+  const dTicket=ticketMedioP!=null?deltaSub(ticketMedioP,ticketMedioC,v=>comp(v)):{html:'<span class="hh-stat-sub">faturamento ÷ pedidos</span>',titulo:''};
   const pedidosHtml=qtdPedidosP!=null
-    ?`<div class="hh-stat"><span class="hh-stat-label">Pedidos · ${fmtDiaLabel(hhDiaPrincipal)}</span><span class="hh-stat-value num">${qtdPedidosP}</span><span class="hh-stat-sub">total das duas contas</span></div>`
+    ?`<div class="hh-stat"${dPedidos.titulo}><span class="hh-stat-label">Pedidos · ${fmtDiaLabel(hhDiaPrincipal)}</span><span class="hh-stat-value num">${qtdPedidosP}</span>${dPedidos.html}</div>`
     :'';
   const ticketHtml=ticketMedioP!=null
-    ?`<div class="hh-stat"><span class="hh-stat-label">Ticket médio</span><span class="hh-stat-value num">${comp(ticketMedioP)}</span><span class="hh-stat-sub">faturamento ÷ pedidos</span></div>`
+    ?`<div class="hh-stat"${dTicket.titulo}><span class="hh-stat-label">Ticket médio</span><span class="hh-stat-value num">${comp(ticketMedioP)}</span>${dTicket.html}</div>`
     :'';
 
   el.innerHTML=`
