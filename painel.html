@@ -1825,35 +1825,50 @@ function renderHoraHoraPanel(){
     <div style="position:relative;height:280px"><canvas id="chRitmo"></canvas></div>
   </div>
   <div class="card">
-    <h2><span class="ttl">${H()} Comparativo com o dia anterior</span><span class="tag">todos os KPIs, no mesmo horário</span></h2>
+    <h2><span class="ttl">${H()} Comparativo com o dia anterior</span><span class="tag">no mesmo horário</span></h2>
     ${(()=>{
       if(!hhDiaComparar)return '<div class="empty">Escolha um dia em "Comparar com" (lá em cima) pra ver o comparativo.</div>';
       const idxGradeKpi=idxNaGrade(horaP);
       const totalC=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGradeKpi]||0;
-      const cols='minmax(120px,180px) 1fr 90px 90px 60px';
-      const linhaKpi=(label,atual,comparado,fmt)=>{
+
+      // -------- 3 KPIs principais, em destaque --------
+      const kpiCard=(label,atual,comparado,fmt)=>{
         const diff=comparado?((atual-comparado)/comparado*100):(atual>0?100:null);
-        const cls=diff==null?'':(diff>=0?'up':'down');
+        const cor=diff==null?'var(--muted)':diff>=0?'var(--pos)':'var(--neg)';
         const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
-        return `<div class="hh-rank-row" style="grid-template-columns:${cols}">
-          <span class="hh-rank-name">${label}</span><span></span>
-          <span class="hh-rank-valor num">${fmt(atual)}</span>
-          <span class="hh-rank-valor num" style="color:var(--muted)">${fmt(comparado)}</span>
-          <span class="hh-rank-delta ${cls}">${diffTxt}</span>
-        </div>`;
+        return `<div class="hh-stat" style="padding:12px 14px"><span class="hh-stat-label">${label}</span><span class="hh-stat-value num" style="font-size:18px">${fmt(atual)}</span><span class="hh-stat-sub">ontem ${fmt(comparado)} <b style="color:${cor}">${diffTxt}</b></span></div>`;
       };
-      let rows=`<div class="hh-rank-row" style="grid-template-columns:${cols};color:var(--muted);font-size:10.5px;text-transform:uppercase">
-        <span>KPI</span><span></span><span style="text-align:right">${fmtDiaLabel(hhDiaPrincipal)}</span><span style="text-align:right">${fmtDiaLabel(hhDiaComparar)}</span><span></span>
-      </div>`;
-      rows+=linhaKpi('Faturamento total',totalP,totalC,comp);
-      if(qtdPedidosP!=null)rows+=linhaKpi('Pedidos',qtdPedidosP,qtdPedidosC,v=>v==null?'—':String(Math.round(v)));
-      if(ticketMedioP!=null)rows+=linhaKpi('Ticket médio',ticketMedioP,ticketMedioC,comp);
-      canais.forEach(c=>{
+      let kpis=kpiCard('Faturamento',totalP,totalC,comp);
+      if(qtdPedidosP!=null)kpis+=kpiCard('Pedidos',qtdPedidosP,qtdPedidosC,v=>v==null?'—':String(Math.round(v)));
+      if(ticketMedioP!=null)kpis+=kpiCard('Ticket médio',ticketMedioP,ticketMedioC,comp);
+
+      // -------- canais: barra + hoje + ontem + delta% --------
+      const linhasCanal=canais.map((c,i)=>{
         const atualC=ultimaLinhaP?ultimaLinhaP.porCanal[c]||0:0;
         const comparadoC=projetarNaGrade(grade,linhasC,l=>l.porCanal[c]||0)[idxGradeKpi]||0;
-        if(atualC>0||comparadoC>0)rows+=linhaKpi(c,atualC,comparadoC,comp);
-      });
-      return `<div class="hh-rank">${rows}</div>`;
+        return {canal:c,i,atual:atualC,comparado:comparadoC};
+      }).filter(v=>v.atual>0||v.comparado>0).sort((a,b)=>b.atual-a.atual);
+      const maxCanal=Math.max(1,...linhasCanal.map(v=>Math.max(v.atual,v.comparado)));
+      const header=`<div class="hh-rank-row" style="grid-template-columns:130px 1fr 66px 66px 46px;color:var(--muted);font-size:10px;text-transform:uppercase">
+        <span>Canal</span><span></span><span style="text-align:right">Hoje</span><span style="text-align:right">Ontem</span><span></span>
+      </div>`;
+      const linhasHtml=linhasCanal.map(v=>{
+        const pct=Math.max(2,Math.round(v.atual/maxCanal*100));
+        const diff=v.comparado?((v.atual-v.comparado)/v.comparado*100):(v.atual>0?100:null);
+        const cls=diff==null?'':(diff>=0?'up':'down');
+        const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
+        return `<div class="hh-rank-row" style="grid-template-columns:130px 1fr 66px 66px 46px">
+          <span class="hh-rank-name"><span class="hh-dot" style="background:${cor(v.canal,v.i)}"></span>${v.canal}</span>
+          <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pct}%;background:${cor(v.canal,v.i)}"></span></span>
+          <span class="hh-rank-valor num">${comp(v.atual)}</span>
+          <span class="hh-rank-valor num" style="color:var(--muted)">${comp(v.comparado)}</span>
+          <span class="hh-rank-delta ${cls}">${diffTxt}</span>
+        </div>`;
+      }).join('');
+
+      return `<div class="hh-stats" style="margin-bottom:14px">${kpis}</div>
+      ${header}
+      <div class="hh-rank">${linhasHtml}</div>`;
     })()}
   </div>`;
 
