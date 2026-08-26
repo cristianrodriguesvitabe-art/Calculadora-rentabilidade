@@ -1823,6 +1823,38 @@ function renderHoraHoraPanel(){
   <div class="card">
     <h2><span class="ttl">${H()} Ritmo de vendas</span><span class="tag">faturamento por hora (não acumulado)</span></h2>
     <div style="position:relative;height:280px"><canvas id="chRitmo"></canvas></div>
+  </div>
+  <div class="card">
+    <h2><span class="ttl">${H()} Comparativo com o dia anterior</span><span class="tag">todos os KPIs, no mesmo horário</span></h2>
+    ${(()=>{
+      if(!hhDiaComparar)return '<div class="empty">Escolha um dia em "Comparar com" (lá em cima) pra ver o comparativo.</div>';
+      const idxGradeKpi=idxNaGrade(horaP);
+      const totalC=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGradeKpi]||0;
+      const cols='minmax(120px,180px) 1fr 90px 90px 60px';
+      const linhaKpi=(label,atual,comparado,fmt)=>{
+        const diff=comparado?((atual-comparado)/comparado*100):(atual>0?100:null);
+        const cls=diff==null?'':(diff>=0?'up':'down');
+        const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
+        return `<div class="hh-rank-row" style="grid-template-columns:${cols}">
+          <span class="hh-rank-name">${label}</span><span></span>
+          <span class="hh-rank-valor num">${fmt(atual)}</span>
+          <span class="hh-rank-valor num" style="color:var(--muted)">${fmt(comparado)}</span>
+          <span class="hh-rank-delta ${cls}">${diffTxt}</span>
+        </div>`;
+      };
+      let rows=`<div class="hh-rank-row" style="grid-template-columns:${cols};color:var(--muted);font-size:10.5px;text-transform:uppercase">
+        <span>KPI</span><span></span><span style="text-align:right">${fmtDiaLabel(hhDiaPrincipal)}</span><span style="text-align:right">${fmtDiaLabel(hhDiaComparar)}</span><span></span>
+      </div>`;
+      rows+=linhaKpi('Faturamento total',totalP,totalC,comp);
+      if(qtdPedidosP!=null)rows+=linhaKpi('Pedidos',qtdPedidosP,qtdPedidosC,v=>v==null?'—':String(Math.round(v)));
+      if(ticketMedioP!=null)rows+=linhaKpi('Ticket médio',ticketMedioP,ticketMedioC,comp);
+      canais.forEach(c=>{
+        const atualC=ultimaLinhaP?ultimaLinhaP.porCanal[c]||0:0;
+        const comparadoC=projetarNaGrade(grade,linhasC,l=>l.porCanal[c]||0)[idxGradeKpi]||0;
+        if(atualC>0||comparadoC>0)rows+=linhaKpi(c,atualC,comparadoC,comp);
+      });
+      return `<div class="hh-rank">${rows}</div>`;
+    })()}
   </div>`;
 
   document.getElementById('hhSelPrincipal').onchange=(e)=>{hhDiaPrincipal=e.target.value;hhDiaComparar=null;renderHoraHoraPanel();};
