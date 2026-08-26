@@ -807,7 +807,13 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const wDay=projLabels.map(()=>1/ndCur);
   const fracElapsed=wDay.slice(0,capDiaCur).reduce((a,b)=>a+b,0);
   const realizadoMesP=r2(serieAtu.slice(0,capDiaCur).reduce((a,b)=>a+(b||0),0));
-  const projetadoMesP=fracElapsed>0?r2(realizadoMesP/fracElapsed):realizadoMesP;
+  // A projeção usa só dias FECHADOS (até ontem) — o parcial de hoje entra no
+  // "Faturado até agora", mas não aqui, pra não distorcer o ritmo médio (hoje
+  // conta como "dia cheio" no denominador mesmo estando pela metade).
+  const capDiaProj=emAndamento?Math.max(hoje.getDate()-1,1):capDiaCur;
+  const fracElapsedProj=wDay.slice(0,capDiaProj).reduce((a,b)=>a+b,0);
+  const realizadoProjBase=r2(serieAtu.slice(0,capDiaProj).reduce((a,b)=>a+(b||0),0));
+  const projetadoMesP=fracElapsedProj>0?r2(realizadoProjBase/fracElapsedProj):realizadoProjBase;
   const projSerie=projLabels.map((_,i)=>i>=capDiaCur-1?r2(projetadoMesP*wDay[i]):null);
   const projecao={
     mesLabel:`${MES[pRefM-1]}/${String(pRefY).slice(2)}`,quarter:'Q'+pQ,labels:projLabels,
@@ -1031,6 +1037,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
       <div style="flex:1;min-width:160px;background:${cbg(rm.vsMesAnterior)};border:1px solid ${cbd(rm.vsMesAnterior)};border-radius:10px;padding:10px 13px"><p class="eyebrow">vs mês anterior · mesmo período</p><div class="num" style="font-family:var(--display);font-weight:700;font-size:22px;color:${cp(rm.vsMesAnterior)}">${fp(rm.vsMesAnterior)}</div></div>
     </div>
     <div class="projhero fat" style="margin-top:14px"><div class="projtop"><div><p class="eyebrow">Faturado em ${pm.mesLabel}${pm.emAndamento?' · até dia '+pm.diasDecorridos+'/'+pm.diasMes:' (mês fechado)'}${horarioAoVivoHoje(pm)}</p><div class="projbig num">${comp(pm.realizado)}</div></div><div class="projpct num" style="color:${pcolor(pctf)}">${pctf!=null?pctf.toFixed(0)+'%':'—'}<span>da meta do mês</span></div></div><div class="projbar"><span class="pf" style="width:${feitoPct}%"></span><span class="pp" style="width:${100-feitoPct}%"></span></div><div class="sub">meta do mês ${comp(pm.meta)}${(pm.acumulado&&Math.abs(pm.acumulado)>1)?` <span style="color:var(--muted)">(${comp(pm.metaBase)} base ${pm.acumulado>0?'+ '+comp(pm.acumulado)+' acúmulo':'− '+comp(-pm.acumulado)+' superávit'})</span>`:''}${pm.emAndamento?` · faltam ${Math.max(pm.diasMes-pm.diasDecorridos,0)} dias`:''}</div></div>
+    ${pm.emAndamento?`<div class="projhero" style="margin-top:10px"><p class="eyebrow">Projeção de fechamento · ritmo dos dias fechados (não conta o parcial de hoje)</p><div class="projbig num" style="font-size:22px">${comp(pm.projetado)}</div></div>`:''}
     <div class="secdiv">Indicadores do mês</div>
     <div class="hh-stats">
       <div class="projhero info" style="margin:0"><p class="eyebrow">ROAS</p><div class="projbig num" style="font-size:24px">${fNum2(rm.roas)}</div><div class="sub" style="margin-top:2px">faturamento ÷ custo ADS</div></div>
