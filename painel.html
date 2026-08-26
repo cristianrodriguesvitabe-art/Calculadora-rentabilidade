@@ -1823,7 +1823,7 @@ function renderHoraHoraPanel(){
         return {canal:c,i,atual:atualC,comparado:comparadoC};
       }).filter(v=>v.atual>0||v.comparado>0).sort((a,b)=>b.atual-a.atual);
       const maxCanal=Math.max(1,...linhasCanal.map(v=>Math.max(v.atual,v.comparado)));
-      const header=`<div class="hh-rank-row" style="grid-template-columns:130px 1fr 66px 66px 46px;color:var(--muted);font-size:10px;text-transform:uppercase">
+      const header=`<div class="hh-rank-row" style="grid-template-columns:130px 1fr 90px 90px 52px;color:var(--muted);font-size:10px;text-transform:uppercase">
         <span>Canal</span><span></span><span style="text-align:right">Hoje</span><span style="text-align:right">Ontem</span><span></span>
       </div>`;
       const linhasHtml=linhasCanal.map(v=>{
@@ -1831,11 +1831,11 @@ function renderHoraHoraPanel(){
         const diff=v.comparado?((v.atual-v.comparado)/v.comparado*100):(v.atual>0?100:null);
         const cls=diff==null?'':(diff>=0?'up':'down');
         const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
-        return `<div class="hh-rank-row" style="grid-template-columns:130px 1fr 66px 66px 46px">
+        return `<div class="hh-rank-row" style="grid-template-columns:130px 1fr 90px 90px 52px">
           <span class="hh-rank-name"><span class="hh-dot" style="background:${cor(v.canal,v.i)}"></span>${v.canal}</span>
           <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pct}%;background:${cor(v.canal,v.i)}"></span></span>
-          <span class="hh-rank-valor num">${comp(v.atual)}</span>
-          <span class="hh-rank-valor num" style="color:var(--muted)">${comp(v.comparado)}</span>
+          <span class="hh-rank-valor num" style="white-space:nowrap">${comp(v.atual)}</span>
+          <span class="hh-rank-valor num" style="color:var(--muted);white-space:nowrap">${comp(v.comparado)}</span>
           <span class="hh-rank-delta ${cls}">${diffTxt}</span>
         </div>`;
       }).join('');
