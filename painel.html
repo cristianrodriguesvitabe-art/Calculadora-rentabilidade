@@ -149,6 +149,7 @@
   .sep{width:1px;height:20px;background:var(--line);margin:0 3px}
   .wrap{max-width:1320px;margin:16px auto;padding:0 14px}
   #board{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;align-items:start}
+  #horaHoraPanel{display:flex;flex-direction:column;gap:14px}
   .block{grid-column:span 12;min-width:0}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px;height:100%}
   .hh-live{margin:14px 0;padding:14px 16px}
@@ -1083,6 +1084,22 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
       ${rowsDia}
       ${alertasHora.length?`<div class="secdiv" style="margin-top:${al.length?'10px':'0'}">Ritmo de hoje (ao vivo)</div>${rowsHora}`:''}
       </div>`;})()));
+  blocks.push(bloco('hhresumostats','',(()=>{
+    const hojeStr=hojeISO();
+    const hojeD=new Date();const ontemD=new Date(hojeD);ontemD.setDate(ontemD.getDate()-1);
+    const ontemStr=isoLocal(ontemD);
+    const resumo=montaHhResumo(hojeStr,ontemStr);
+    if(!resumo.temDados)return '';
+    return resumo.statsHtml;
+  })()));
+  blocks.push(bloco('hhresumocanais','',(()=>{
+    const hojeStr=hojeISO();
+    const hojeD=new Date();const ontemD=new Date(hojeD);ontemD.setDate(ontemD.getDate()-1);
+    const ontemStr=isoLocal(ontemD);
+    const resumo=montaHhResumo(hojeStr,ontemStr);
+    if(!resumo.temDados)return '';
+    return `<div class="card"><h2><span class="ttl">${H()} Canais hoje</span><span class="tag">atualizado às ${resumo.horaP} · veja mais na aba Hora a Hora</span></h2>${resumo.canaisHtml}</div>`;
+  })()));
   blocks.push(bloco('fatdiario','',(()=>{
     const hoje=new Date();
     const hm=d.heatmap;const chaveAtual=hm&&hm.chaveAtual;const diasMes=(chaveAtual&&hm.meses[chaveAtual])||[];
@@ -1215,7 +1232,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     ${CAlin.map(l=>{const v=hasVar?(l.valores[A.length-2]?(l.valores[A.length-1]-l.valores[A.length-2])/l.valores[A.length-2]*100:null):null;return `<tr><td>${l.mes}</td>${l.valores.map(x=>`<td class="num">${comp(x)}</td>`).join('')}${hasVar?`<td class="num" style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</td>`:''}</tr>`;}).join('')}
     <tr class="hl"><td><b>Total</b></td>${CAtot.map(t=>`<td class="num"><b>${comp(t)}</b></td>`).join('')}${hasVar?(()=>{const v=CAtot[A.length-2]?(CAtot[A.length-1]-CAtot[A.length-2])/CAtot[A.length-2]*100:null;return `<td class="num"><b style="color:${v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)'}">${v==null?'—':(v>0?'+':'')+v.toFixed(1)+'%'}</b></td>`;})():''}</tr>
     </tbody></table></div>${insComp}</div>`));
-  const ORDEM=['mesatual','alertas','fatdiario','canal','roascanal','metaresumo','resumoquarter','metasbar','metasq','tri','metas','acumulado','ev','inv','roasdia','evcanal','evano','comp'];
+  const ORDEM=['mesatual','alertas','hhresumostats','hhresumocanais','fatdiario','canal','roascanal','metaresumo','resumoquarter','metasbar','metasq','tri','metas','acumulado','ev','inv','roasdia','evcanal','evano','comp'];
   blocks.sort((a,b)=>{const ga=(a.match(/data-block="([^"]+)"/)||[])[1],gb=(b.match(/data-block="([^"]+)"/)||[])[1];const ia=ORDEM.indexOf(ga),ib=ORDEM.indexOf(gb);return (ia<0?99:ia)-(ib<0?99:ib);});
   const visiveis=blocks.filter(b=>{const id=(b.match(/data-block="([^"]+)"/)||[])[1];return tabOf(id)===aba;});
   board.innerHTML=visiveis.join('');
@@ -1722,6 +1739,100 @@ function projetarFechamento(diaAlvo){
 }
 
 let hhDiaPrincipal=null,hhDiaComparar=null;
+// Monta os "stats" de destaque (Faturamento/Projeção/Meta/Maior alta/Pedidos/
+// Ticket médio) e a tabela de canais (hoje/ontem/delta) — usado tanto na aba
+// Hora a Hora (com seletor de dia) quanto num resumo fixo na Visão Geral
+// (sempre hoje vs ontem, sem seletor).
+function montaHhResumo(diaPrincipal,diaComparar){
+  const canais=canaisAtivos();
+  const linhasP=(horaHoraCache.linhas||[]).filter(l=>l.date===diaPrincipal);
+  const linhasC=diaComparar?(horaHoraCache.linhas||[]).filter(l=>l.date===diaComparar):[];
+  const grade=gradeCompleta();
+  const proj=projetarFechamento(diaPrincipal);
+  const metaDia=metaDoDia();
+  const maiorAlta=maiorAltaDia();
+
+  const totalP=linhasP.length?totalCanais(linhasP[linhasP.length-1],canais):0;
+  const horaP=linhasP.length?linhasP[linhasP.length-1].time:'--:--';
+  let variacaoHtml='<span class="hh-stat-sub">sem comparação</span>';
+  if(diaComparar){
+    const idxGrade=idxNaGrade(horaP);
+    const totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGrade]||0;
+    const diff=totalCNoMesmoHorario?((totalP-totalCNoMesmoHorario)/totalCNoMesmoHorario*100):null;
+    if(diff!=null){
+      variacaoHtml=`<span class="hh-stat-sub">ontem ${comp(totalCNoMesmoHorario)} <b style="color:${diff>=0?'var(--pos)':'var(--neg)'}">${diff>=0?'+':''}${diff.toFixed(0)}%</b></span>`;
+    }
+  }
+  const projHtml=proj
+    ?`<div class="hh-stat"><span class="hh-stat-label">Projeção de fechamento</span><span class="hh-stat-value num">${comp(proj.projecao)}</span><span class="hh-stat-sub">baseado em ${proj.baseDias} dia${proj.baseDias>1?'s':''}${proj.baseDias<3?' · melhora com o tempo':''}</span></div>`
+    :`<div class="hh-stat"><span class="hh-stat-label">Projeção de fechamento</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">ainda sem dias completos suficientes</span></div>`;
+  const pctMeta=metaDia?Math.min(100,Math.round(totalP/metaDia*100)):0;
+  const metaHtml=metaDia
+    ?`<div class="hh-stat"><span class="hh-stat-label">Meta do dia</span><span class="hh-stat-value num">${comp(metaDia)}</span><div class="hh-progress"><div class="hh-progress-fill" style="width:${pctMeta}%"></div></div><span class="hh-stat-sub">${pctMeta}% atingido até ${horaP}</span></div>`
+    :`<div class="hh-stat"><span class="hh-stat-label">Meta do dia</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">configure metas no menu Metas</span></div>`;
+  const altaHtml=maiorAlta
+    ?`<div class="hh-stat"><span class="hh-stat-label">Maior alta hoje vs ontem</span><span class="hh-stat-value">${maiorAlta.canal}</span><span class="hh-stat-sub up">+${maiorAlta.diff.toFixed(0)}%</span></div>`
+    :`<div class="hh-stat"><span class="hh-stat-label">Maior alta hoje vs ontem</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">sem dados de ontem pra comparar</span></div>`;
+  const ultimaLinhaP=linhasP.length?linhasP[linhasP.length-1]:null;
+  const qtdPedidosP=ultimaLinhaP&&ultimaLinhaP.qtdPedidos!=null?ultimaLinhaP.qtdPedidos:null;
+  const ticketMedioP=(qtdPedidosP&&ultimaLinhaP.total)?ultimaLinhaP.total/qtdPedidosP:null;
+  let qtdPedidosC=null,ticketMedioC=null;
+  if(diaComparar&&linhasC.length){
+    const idxGradeQ=idxNaGrade(horaP);
+    qtdPedidosC=projetarNaGrade(grade,linhasC,l=>l.qtdPedidos!=null?l.qtdPedidos:null)[idxGradeQ];
+    const totalCq=projetarNaGrade(grade,linhasC,l=>l.total)[idxGradeQ];
+    if(qtdPedidosC&&totalCq)ticketMedioC=totalCq/qtdPedidosC;
+  }
+  const deltaSub=(atual,comparado,unidadeFmt)=>{
+    if(comparado==null||!comparado)return{html:'<span class="hh-stat-sub">sem comparação</span>',titulo:''};
+    const diff=(atual-comparado)/comparado*100;
+    const cor=diff>=0?'var(--pos)':'var(--neg)';
+    return {html:`<span class="hh-stat-sub">ontem ${unidadeFmt(comparado)} <b style="color:${cor}">${diff>=0?'+':''}${diff.toFixed(0)}%</b></span>`,titulo:` title="${fmtDiaLabel(diaComparar)}: ${unidadeFmt(comparado)}"`};
+  };
+  const dPedidos=qtdPedidosP!=null?deltaSub(qtdPedidosP,qtdPedidosC,v=>Math.round(v)+' pedidos'):{html:'<span class="hh-stat-sub">total das duas contas</span>',titulo:''};
+  const dTicket=ticketMedioP!=null?deltaSub(ticketMedioP,ticketMedioC,v=>comp(v)):{html:'<span class="hh-stat-sub">faturamento ÷ pedidos</span>',titulo:''};
+  const pedidosHtml=qtdPedidosP!=null
+    ?`<div class="hh-stat"${dPedidos.titulo}><span class="hh-stat-label">Pedidos · ${fmtDiaLabel(diaPrincipal)}</span><span class="hh-stat-value num">${qtdPedidosP}</span>${dPedidos.html}</div>`
+    :'';
+  const ticketHtml=ticketMedioP!=null
+    ?`<div class="hh-stat"${dTicket.titulo}><span class="hh-stat-label">Ticket médio</span><span class="hh-stat-value num">${comp(ticketMedioP)}</span>${dTicket.html}</div>`
+    :'';
+  const statsHtml=`<div class="hh-stats">
+    <div class="hh-stat"><span class="hh-stat-label">Faturamento · ${fmtDiaLabel(diaPrincipal)}</span><span class="hh-stat-value num">${comp(totalP)}</span>${variacaoHtml}</div>
+    ${projHtml}${metaHtml}${altaHtml}${pedidosHtml}${ticketHtml}
+  </div>`;
+
+  const canaisHtml=(()=>{
+    if(!diaComparar)return `<div class="hh-rank">${rankingHtml(canais,linhasP,linhasC)}</div>`;
+    const idxGradeKpi=idxNaGrade(horaP);
+    const linhasCanal=canais.map((c,i)=>{
+      const atualC=ultimaLinhaP?ultimaLinhaP.porCanal[c]||0:0;
+      const comparadoC=projetarNaGrade(grade,linhasC,l=>l.porCanal[c]||0)[idxGradeKpi]||0;
+      return {canal:c,i,atual:atualC,comparado:comparadoC};
+    }).filter(v=>v.atual>0||v.comparado>0).sort((a,b)=>b.atual-a.atual);
+    const maxCanal=Math.max(1,...linhasCanal.map(v=>Math.max(v.atual,v.comparado)));
+    const header=`<div class="hh-rank-row" style="grid-template-columns:130px 1fr 90px 90px 52px;color:var(--muted);font-size:10px;text-transform:uppercase">
+      <span>Canal</span><span></span><span style="text-align:right">Hoje</span><span style="text-align:right">Ontem</span><span></span>
+    </div>`;
+    const linhasHtml=linhasCanal.map(v=>{
+      const pct=Math.max(2,Math.round(v.atual/maxCanal*100));
+      const diff=v.comparado?((v.atual-v.comparado)/v.comparado*100):(v.atual>0?100:null);
+      const cls=diff==null?'':(diff>=0?'up':'down');
+      const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
+      return `<div class="hh-rank-row" style="grid-template-columns:130px 1fr 90px 90px 52px">
+        <span class="hh-rank-name"><span class="hh-dot" style="background:${cor(v.canal,v.i)}"></span>${v.canal}</span>
+        <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pct}%;background:${cor(v.canal,v.i)}"></span></span>
+        <span class="hh-rank-valor num" style="white-space:nowrap">${comp(v.atual)}</span>
+        <span class="hh-rank-valor num" style="color:var(--muted);white-space:nowrap">${comp(v.comparado)}</span>
+        <span class="hh-rank-delta ${cls}">${diffTxt}</span>
+      </div>`;
+    }).join('');
+    return `${header}<div class="hh-rank">${linhasHtml}</div>`;
+  })();
+
+  return {statsHtml,canaisHtml,totalP,horaP,temDados:linhasP.length>0,grade,linhasP,linhasC,canais,metaDia,proj};
+}
+
 function renderHoraHoraPanel(){
   const el=document.getElementById('horaHoraPanel');if(!el)return;
   TC=tc();
@@ -1740,107 +1851,18 @@ function renderHoraHoraPanel(){
   const optsPrincipal=dias.map(d=>`<option value="${d}"${d===hhDiaPrincipal?' selected':''}>${fmtDiaLabel(d)}</option>`).join('');
   const optsComparar='<option value="">Nenhum</option>'+dias.filter(d=>d!==hhDiaPrincipal).map(d=>`<option value="${d}"${d===hhDiaComparar?' selected':''}>${fmtDiaLabel(d)}</option>`).join('');
 
-  const canais=canaisAtivos();
-  const linhasP=(horaHoraCache.linhas||[]).filter(l=>l.date===hhDiaPrincipal);
-  const linhasC=hhDiaComparar?(horaHoraCache.linhas||[]).filter(l=>l.date===hhDiaComparar):[];
-  const grade=gradeCompleta();
-  const proj=projetarFechamento(hhDiaPrincipal);
-  const metaDia=metaDoDia();
-  const maiorAlta=maiorAltaDia();
-
-  // -------- cards de destaque --------
-  const totalP=linhasP.length?totalCanais(linhasP[linhasP.length-1],canais):0;
-  const horaP=linhasP.length?linhasP[linhasP.length-1].time:'--:--';
-  let variacaoHtml='<span class="hh-stat-sub">sem comparação</span>';
-  let totalCNoMesmoHorario=null;
-  if(hhDiaComparar){
-    const idxGrade=idxNaGrade(horaP);
-    totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGrade]||0;
-    const diff=totalCNoMesmoHorario?((totalP-totalCNoMesmoHorario)/totalCNoMesmoHorario*100):null;
-    if(diff!=null){
-      const cls=diff>=0?'up':'down';
-      variacaoHtml=`<span class="hh-stat-sub">ontem ${comp(totalCNoMesmoHorario)} <b class="${cls}" style="color:${diff>=0?'var(--pos)':'var(--neg)'}">${diff>=0?'+':''}${diff.toFixed(0)}%</b></span>`;
-    }
-  }
-  const projHtml=proj
-    ?`<div class="hh-stat"><span class="hh-stat-label">Projeção de fechamento</span><span class="hh-stat-value num">${comp(proj.projecao)}</span><span class="hh-stat-sub">baseado em ${proj.baseDias} dia${proj.baseDias>1?'s':''}${proj.baseDias<3?' · melhora com o tempo':''}</span></div>`
-    :`<div class="hh-stat"><span class="hh-stat-label">Projeção de fechamento</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">ainda sem dias completos suficientes</span></div>`;
-  const pctMeta=metaDia?Math.min(100,Math.round(totalP/metaDia*100)):0;
-  const metaHtml=metaDia
-    ?`<div class="hh-stat"><span class="hh-stat-label">Meta do dia</span><span class="hh-stat-value num">${comp(metaDia)}</span><div class="hh-progress"><div class="hh-progress-fill" style="width:${pctMeta}%"></div></div><span class="hh-stat-sub">${pctMeta}% atingido até ${horaP}</span></div>`
-    :`<div class="hh-stat"><span class="hh-stat-label">Meta do dia</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">configure metas no menu Metas</span></div>`;
-  const altaHtml=maiorAlta
-    ?`<div class="hh-stat"><span class="hh-stat-label">Maior alta hoje vs ontem</span><span class="hh-stat-value">${maiorAlta.canal}</span><span class="hh-stat-sub up">+${maiorAlta.diff.toFixed(0)}%</span></div>`
-    :`<div class="hh-stat"><span class="hh-stat-label">Maior alta hoje vs ontem</span><span class="hh-stat-value">—</span><span class="hh-stat-sub">sem dados de ontem pra comparar</span></div>`;
-  const ultimaLinhaP=linhasP.length?linhasP[linhasP.length-1]:null;
-  const qtdPedidosP=ultimaLinhaP&&ultimaLinhaP.qtdPedidos!=null?ultimaLinhaP.qtdPedidos:null;
-  const ticketMedioP=(qtdPedidosP&&ultimaLinhaP.total)?ultimaLinhaP.total/qtdPedidosP:null;
-  // mesma comparação com o dia anterior que o card de Faturamento já faz,
-  // só que pra pedidos e ticket médio, no mesmo horário
-  let qtdPedidosC=null,ticketMedioC=null;
-  if(hhDiaComparar&&linhasC.length){
-    const idxGradeQ=idxNaGrade(horaP);
-    qtdPedidosC=projetarNaGrade(grade,linhasC,l=>l.qtdPedidos!=null?l.qtdPedidos:null)[idxGradeQ];
-    const totalCq=projetarNaGrade(grade,linhasC,l=>l.total)[idxGradeQ];
-    if(qtdPedidosC&&totalCq)ticketMedioC=totalCq/qtdPedidosC;
-  }
-  const deltaSub=(atual,comparado,unidadeFmt)=>{
-    if(comparado==null||!comparado)return{html:'<span class="hh-stat-sub">sem comparação</span>',titulo:''};
-    const diff=(atual-comparado)/comparado*100;
-    const cor=diff>=0?'var(--pos)':'var(--neg)';
-    return {html:`<span class="hh-stat-sub">ontem ${unidadeFmt(comparado)} <b style="color:${cor}">${diff>=0?'+':''}${diff.toFixed(0)}%</b></span>`,titulo:` title="${fmtDiaLabel(hhDiaComparar)}: ${unidadeFmt(comparado)}"`};
-  };
-  const dPedidos=qtdPedidosP!=null?deltaSub(qtdPedidosP,qtdPedidosC,v=>Math.round(v)+' pedidos'):{html:'<span class="hh-stat-sub">total das duas contas</span>',titulo:''};
-  const dTicket=ticketMedioP!=null?deltaSub(ticketMedioP,ticketMedioC,v=>comp(v)):{html:'<span class="hh-stat-sub">faturamento ÷ pedidos</span>',titulo:''};
-  const pedidosHtml=qtdPedidosP!=null
-    ?`<div class="hh-stat"${dPedidos.titulo}><span class="hh-stat-label">Pedidos · ${fmtDiaLabel(hhDiaPrincipal)}</span><span class="hh-stat-value num">${qtdPedidosP}</span>${dPedidos.html}</div>`
-    :'';
-  const ticketHtml=ticketMedioP!=null
-    ?`<div class="hh-stat"${dTicket.titulo}><span class="hh-stat-label">Ticket médio</span><span class="hh-stat-value num">${comp(ticketMedioP)}</span>${dTicket.html}</div>`
-    :'';
+  const resumo=montaHhResumo(hhDiaPrincipal,hhDiaComparar);
+  const {grade,linhasP,linhasC,canais,metaDia,proj,totalP,horaP}=resumo;
 
   el.innerHTML=`
-  <div class="hh-stats">
-    <div class="hh-stat"><span class="hh-stat-label">Faturamento · ${fmtDiaLabel(hhDiaPrincipal)}</span><span class="hh-stat-value num">${comp(totalP)}</span>${variacaoHtml}</div>
-    ${projHtml}
-    ${metaHtml}
-    ${altaHtml}
-    ${pedidosHtml}
-    ${ticketHtml}
-  </div>
+  ${resumo.statsHtml}
   <div class="card">
     <h2><span class="ttl">${H()} Canais</span><span class="tag">ordenado por faturamento — respeita o filtro "Canais" do topo</span></h2>
     <div class="hh-controls">
       <label>Dia</label><select id="hhSelPrincipal">${optsPrincipal}</select>
       <label>Comparar com</label><select id="hhSelComparar">${optsComparar}</select>
     </div>
-    ${(()=>{
-      if(!hhDiaComparar)return `<div class="hh-rank">${rankingHtml(canais,linhasP,linhasC)}</div>`;
-      const idxGradeKpi=idxNaGrade(horaP);
-      const linhasCanal=canais.map((c,i)=>{
-        const atualC=ultimaLinhaP?ultimaLinhaP.porCanal[c]||0:0;
-        const comparadoC=projetarNaGrade(grade,linhasC,l=>l.porCanal[c]||0)[idxGradeKpi]||0;
-        return {canal:c,i,atual:atualC,comparado:comparadoC};
-      }).filter(v=>v.atual>0||v.comparado>0).sort((a,b)=>b.atual-a.atual);
-      const maxCanal=Math.max(1,...linhasCanal.map(v=>Math.max(v.atual,v.comparado)));
-      const header=`<div class="hh-rank-row" style="grid-template-columns:130px 1fr 90px 90px 52px;color:var(--muted);font-size:10px;text-transform:uppercase">
-        <span>Canal</span><span></span><span style="text-align:right">Hoje</span><span style="text-align:right">Ontem</span><span></span>
-      </div>`;
-      const linhasHtml=linhasCanal.map(v=>{
-        const pct=Math.max(2,Math.round(v.atual/maxCanal*100));
-        const diff=v.comparado?((v.atual-v.comparado)/v.comparado*100):(v.atual>0?100:null);
-        const cls=diff==null?'':(diff>=0?'up':'down');
-        const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
-        return `<div class="hh-rank-row" style="grid-template-columns:130px 1fr 90px 90px 52px">
-          <span class="hh-rank-name"><span class="hh-dot" style="background:${cor(v.canal,v.i)}"></span>${v.canal}</span>
-          <span class="hh-rank-bar"><span class="hh-rank-fill" style="width:${pct}%;background:${cor(v.canal,v.i)}"></span></span>
-          <span class="hh-rank-valor num" style="white-space:nowrap">${comp(v.atual)}</span>
-          <span class="hh-rank-valor num" style="color:var(--muted);white-space:nowrap">${comp(v.comparado)}</span>
-          <span class="hh-rank-delta ${cls}">${diffTxt}</span>
-        </div>`;
-      }).join('');
-      return `${header}<div class="hh-rank">${linhasHtml}</div>`;
-    })()}
+    ${resumo.canaisHtml}
   </div>
   <div class="card">
     <h2><span class="ttl">${H()} Evolução do faturamento</span><span class="tag">acumulado ao longo do dia</span></h2>
