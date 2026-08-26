@@ -1752,13 +1752,14 @@ function renderHoraHoraPanel(){
   const totalP=linhasP.length?totalCanais(linhasP[linhasP.length-1],canais):0;
   const horaP=linhasP.length?linhasP[linhasP.length-1].time:'--:--';
   let variacaoHtml='<span class="hh-stat-sub">sem comparação</span>';
+  let totalCNoMesmoHorario=null;
   if(hhDiaComparar){
     const idxGrade=idxNaGrade(horaP);
-    const totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGrade]||0;
+    totalCNoMesmoHorario=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGrade]||0;
     const diff=totalCNoMesmoHorario?((totalP-totalCNoMesmoHorario)/totalCNoMesmoHorario*100):null;
     if(diff!=null){
       const cls=diff>=0?'up':'down';
-      variacaoHtml=`<span class="hh-stat-sub ${cls}">${diff>=0?'+':''}${diff.toFixed(1)}% vs ${fmtDiaLabel(hhDiaComparar)}</span>`;
+      variacaoHtml=`<span class="hh-stat-sub">ontem ${comp(totalCNoMesmoHorario)} <b class="${cls}" style="color:${diff>=0?'var(--pos)':'var(--neg)'}">${diff>=0?'+':''}${diff.toFixed(0)}%</b></span>`;
     }
   }
   const projHtml=proj
@@ -1784,10 +1785,10 @@ function renderHoraHoraPanel(){
     if(qtdPedidosC&&totalCq)ticketMedioC=totalCq/qtdPedidosC;
   }
   const deltaSub=(atual,comparado,unidadeFmt)=>{
-    if(comparado==null||!comparado)return{html:'',titulo:''};
+    if(comparado==null||!comparado)return{html:'<span class="hh-stat-sub">sem comparação</span>',titulo:''};
     const diff=(atual-comparado)/comparado*100;
-    const cls=diff>=0?'up':'down';
-    return {html:`<span class="hh-stat-sub ${cls}">${diff>=0?'+':''}${diff.toFixed(0)}% vs ${fmtDiaLabel(hhDiaComparar)}</span>`,titulo:` title="${fmtDiaLabel(hhDiaComparar)}: ${unidadeFmt(comparado)}"`};
+    const cor=diff>=0?'var(--pos)':'var(--neg)';
+    return {html:`<span class="hh-stat-sub">ontem ${unidadeFmt(comparado)} <b style="color:${cor}">${diff>=0?'+':''}${diff.toFixed(0)}%</b></span>`,titulo:` title="${fmtDiaLabel(hhDiaComparar)}: ${unidadeFmt(comparado)}"`};
   };
   const dPedidos=qtdPedidosP!=null?deltaSub(qtdPedidosP,qtdPedidosC,v=>Math.round(v)+' pedidos'):{html:'<span class="hh-stat-sub">total das duas contas</span>',titulo:''};
   const dTicket=ticketMedioP!=null?deltaSub(ticketMedioP,ticketMedioC,v=>comp(v)):{html:'<span class="hh-stat-sub">faturamento ÷ pedidos</span>',titulo:''};
@@ -1813,36 +1814,9 @@ function renderHoraHoraPanel(){
       <label>Dia</label><select id="hhSelPrincipal">${optsPrincipal}</select>
       <label>Comparar com</label><select id="hhSelComparar">${optsComparar}</select>
     </div>
-    <div class="hh-rank">${rankingHtml(canais,linhasP,linhasC)}</div>
-  </div>
-  <div class="card">
-    <h2><span class="ttl">${H()} Evolução do faturamento</span><span class="tag">acumulado ao longo do dia</span></h2>
-    <div id="hhResumo" class="hh-resumo"></div>
-    <div style="position:relative;height:280px"><canvas id="chHoraHora"></canvas></div>
-  </div>
-  <div class="card">
-    <h2><span class="ttl">${H()} Ritmo de vendas</span><span class="tag">faturamento por hora (não acumulado)</span></h2>
-    <div style="position:relative;height:280px"><canvas id="chRitmo"></canvas></div>
-  </div>
-  <div class="card">
-    <h2><span class="ttl">${H()} Comparativo com o dia anterior</span><span class="tag">no mesmo horário</span></h2>
     ${(()=>{
-      if(!hhDiaComparar)return '<div class="empty">Escolha um dia em "Comparar com" (lá em cima) pra ver o comparativo.</div>';
+      if(!hhDiaComparar)return `<div class="hh-rank">${rankingHtml(canais,linhasP,linhasC)}</div>`;
       const idxGradeKpi=idxNaGrade(horaP);
-      const totalC=projetarNaGrade(grade,linhasC,l=>totalCanais(l,canais))[idxGradeKpi]||0;
-
-      // -------- 3 KPIs principais, em destaque --------
-      const kpiCard=(label,atual,comparado,fmt)=>{
-        const diff=comparado?((atual-comparado)/comparado*100):(atual>0?100:null);
-        const cor=diff==null?'var(--muted)':diff>=0?'var(--pos)':'var(--neg)';
-        const diffTxt=diff==null?'—':(diff>=0?'+':'')+diff.toFixed(0)+'%';
-        return `<div class="hh-stat" style="padding:12px 14px"><span class="hh-stat-label">${label}</span><span class="hh-stat-value num" style="font-size:18px">${fmt(atual)}</span><span class="hh-stat-sub">ontem ${fmt(comparado)} <b style="color:${cor}">${diffTxt}</b></span></div>`;
-      };
-      let kpis=kpiCard('Faturamento',totalP,totalC,comp);
-      if(qtdPedidosP!=null)kpis+=kpiCard('Pedidos',qtdPedidosP,qtdPedidosC,v=>v==null?'—':String(Math.round(v)));
-      if(ticketMedioP!=null)kpis+=kpiCard('Ticket médio',ticketMedioP,ticketMedioC,comp);
-
-      // -------- canais: barra + hoje + ontem + delta% --------
       const linhasCanal=canais.map((c,i)=>{
         const atualC=ultimaLinhaP?ultimaLinhaP.porCanal[c]||0:0;
         const comparadoC=projetarNaGrade(grade,linhasC,l=>l.porCanal[c]||0)[idxGradeKpi]||0;
@@ -1865,11 +1839,17 @@ function renderHoraHoraPanel(){
           <span class="hh-rank-delta ${cls}">${diffTxt}</span>
         </div>`;
       }).join('');
-
-      return `<div class="hh-stats" style="margin-bottom:14px">${kpis}</div>
-      ${header}
-      <div class="hh-rank">${linhasHtml}</div>`;
+      return `${header}<div class="hh-rank">${linhasHtml}</div>`;
     })()}
+  </div>
+  <div class="card">
+    <h2><span class="ttl">${H()} Evolução do faturamento</span><span class="tag">acumulado ao longo do dia</span></h2>
+    <div id="hhResumo" class="hh-resumo"></div>
+    <div style="position:relative;height:280px"><canvas id="chHoraHora"></canvas></div>
+  </div>
+  <div class="card">
+    <h2><span class="ttl">${H()} Ritmo de vendas</span><span class="tag">faturamento por hora (não acumulado)</span></h2>
+    <div style="position:relative;height:280px"><canvas id="chRitmo"></canvas></div>
   </div>`;
 
   document.getElementById('hhSelPrincipal').onchange=(e)=>{hhDiaPrincipal=e.target.value;hhDiaComparar=null;renderHoraHoraPanel();};
