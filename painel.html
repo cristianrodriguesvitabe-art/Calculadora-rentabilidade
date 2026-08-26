@@ -1088,7 +1088,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
     const hojeStr=hojeISO();
     const hojeD=new Date();const ontemD=new Date(hojeD);ontemD.setDate(ontemD.getDate()-1);
     const ontemStr=isoLocal(ontemD);
-    const resumo=montaHhResumo(hojeStr,ontemStr);
+    const resumo=montaHhResumo(hojeStr,ontemStr,false);
     if(!resumo.temDados)return '';
     return resumo.statsHtml;
   })()));
@@ -1640,10 +1640,11 @@ function renderHoraHoraLive(){
   const ticketInfo=(ultima.qtdPedidos!=null&&ultima.qtdPedidos>0)
     ?`<span style="color:var(--muted);font-size:12px;margin-left:8px">· ${ultima.qtdPedidos} pedidos · ticket médio ${comp(ultima.total/ultima.qtdPedidos)}</span>`
     :'';
+  const rankingCard=(aba==='geral')?'':`<div class="hh-rank">${rankingHtml(canais,linhasHoje,linhasOntem,{limite:4})}</div>`;
   el.innerHTML=`<div class="card hh-live">
     <div class="hh-live-top"><span>🟢 Faturamento ao vivo · hoje</span><span>atualizado ${ultima.time}</span></div>
     <div class="hh-live-total num">${comp(totalHoje)} ${variacao}${ticketInfo}</div>
-    <div class="hh-rank">${rankingHtml(canais,linhasHoje,linhasOntem,{limite:4})}</div>
+    ${rankingCard}
   </div>`;
 }
 function diasDisponiveis(){
@@ -1743,7 +1744,8 @@ let hhDiaPrincipal=null,hhDiaComparar=null;
 // Ticket médio) e a tabela de canais (hoje/ontem/delta) — usado tanto na aba
 // Hora a Hora (com seletor de dia) quanto num resumo fixo na Visão Geral
 // (sempre hoje vs ontem, sem seletor).
-function montaHhResumo(diaPrincipal,diaComparar){
+function montaHhResumo(diaPrincipal,diaComparar,incluirFaturamento){
+  if(incluirFaturamento===undefined)incluirFaturamento=true;
   const canais=canaisAtivos();
   const linhasP=(horaHoraCache.linhas||[]).filter(l=>l.date===diaPrincipal);
   const linhasC=diaComparar?(horaHoraCache.linhas||[]).filter(l=>l.date===diaComparar):[];
@@ -1797,8 +1799,9 @@ function montaHhResumo(diaPrincipal,diaComparar){
   const ticketHtml=ticketMedioP!=null
     ?`<div class="hh-stat"${dTicket.titulo}><span class="hh-stat-label">Ticket médio</span><span class="hh-stat-value num">${comp(ticketMedioP)}</span>${dTicket.html}</div>`
     :'';
+  const faturamentoCard=incluirFaturamento?`<div class="hh-stat"><span class="hh-stat-label">Faturamento · ${fmtDiaLabel(diaPrincipal)}</span><span class="hh-stat-value num">${comp(totalP)}</span>${variacaoHtml}</div>`:'';
   const statsHtml=`<div class="hh-stats">
-    <div class="hh-stat"><span class="hh-stat-label">Faturamento · ${fmtDiaLabel(diaPrincipal)}</span><span class="hh-stat-value num">${comp(totalP)}</span>${variacaoHtml}</div>
+    ${faturamentoCard}
     ${projHtml}${metaHtml}${altaHtml}${pedidosHtml}${ticketHtml}
   </div>`;
 
