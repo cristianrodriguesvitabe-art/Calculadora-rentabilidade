@@ -950,14 +950,17 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
       total:r2(s.dados.slice(0,mesAtualIdx+1).reduce((a,b)=>a+(b||0),0))
     }));
     // -------- melhor/pior mês já registrado (todo o histórico) --------
-    let melhorMes=null,piorMes=null;
+    let melhorMes=null,piorMes=null,melhorMesSemBF=null;
+    const MES_BLACK_FRIDAY=10; // novembro (0-based) — mês da Black Friday, distorce a comparação "mês normal"
     evolucaoAno.series.forEach(s=>{
       s.dados.forEach((v,i)=>{
         if(v==null||v<=0)return;
-        // ignora o mês corrente (ainda incompleto) na disputa de "pior mês"
+        // ignora o mês corrente (ainda incompleto) na disputa de "melhor/pior mês"
         const ehMesCorrenteIncompleto=(s.ano===hoje.getFullYear()&&i===mesAtualIdx);
+        if(ehMesCorrenteIncompleto)return;
         if(!melhorMes||v>melhorMes.valor)melhorMes={ano:s.ano,mesIdx:i,valor:v};
-        if(!ehMesCorrenteIncompleto&&(!piorMes||v<piorMes.valor))piorMes={ano:s.ano,mesIdx:i,valor:v};
+        if(!piorMes||v<piorMes.valor)piorMes={ano:s.ano,mesIdx:i,valor:v};
+        if(i!==MES_BLACK_FRIDAY&&(!melhorMesSemBF||v>melhorMesSemBF.valor))melhorMesSemBF={ano:s.ano,mesIdx:i,valor:v};
       });
     });
     // -------- média de faturamento por dia da semana (últimos 12 meses) --------
@@ -970,6 +973,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     });
     const somaDia=[0,0,0,0,0,0,0],contDia=[0,0,0,0,0,0,0];
     porDiaSemanaMap.forEach((v,dateISO)=>{
+      if(v<=0)return; // dia sem faturamento real (linha vazia/zerada) não entra na média
       const dow=new Date(dateISO+'T00:00:00').getDay();
       somaDia[dow]+=v;contDia[dow]++;
     });
@@ -1028,16 +1032,18 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     const top5Meses=[...todosMeses].sort((a,b)=>b.valor-a.valor).slice(0,5);
 
     // -------- comparativo por trimestre, entre todos os anos --------
+    const trimestreAtualIdx=Math.floor(mesAtualIdx/3);
     const trimestrePorAno=evolucaoAno.series.map(s=>({
       ano:s.ano,
       q:[0,1,2,3].map(q=>{
         const meses3=s.dados.slice(q*3,q*3+3);
         const temDado=meses3.some(v=>v!=null&&v>0);
         return temDado?r2(meses3.reduce((a,b)=>a+(b||0),0)):null;
-      })
+      }),
+      emAndamentoQ:s.ano===hoje.getFullYear()?trimestreAtualIdx:null
     }));
 
-    return {ytdPorAno,mesAtualIdx,melhorMes,piorMes,mediaDiaSemana,mediaGeralSemana:r2(mediaGeralSemana),diaForte,diaFraco,ultimos4Tri,concentracaoPct,maiorCanal,diasRestantesTri,viabilidadeMetas,totalPorAno,top5Meses,trimestrePorAno};
+    return {ytdPorAno,mesAtualIdx,melhorMes,piorMes,melhorMesSemBF,mediaDiaSemana,mediaGeralSemana:r2(mediaGeralSemana),diaForte,diaFraco,ultimos4Tri,concentracaoPct,maiorCanal,diasRestantesTri,viabilidadeMetas,totalPorAno,top5Meses,trimestrePorAno};
   })();
 
   return {
@@ -2090,39 +2096,40 @@ function capaDashboardHtml_(r,kicker,titulo,alertasCapa){
   const ritmoCor=r.pctRealizado>=r.pctEsperado?'#2ebb22':'#ff3a1a';
   return `<div class="page capa">
   <div class="topo-logo">RENOVA BE</div>
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div class="kicker" style="margin-bottom:0">${kicker}</div>
-    <div style="font-size:12px;color:#96908d">${r.dataGeracao}</div>
-  </div>
-  <h1 style="font-size:32px;margin:10px 0 26px">${titulo}</h1>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
-    <div style="background:#231e1c;border-radius:12px;padding:16px">
-      <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Faturamento no mês</div>
-      <div style="font-size:21px;font-weight:800">${comp(r.pm.realizado)}</div>
-      ${spFat}
-      <div style="font-size:11px;color:#96908d;margin-top:2px">meta ${comp(r.pm.meta)}</div>
+  <div class="meio">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="kicker" style="margin-bottom:0">${kicker}</div>
     </div>
-    <div style="background:#231e1c;border-radius:12px;padding:16px">
-      <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Acumulado no ano</div>
-      <div style="font-size:21px;font-weight:800">${comp(r.ytdAtual.total)}</div>
-      ${spAcum}
-      <div style="font-size:11px;color:${r.ytdGrowth>=0?'#2ebb22':'#ff3a1a'};font-weight:700;margin-top:2px">${r.ytdGrowth!=null?(r.ytdGrowth>=0?'▲ ':'▼ ')+Math.abs(r.ytdGrowth).toFixed(0)+'% vs '+r.ytdAnterior.ano:'—'}</div>
+    <h1 style="font-size:32px;margin:10px 0 26px">${titulo}</h1>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+      <div style="background:#231e1c;border-radius:12px;padding:16px">
+        <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Faturamento no mês</div>
+        <div style="font-size:21px;font-weight:800">${comp(r.pm.realizado)}</div>
+        ${spFat}
+        <div style="font-size:11px;color:#96908d;margin-top:2px">meta ${comp(r.pm.meta)}</div>
+      </div>
+      <div style="background:#231e1c;border-radius:12px;padding:16px">
+        <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Acumulado no ano</div>
+        <div style="font-size:21px;font-weight:800">${comp(r.ytdAtual.total)}</div>
+        ${spAcum}
+        <div style="font-size:11px;color:${r.ytdGrowth>=0?'#2ebb22':'#ff3a1a'};font-weight:700;margin-top:2px">${r.ytdGrowth!=null?(r.ytdGrowth>=0?'▲ ':'▼ ')+Math.abs(r.ytdGrowth).toFixed(0)+'% vs '+r.ytdAnterior.ano:'—'}</div>
+      </div>
+      <div style="background:#231e1c;border-radius:12px;padding:16px;${r.pctRealizado<r.pctEsperado?'border:1px solid #ff3a1a44':''}">
+        <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Ritmo do trimestre</div>
+        <div style="font-size:21px;font-weight:800">${r.pctRealizado.toFixed(0)}%<span style="font-size:12px;color:#96908d;font-weight:400"> / ${r.pctEsperado.toFixed(0)}%</span></div>
+        <div style="height:6px;background:#332c29;border-radius:3px;margin-top:10px;position:relative"><div style="width:${Math.min(r.pctRealizado,100)}%;height:100%;background:#ea5339;border-radius:3px"></div><div style="position:absolute;left:${Math.min(r.pctEsperado,100)}%;top:-3px;bottom:-3px;width:2px;background:#c9a300"></div></div>
+        <div style="font-size:11px;color:${ritmoCor};font-weight:700;margin-top:6px">${r.pctRealizado>=r.pctEsperado?'▲ no ritmo ou acima':'▼ '+Math.abs(r.pctEsperado-r.pctRealizado).toFixed(0)+'pp atrás do esperado'}</div>
+      </div>
+      <div style="background:#231e1c;border-radius:12px;padding:16px">
+        <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">ROAS geral</div>
+        <div style="font-size:21px;font-weight:800">${r.c.roasGeral!=null?r.c.roasGeral.toFixed(2):'—'}</div>
+        ${spRoas}
+        <div style="font-size:11px;color:#96908d;margin-top:2px">meta ${(r.c.metaRoas||0).toFixed(1)}</div>
+      </div>
     </div>
-    <div style="background:#231e1c;border-radius:12px;padding:16px;${r.pctRealizado<r.pctEsperado?'border:1px solid #ff3a1a44':''}">
-      <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Ritmo do trimestre</div>
-      <div style="font-size:21px;font-weight:800">${r.pctRealizado.toFixed(0)}%<span style="font-size:12px;color:#96908d;font-weight:400"> / ${r.pctEsperado.toFixed(0)}%</span></div>
-      <div style="height:6px;background:#332c29;border-radius:3px;margin-top:10px;position:relative"><div style="width:${Math.min(r.pctRealizado,100)}%;height:100%;background:#ea5339;border-radius:3px"></div><div style="position:absolute;left:${Math.min(r.pctEsperado,100)}%;top:-3px;bottom:-3px;width:2px;background:#c9a300"></div></div>
-      <div style="font-size:11px;color:${ritmoCor};font-weight:700;margin-top:6px">${r.pctRealizado>=r.pctEsperado?'▲ no ritmo ou acima':'▼ '+Math.abs(r.pctEsperado-r.pctRealizado).toFixed(0)+'pp atrás do esperado'}</div>
+    <div style="display:flex;gap:12px">
+      ${alertasCapa}
     </div>
-    <div style="background:#231e1c;border-radius:12px;padding:16px">
-      <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">ROAS geral</div>
-      <div style="font-size:21px;font-weight:800">${r.c.roasGeral!=null?r.c.roasGeral.toFixed(2):'—'}</div>
-      ${spRoas}
-      <div style="font-size:11px;color:#96908d;margin-top:2px">meta ${(r.c.metaRoas||0).toFixed(1)}</div>
-    </div>
-  </div>
-  <div style="display:flex;gap:12px;margin-top:auto">
-    ${alertasCapa}
   </div>
   <div class="rodape-capa">
     <span>Preparado para a diretoria</span>
@@ -2245,7 +2252,8 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
     <tr><th>Ano</th><th class="num">Jan – ${MES[r.rl.mesAtualIdx]}</th><th class="num">Var. vs ano anterior</th></tr>
     ${r.ytd.map((y,i)=>{const ant=r.ytd[i-1];const v=ant&&ant.total?r2((y.total-ant.total)/ant.total*100):null;return `<tr${i===r.ytd.length-1?' class="tot"':''}><td>${y.ano}</td><td class="num">${comp(y.total)}</td><td class="num${v!=null?(v>=0?' up':' down'):''}">${v!=null?(v>=0?'+':'')+v.toFixed(0)+'%':'—'}</td></tr>`;}).join('')}
   </table>
-  ${r.rl.melhorMes?`<div class="insight bom">O melhor mês já registrado foi <b>${MES[r.rl.melhorMes.mesIdx]} de ${r.rl.melhorMes.ano}</b>, com ${comp(r.rl.melhorMes.valor)}.</div>`:''}
+  ${r.rl.melhorMes?`<div class="insight bom">O melhor mês já registrado foi <b>${MES[r.rl.melhorMes.mesIdx]} de ${r.rl.melhorMes.ano}</b>, com ${comp(r.rl.melhorMes.valor)}${r.rl.melhorMes.mesIdx===10?' — mês de Black Friday, então vale olhar também o melhor mês "normal" abaixo':''}.</div>`:''}
+  ${(r.rl.melhorMesSemBF&&r.rl.melhorMes&&r.rl.melhorMes.mesIdx===10)?`<div class="insight">Excluindo novembro (Black Friday, que distorce a comparação), o melhor mês foi <b>${MES[r.rl.melhorMesSemBF.mesIdx]} de ${r.rl.melhorMesSemBF.ano}</b>, com ${comp(r.rl.melhorMesSemBF.valor)}.</div>`:''}
 
   <div class="rodape"><span>Renova Be — Relatório interno</span><span>2 / 5</span></div>
 </div>
@@ -2326,7 +2334,20 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
   <div class="chartcard">
     <div style="display:flex;align-items:flex-end;gap:24px;height:170px">
       ${(()=>{
-        const anos=r.rl.trimestrePorAno;
+        // corrige o trimestre em andamento pra usar o mês corrente "até ontem"
+        // (não o mês inteiro, que ainda não aconteceu) — evita comparação injusta
+        const anos=r.rl.trimestrePorAno.map(a=>{
+          if(a.emAndamentoQ==null)return a;
+          const q=[...a.q];
+          const mesesDoQ=[a.emAndamentoQ*3,a.emAndamentoQ*3+1,a.emAndamentoQ*3+2];
+          if(mesesDoQ.includes(r.mesAtualIdx0)&&q[a.emAndamentoQ]!=null){
+            const idxNoQ=r.mesAtualIdx0-a.emAndamentoQ*3;
+            const mesesOriginais=d.evolucaoAno.series.find(s=>s.ano===a.ano).dados.slice(a.emAndamentoQ*3,a.emAndamentoQ*3+3);
+            const semMesCorrente=mesesOriginais.reduce((acc,v,i)=>i===idxNoQ?acc:acc+(v||0),0);
+            q[a.emAndamentoQ]=r2(semMesCorrente+(r.serieAtualAno[r.mesAtualIdx0]||0));
+          }
+          return {...a,q};
+        });
         const maxQ=Math.max(...anos.flatMap(a=>a.q.filter(v=>v!=null)),1);
         const coresAno=['#c7b8a2','#d9cdbd','#ea5339','#f6ddb0'];
         return [0,1,2,3].map(qIdx=>{
@@ -2338,32 +2359,42 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
                 const v=a.q[qIdx];if(v==null)return '';
                 const h=(v/maxQ)*100;
                 const ehAtual=a.ano===r.anoAtual;
+                const emAndamento=a.emAndamentoQ===qIdx;
                 return `<div style="display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;flex:1;max-width:36px">
-                  <div style="font-size:9.5px;font-weight:700;margin-bottom:3px;white-space:nowrap">${(v/1e6).toFixed(1)}Mi</div>
-                  <div style="width:100%;height:${Math.max(h,3)}%;background:${ehAtual?'#ea5339':coresAno[ai%coresAno.length]};border-radius:3px 3px 0 0"></div>
+                  <div style="font-size:9.5px;font-weight:700;margin-bottom:3px;white-space:nowrap">${(v/1e6).toFixed(1)}Mi${emAndamento?'*':''}</div>
+                  <div style="width:100%;height:${Math.max(h,3)}%;background:${ehAtual?'#ea5339':coresAno[ai%coresAno.length]};border-radius:3px 3px 0 0;${emAndamento?'background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.25) 0 4px,transparent 4px 8px)':''}"></div>
                 </div>`;
               }).join('')}
             </div>
-            <div style="font-size:11.5px;color:#75695f;margin-top:8px;font-weight:700">Q${qIdx+1}</div>
+            <div style="font-size:11.5px;color:#75695f;margin-top:8px;font-weight:700">Q${qIdx+1}${anos.find(a=>a.emAndamentoQ===qIdx)?' (em andamento)':''}</div>
           </div>`;
         }).join('');
       })()}
     </div>
-    <div class="legenda">${r.rl.trimestrePorAno.map((a,i)=>`<span><i style="background:${a.ano===r.anoAtual?'#ea5339':['#c7b8a2','#d9cdbd','#f6ddb0'][i%3]}"></i>${a.ano}</span>`).join('')}</div>
+    <div class="legenda">${r.rl.trimestrePorAno.map((a,i)=>`<span><i style="background:${a.ano===r.anoAtual?'#ea5339':['#c7b8a2','#d9cdbd','#f6ddb0'][i%3]}"></i>${a.ano}</span>`).join('')}<span>* trimestre em andamento, até dia ${r.diaCorteMesAtual||'—'} do mês corrente</span></div>
   </div>
   ${(()=>{
     const anoAtualQ=r.rl.trimestrePorAno.find(t=>t.ano===r.anoAtual);
     const anoAnteriorQ=r.rl.trimestrePorAno.find(t=>t.ano===r.anoAtual-1);
     if(!anoAtualQ||!anoAnteriorQ)return '';
+    // só entra na conclusão de tendência os trimestres JÁ FECHADOS — comparar
+    // um trimestre em andamento com um trimestre inteiro do ano anterior seria
+    // injusto e geraria uma leitura errada de "desaceleração"
     const comps=anoAtualQ.q.map((v,i)=>{
+      if(anoAtualQ.emAndamentoQ===i)return null;
       const ant=anoAnteriorQ.q[i];
       if(v==null||ant==null||!ant)return null;
       return {q:i+1,pct:r2((v-ant)/ant*100)};
     }).filter(x=>x!=null);
-    if(!comps.length)return '';
-    const ultimo=comps[comps.length-1];
-    const tendencia=comps.length>=2?(comps[comps.length-1].pct>comps[0].pct?'acelerando':'desacelerando'):'estável';
-    return `<div class="insight">O crescimento trimestral (${r.anoAtual} vs ${r.anoAtual-1}) está <b>${tendencia}</b>: ${comps.map(c=>'Q'+c.q+' '+(c.pct>=0?'+':'')+c.pct.toFixed(0)+'%').join(', ')}.</div>`;
+    let html='';
+    if(comps.length){
+      const tendencia=comps.length>=2?(comps[comps.length-1].pct>comps[0].pct?'acelerando':'desacelerando'):'estável';
+      html+=`<div class="insight">O crescimento trimestral (${r.anoAtual} vs ${r.anoAtual-1}), só nos trimestres já fechados, está <b>${tendencia}</b>: ${comps.map(c=>'Q'+c.q+' '+(c.pct>=0?'+':'')+c.pct.toFixed(0)+'%').join(', ')}.</div>`;
+    }
+    if(anoAtualQ.emAndamentoQ!=null){
+      html+=`<div class="insight" style="border-left-color:#c9a300;background:#fdf3d9">🕐 Q${anoAtualQ.emAndamentoQ+1}/${r.anoAtual} ainda está <b>em andamento</b> (até o dia ${r.diaCorteMesAtual||'—'} do mês corrente) — o valor mostrado no gráfico vai crescer até o fechamento do trimestre, não é comparável ainda com os trimestres completos.</div>`;
+    }
+    return html;
   })()}
 
   <div class="rodape"><span>Renova Be — Relatório interno</span><span>4 / 5</span></div>
