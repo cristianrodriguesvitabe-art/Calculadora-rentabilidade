@@ -1934,12 +1934,16 @@ function renderHoraHoraPanel(){
     <div style="position:relative;height:280px"><canvas id="chHoraHora"></canvas></div>
   </div>
   <div class="card">
-    <h2><span class="ttl">${H()} Ritmo de vendas</span><span class="tag">faturamento por hora (não acumulado)</span></h2>
-    <div style="position:relative;height:280px"><canvas id="chRitmo"></canvas></div>
-  </div>
-  <div class="card">
-    <h2><span class="ttl">${H()} Ticket médio por hora</span><span class="tag">faturamento ÷ pedidos de cada hora (não a média acumulada do dia)</span></h2>
-    <div style="position:relative;height:280px"><canvas id="chTicket"></canvas></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <h2 style="margin-bottom:8px"><span class="ttl">${H()} Ritmo de vendas</span></h2>
+        <div style="position:relative;height:240px"><canvas id="chRitmo"></canvas></div>
+      </div>
+      <div style="border-left:1px solid var(--line);padding-left:20px">
+        <h2 style="margin-bottom:8px"><span class="ttl">${H()} Ticket médio por hora</span></h2>
+        <div style="position:relative;height:240px"><canvas id="chTicket"></canvas></div>
+      </div>
+    </div>
   </div>`;
 
   document.getElementById('hhSelPrincipal').onchange=(e)=>{hhDiaPrincipal=e.target.value;hhDiaComparar=null;renderHoraHoraPanel();};
@@ -1981,27 +1985,40 @@ function renderHoraHoraPanel(){
   }
   resumoEl.innerHTML=html;
 
-  // -------- gráfico de ritmo: faturamento por hora, não acumulado --------
+  // -------- gráfico de ritmo: faturamento por hora, não acumulado — linha
+  // com área em gradiente, mesmo estilo do "Faturamento diário" --------
   const horasLabel=Array.from({length:24},(_,h)=>String(h).padStart(2,'0')+'h');
-  const dsRitmo=[{label:fmtDiaLabel(hhDiaPrincipal),data:deltasPorHora(linhasP,canais),backgroundColor:TC.ink,borderRadius:3}];
+  const gradFat=ctxOuGrad_(document.getElementById('chRitmo'),'234,83,57');
+  const dsRitmo=[{label:fmtDiaLabel(hhDiaPrincipal),data:deltasPorHora(linhasP,canais),borderColor:'#ea5339',backgroundColor:gradFat,fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}];
   if(hhDiaComparar){
-    dsRitmo.push({label:fmtDiaLabel(hhDiaComparar),data:deltasPorHora(linhasC,canais),backgroundColor:'#7d7d7d',borderRadius:3});
+    dsRitmo.push({label:fmtDiaLabel(hhDiaComparar),data:deltasPorHora(linhasC,canais),borderColor:'#7d7d7d',backgroundColor:'transparent',fill:false,borderDash:[6,4],tension:.25,pointRadius:0,borderWidth:1.5,spanGaps:true});
   }
   const ctxR=document.getElementById('chRitmo').getContext('2d');
   const oR=baseLine();oR.maintainAspectRatio=false;
   oR.plugins.tooltip={callbacks:{label:x=>x.dataset.label+': '+comp(x.parsed.y)}};
-  oR.scales.x.stacked=false;
-  hhChartRitmo=new Chart(ctxR,{type:'bar',data:{labels:horasLabel,datasets:dsRitmo},options:oR});
+  hhChartRitmo=new Chart(ctxR,{type:'line',data:{labels:horasLabel,datasets:dsRitmo},options:oR});
 
-  // -------- gráfico de ticket médio por hora --------
-  const dsTicket=[{label:fmtDiaLabel(hhDiaPrincipal),data:ticketMedioPorHora(linhasP,canais),borderColor:TC.ink,backgroundColor:TC.ink,tension:.25,pointRadius:2,borderWidth:2,spanGaps:true}];
+  // -------- gráfico de ticket médio por hora — mesmo estilo/cor --------
+  const gradTicket=ctxOuGrad_(document.getElementById('chTicket'),'234,83,57');
+  const dsTicket=[{label:fmtDiaLabel(hhDiaPrincipal),data:ticketMedioPorHora(linhasP,canais),borderColor:'#ea5339',backgroundColor:gradTicket,fill:true,tension:.25,pointRadius:0,borderWidth:2,spanGaps:true}];
   if(hhDiaComparar){
-    dsTicket.push({label:fmtDiaLabel(hhDiaComparar),data:ticketMedioPorHora(linhasC,canais),borderColor:'#7d7d7d',backgroundColor:'#7d7d7d',borderDash:[6,4],tension:.25,pointRadius:2,borderWidth:1.5,spanGaps:true});
+    dsTicket.push({label:fmtDiaLabel(hhDiaComparar),data:ticketMedioPorHora(linhasC,canais),borderColor:'#7d7d7d',backgroundColor:'transparent',fill:false,borderDash:[6,4],tension:.25,pointRadius:0,borderWidth:1.5,spanGaps:true});
   }
   const ctxT=document.getElementById('chTicket').getContext('2d');
   const oT=baseLine();oT.maintainAspectRatio=false;
   oT.plugins.tooltip={callbacks:{label:x=>x.dataset.label+': '+comp(x.parsed.y)}};
   hhChartTicket=new Chart(ctxT,{type:'line',data:{labels:horasLabel,datasets:dsTicket},options:oT});
+}
+
+// Cria o gradiente vertical (cor cheia embaixo da linha, sumindo pro topo)
+// usado no preenchimento dos gráficos de área do Hora a Hora
+function ctxOuGrad_(canvasEl,rgb){
+  const ctx=canvasEl.getContext('2d');
+  const h=canvasEl.parentElement.clientHeight||240;
+  const grad=ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,`rgba(${rgb},.35)`);
+  grad.addColorStop(1,`rgba(${rgb},0)`);
+  return grad;
 }
 
 function iniciarPainel(){initPerfis();marcaRange('mes');loadConfigInicial().then(()=>{
