@@ -2442,30 +2442,51 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
     📅 <b>Período comparado: Jan–${MES[r.mesAtualIdx0]}/${r.anoAtual} vs Jan–${MES[r.mesAtualIdx0]}/${r.rl.anoAnteriorN}</b> — mesmo intervalo de meses nos dois anos, pra ser uma comparação justa (não é ano fechado contra ano em andamento).
   </div>
 
-  <h2 style="margin-top:0">Participação por canal — todos</h2>
-  <div class="chartcard">
-    ${(()=>{
-      const maxPct=Math.max(...r.rl.evolucaoCanais.map(c=>Math.max(c.pctAtual,c.pctAnterior)),1);
-      return r.rl.evolucaoCanais.map(c=>{
-        const wAnt=Math.max((c.pctAnterior/maxPct)*100,3);
-        const wAtu=Math.max((c.pctAtual/maxPct)*100,3);
-        const cor=c.variacaoPP>0?'#1f8a15':(c.variacaoPP<0?'#c92f14':'#96908d');
-        const sinal=c.variacaoPP>=0?'+':'';
-        return `<div style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-            <span style="font-weight:700;font-size:13px">${c.canal}${c.ehNovo?' <span class="pill ok" style="margin-left:4px">novo</span>':''}${c.sumiu?' <span class="pill risco" style="margin-left:4px">saiu</span>':''}</span>
-            <span style="font-size:11.5px;color:${cor};font-weight:700">${sinal}${c.variacaoPP.toFixed(0)}pp${c.variacaoPct!=null?' · '+(c.variacaoPct>=0?'+':'')+c.variacaoPct.toFixed(0)+'%':''}</span>
-          </div>
-          <div style="display:flex;gap:3px;height:16px">
-            <div style="width:${wAnt}%;background:#e4dcd2;border-radius:3px 0 0 3px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:9px;color:#75695f;white-space:nowrap;overflow:hidden">${c.pctAnterior.toFixed(0)}%</div>
-            <div style="width:${wAtu}%;background:${cor};border-radius:0 3px 3px 0;display:flex;align-items:center;padding-left:6px;font-size:9px;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden">${c.pctAtual.toFixed(0)}%</div>
-          </div>
-          <div style="font-size:10px;color:#96908d;margin-top:2px">${comp(c.valAnterior)} (${r.rl.anoAnteriorN}) → ${comp(c.valAtual)} (${r.anoAtual})</div>
-        </div>`;
-      }).join('');
-    })()}
-    <div class="legenda"><span><i style="background:#e4dcd2"></i>Jan–${MES[r.mesAtualIdx0]}/${r.rl.anoAnteriorN}</span><span><i style="background:#96908d"></i>Jan–${MES[r.mesAtualIdx0]}/${r.anoAtual}</span></div>
+  <h2 style="margin-top:0">Participação vs. crescimento — por canal</h2>
+  <p class="lead">Duas coisas diferentes: <b>participação</b> é a fatia do total (pode cair mesmo com o canal crescendo, se os outros crescerem mais rápido); <b>crescimento</b> é o quanto o faturamento daquele canal mudou, sozinho.</p>
+  <div class="duocol">
+    <div class="chartcard">
+      <div class="titulo-mini">📊 Participação no total — variação (pp)</div>
+      ${(()=>{
+        const ordenado=[...r.rl.evolucaoCanais].filter(c=>!c.ehNovo).sort((a,b)=>b.variacaoPP-a.variacaoPP);
+        const maxPct=Math.max(...ordenado.map(c=>c.pctAtual),1);
+        return ordenado.map(c=>{
+          const w=Math.max((c.pctAtual/maxPct)*100,3);
+          const cor=c.variacaoPP>0?'#1f8a15':(c.variacaoPP<0?'#c92f14':'#96908d');
+          const sinal=c.variacaoPP>=0?'+':'';
+          return `<div style="margin-bottom:11px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+              <span>${c.canal}${c.sumiu?' <span class="pill risco" style="margin-left:4px">saiu</span>':''}</span>
+              <span style="color:${cor};font-weight:700">${sinal}${c.variacaoPP.toFixed(0)}pp</span>
+            </div>
+            <div style="height:8px;background:#eee6da;border-radius:4px"><div style="width:${w}%;height:100%;background:${cor};border-radius:4px"></div></div>
+          </div>`;
+        }).join('');
+      })()}
+      ${r.rl.canaisNovos.length?`<div style="font-size:11px;color:#96908d;margin-top:6px">+ ${r.rl.canaisNovos.length} canal(is) novo(s), sem base de comparação: ${r.rl.canaisNovos.map(c=>c.canal).join(', ')}</div>`:''}
+    </div>
+    <div class="chartcard">
+      <div class="titulo-mini">📈 Crescimento do faturamento (%)</div>
+      ${(()=>{
+        const comCrescimento=r.rl.evolucaoCanais.filter(c=>c.variacaoPct!=null&&!c.sumiu);
+        const ordenado=[...comCrescimento].sort((a,b)=>b.variacaoPct-a.variacaoPct);
+        const maxPct=Math.max(...ordenado.map(c=>Math.abs(c.variacaoPct)),1);
+        return ordenado.map(c=>{
+          const w=Math.max((Math.abs(c.variacaoPct)/maxPct)*100,3);
+          const cor=c.variacaoPct>0?'#1f8a15':(c.variacaoPct<0?'#c92f14':'#96908d');
+          const sinal=c.variacaoPct>=0?'+':'';
+          return `<div style="margin-bottom:11px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+              <span>${c.canal}${c.ehNovo?' <span class="pill ok" style="margin-left:4px">novo</span>':''}</span>
+              <span style="color:${cor};font-weight:700">${sinal}${c.variacaoPct.toFixed(0)}%</span>
+            </div>
+            <div style="height:8px;background:#eee6da;border-radius:4px"><div style="width:${w}%;height:100%;background:${cor};border-radius:4px"></div></div>
+          </div>`;
+        }).join('');
+      })()}
+    </div>
   </div>
+  <p class="lead" style="margin-top:8px">${r.rl.anoAnteriorN}: ${comp(r.rl.evolucaoCanais.reduce((a,c)=>a+c.valAnterior,0))} · ${r.anoAtual}: ${comp(r.rl.evolucaoCanais.reduce((a,c)=>a+c.valAtual,0))} (Jan–${MES[r.mesAtualIdx0]})</p>
 
   ${(()=>{
     const barraPar=(c,cor)=>{
