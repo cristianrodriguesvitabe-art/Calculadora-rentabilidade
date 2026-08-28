@@ -1043,7 +1043,38 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
       emAndamentoQ:s.ano===hoje.getFullYear()?trimestreAtualIdx:null
     }));
 
-    return {ytdPorAno,mesAtualIdx,melhorMes,piorMes,melhorMesSemBF,mediaDiaSemana,mediaGeralSemana:r2(mediaGeralSemana),diaForte,diaFraco,ultimos4Tri,concentracaoPct,maiorCanal,diasRestantesTri,viabilidadeMetas,totalPorAno,top5Meses,trimestrePorAno};
+    // -------- evolução de canais: quem ganhou/perdeu força, quem é novo --------
+    // Compara o mesmo período do ano (YTD, até o mês corrente) entre o ano
+    // atual e o anterior — assim é uma comparação justa, sem viés de meses
+    // que um ano tem e o outro ainda não.
+    const anoAtualN=hoje.getFullYear(),anoAnteriorN=anoAtualN-1;
+    const canalAnoYTD={};
+    revF.forEach(x=>{
+      const ano=yOf(x.date),mes=mOf(x.date);
+      if(mes>mesAtualIdx+1)return; // só até o mês corrente, pra ficar YTD comparável
+      if(ano!==anoAtualN&&ano!==anoAnteriorN)return;
+      if(!canalAnoYTD[x.canal])canalAnoYTD[x.canal]={};
+      canalAnoYTD[x.canal][ano]=(canalAnoYTD[x.canal][ano]||0)+x.faturamento;
+    });
+    const totalAtualYTD=Object.values(canalAnoYTD).reduce((a,c)=>a+(c[anoAtualN]||0),0);
+    const totalAnteriorYTD=Object.values(canalAnoYTD).reduce((a,c)=>a+(c[anoAnteriorN]||0),0);
+    const evolucaoCanais=Object.keys(canalAnoYTD).map(c=>{
+      const valAtual=canalAnoYTD[c][anoAtualN]||0;
+      const valAnterior=canalAnoYTD[c][anoAnteriorN]||0;
+      const pctAtual=totalAtualYTD?r2(valAtual/totalAtualYTD*100):0;
+      const pctAnterior=totalAnteriorYTD?r2(valAnterior/totalAnteriorYTD*100):0;
+      const variacaoPct=valAnterior?r2((valAtual-valAnterior)/valAnterior*100):(valAtual>0?null:null);
+      return {
+        canal:c,valAtual:r2(valAtual),valAnterior:r2(valAnterior),pctAtual,pctAnterior,
+        variacaoPct,variacaoPP:r2(pctAtual-pctAnterior),
+        ehNovo:valAnterior<=0&&valAtual>0,sumiu:valAtual<=0&&valAnterior>0
+      };
+    }).filter(x=>x.valAtual>0||x.valAnterior>0).sort((a,b)=>b.valAtual-a.valAtual);
+    const canaisGanhandoForca=evolucaoCanais.filter(x=>!x.ehNovo&&x.variacaoPP>=2).sort((a,b)=>b.variacaoPP-a.variacaoPP);
+    const canaisPerdendoForca=evolucaoCanais.filter(x=>!x.sumiu&&x.variacaoPP<=-2).sort((a,b)=>a.variacaoPP-b.variacaoPP);
+    const canaisNovos=evolucaoCanais.filter(x=>x.ehNovo);
+
+    return {ytdPorAno,mesAtualIdx,melhorMes,piorMes,melhorMesSemBF,mediaDiaSemana,mediaGeralSemana:r2(mediaGeralSemana),diaForte,diaFraco,ultimos4Tri,concentracaoPct,maiorCanal,diasRestantesTri,viabilidadeMetas,totalPorAno,top5Meses,trimestrePorAno,evolucaoCanais,canaisGanhandoForca,canaisPerdendoForca,canaisNovos,anoAnteriorN};
   })();
 
   return {
@@ -2258,7 +2289,7 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
   </table>
   ${r.rl.melhorMes?`<div class="insight bom">O melhor mês já registrado foi <b>${MES[r.rl.melhorMes.mesIdx]} de ${r.rl.melhorMes.ano}</b>, com ${comp(r.rl.melhorMes.valor)}${r.rl.melhorMes.mesIdx===10?' — mês de Black Friday, veja o melhor mês "normal" na página de Sazonalidade':''}.</div>`:''}
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>2 / 5</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>2 / 6</span></div>
 </div>
 
 <div class="page">
@@ -2327,7 +2358,7 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
     })()}
   </div>
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>3 / 5</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>3 / 6</span></div>
 </div>
 
 <div class="page">
@@ -2400,7 +2431,56 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
     return html;
   })()}
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>4 / 5</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>4 / 6</span></div>
+</div>
+
+<div class="page">
+  <div class="topo"><span class="logo">RENOVA BE</span><span class="secname">Movimentação de canais</span></div>
+  <h1 class="pagetitle">Quem ganhou força, quem perdeu, e quem é novo</h1>
+  <p class="lead">Comparando o mesmo período do ano (até ${MES[r.mesAtualIdx0]}) entre ${r.anoAtual} e ${r.rl.anoAnteriorN}.</p>
+
+  <table style="font-size:12px">
+    <tr><th>Canal</th><th class="num">${r.anoAtual}</th><th class="num">% do total</th><th class="num">${r.rl.anoAnteriorN}</th><th class="num">% do total</th><th class="num">Variação</th></tr>
+    ${r.rl.evolucaoCanais.map(c=>`<tr>
+      <td>${c.canal}${c.ehNovo?' <span class="pill ok" style="margin-left:4px">novo</span>':''}${c.sumiu?' <span class="pill risco" style="margin-left:4px">saiu</span>':''}</td>
+      <td class="num">${comp(c.valAtual)}</td>
+      <td class="num">${c.pctAtual.toFixed(0)}%</td>
+      <td class="num">${comp(c.valAnterior)}</td>
+      <td class="num">${c.pctAnterior.toFixed(0)}%</td>
+      <td class="num ${c.variacaoPP>0?'up':(c.variacaoPP<0?'down':'')}">${c.ehNovo?'—':(c.variacaoPct!=null?(c.variacaoPct>=0?'+':'')+c.variacaoPct.toFixed(0)+'%':'—')} <span style="color:#75695f;font-weight:400">(${c.variacaoPP>=0?'+':''}${c.variacaoPP.toFixed(0)}pp)</span></td>
+    </tr>`).join('')}
+  </table>
+  <p class="lead" style="margin-top:-2px">pp = pontos percentuais de participação no total</p>
+
+  ${(()=>{
+    const barraPar=(c,cor)=>{
+      const maxPct=Math.max(c.pctAtual,c.pctAnterior,1);
+      const wAnt=Math.max((c.pctAnterior/maxPct)*100,4);
+      const wAtu=Math.max((c.pctAtual/maxPct)*100,4);
+      const sinal=c.variacaoPP>=0?'+':'';
+      return `<div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:700;font-size:13.5px">${c.canal}</span>
+          <span style="font-size:12px;color:${cor};font-weight:700">${sinal}${c.variacaoPP.toFixed(0)}pp</span>
+        </div>
+        <div style="display:flex;gap:3px;height:18px">
+          <div style="width:${wAnt}%;background:#e4dcd2;border-radius:3px 0 0 3px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:9.5px;color:#75695f;white-space:nowrap;overflow:hidden">${c.pctAnterior.toFixed(0)}% ano passado</div>
+          <div style="width:${wAtu}%;background:${cor};border-radius:0 3px 3px 0;display:flex;align-items:center;padding-left:6px;font-size:9.5px;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden">${c.pctAtual.toFixed(0)}% hoje</div>
+        </div>
+        <div style="font-size:10.5px;color:#96908d;margin-top:3px">${comp(c.valAnterior)} → ${comp(c.valAtual)}</div>
+      </div>`;
+    };
+    let html='';
+    html+='<h2>Ganhando força</h2>';
+    html+=r.rl.canaisGanhandoForca.length?`<div class="chartcard">${r.rl.canaisGanhandoForca.slice(0,4).map(c=>barraPar(c,'#1f8a15')).join('')}</div>`:'<div class="insight">Nenhum canal com ganho relevante de participação (≥2pp) no período.</div>';
+    html+='<h2>Perdendo força</h2>';
+    html+=r.rl.canaisPerdendoForca.length?`<div class="chartcard">${r.rl.canaisPerdendoForca.slice(0,4).map(c=>barraPar(c,'#c92f14')).join('')}</div>`:'<div class="insight">Nenhum canal com perda relevante de participação (≥2pp) no período.</div>';
+    return html;
+  })()}
+
+  ${r.rl.canaisNovos.length?`<h2>Canais novos</h2>${r.rl.canaisNovos.map(c=>`<div class="insight">🆕 <b>${c.canal}</b> não existia no mesmo período de ${r.rl.anoAnteriorN} — já fatura ${comp(c.valAtual)} (${c.pctAtual.toFixed(0)}% do total).</div>`).join('')}`:''}
+
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>5 / 6</span></div>
 </div>
 
 <div class="page">
@@ -2423,7 +2503,7 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
   </div>`;
   })()}
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>5 / 5</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>6 / 6</span></div>
 </div>
 
 </body>
