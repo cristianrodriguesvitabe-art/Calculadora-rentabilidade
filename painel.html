@@ -1933,6 +1933,7 @@ let hhDiaPrincipal=null,hhDiaComparar=null;
 function dadosRelatorio_(d,cfg){
   const c=d.cards,pj=d.projecao,pm=pj.projecaoMes,rl=d.relatorio,rq=d.resumoQuarter;
   const DIAF=['dom','seg','ter','qua','qui','sex','sáb'];
+  const DIA_COMPLETO=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
   const hoje=new Date();
   const dataGeracao=hoje.toLocaleDateString('pt-BR');
   const anoAtual=hoje.getFullYear();
@@ -2053,7 +2054,10 @@ function dadosRelatorio_(d,cfg){
   const metasRows=rl.viabilidadeMetas.map(m=>`<tr><td>${m.nivel}</td><td class="num">${comp(m.meta)}</td><td class="num">${comp(m.falta)}</td><td>${m.ritmoNecessario!=null?comp(m.ritmoNecessario):'—'}</td><td><span class="pill ${statusClasse[m.status]}">${statusLabel[m.status]}</span></td></tr>`).join('');
 
   const alertasHtml=(d.alertasQueda&&d.alertasQueda.length)
-    ? d.alertasQueda.slice(0,5).map(a=>`<div class="insight alerta">⚠️ <b>${a.canal}</b> faturou ${comp(a.ontem)} na última ${a.diaSemana}-feira fechada, <b>${comp(a.quedaAbs)} abaixo</b> da média histórica desse dia (${comp(a.media)}) — vale checar ruptura de estoque, anúncio ou concorrência pontual.</div>`).join('')
+    ? d.alertasQueda.slice(0,5).map(a=>{
+        const diaTxt=(a.diaSemana==='domingo'||a.diaSemana==='sábado')?a.diaSemana:a.diaSemana+'-feira';
+        return `<div class="insight alerta">⚠️ <b>${a.canal}</b> faturou ${comp(a.ontem)} na última ${diaTxt} fechada, <b>${comp(a.quedaAbs)} abaixo</b> da média histórica desse dia (${comp(a.media)}) — vale checar ruptura de estoque, anúncio ou concorrência pontual.</div>`;
+      }).join('')
     : `<div class="insight bom">✅ Nenhum canal com queda relevante (≥ R$10.000) identificada no fechamento mais recente.</div>`;
 
   const recomendacoes=[];
@@ -2074,7 +2078,7 @@ function dadosRelatorio_(d,cfg){
   const recomendacoesHtml=recomendacoes.length?recomendacoes.map((r,i)=>`<div class="reccard"><div class="recnum">${i+1}</div><div><div class="rectitle">${r.titulo}</div><div class="rectext">${r.texto}</div></div></div>`).join('')
     :'<div class="insight bom">Nenhum ponto crítico identificado nesta leitura — operação dentro do padrão esperado.</div>';
 
-  return {c,pj,pm,rl,rq,DIAF,hoje,dataGeracao,anoAtual,statusCor,statusTxt,ytd,ytdAtual,ytdAnterior,ytdGrowth,
+  return {c,pj,pm,rl,rq,DIAF,DIA_COMPLETO,hoje,dataGeracao,anoAtual,statusCor,statusTxt,ytd,ytdAtual,ytdAnterior,ytdGrowth,
     triAtualNum,pctEsperado,pctRealizado,hiatoRS,barrasAnoHtml,barrasSemanaHtml,rankingCanaisHtml,roscaHtml,
     roasTriHtml,metasRows,alertasHtml,recomendacoesHtml,d,cfg,serieAtualAno,mesAtualIdx0,diaCorteMesAtual};
 }
@@ -2153,9 +2157,9 @@ function gerarRelatorioAnualHTML(d,cfg){
   }
   *{box-sizing:border-box}
   body{font-family:'Zalando Sans',system-ui,sans-serif;color:var(--ink);background:#ddd3c6;margin:0;line-height:1.55}
-  .page{max-width:920px;margin:0 auto 28px;padding:56px;background:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.12)}
+  .page{max-width:min(94vw,920px);margin:0 auto 28px;padding:56px;background:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.12)}
   @media screen and (min-width:1180px){
-    .page{max-width:1100px;padding:64px 72px}
+    .page{max-width:min(90vw,1400px);padding:64px 72px}
   }
 
   .capa{background:var(--dark);color:#f5efe8;min-height:1000px;display:flex;flex-direction:column;justify-content:space-between}
@@ -2252,8 +2256,7 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
     <tr><th>Ano</th><th class="num">Jan – ${MES[r.rl.mesAtualIdx]}</th><th class="num">Var. vs ano anterior</th></tr>
     ${r.ytd.map((y,i)=>{const ant=r.ytd[i-1];const v=ant&&ant.total?r2((y.total-ant.total)/ant.total*100):null;return `<tr${i===r.ytd.length-1?' class="tot"':''}><td>${y.ano}</td><td class="num">${comp(y.total)}</td><td class="num${v!=null?(v>=0?' up':' down'):''}">${v!=null?(v>=0?'+':'')+v.toFixed(0)+'%':'—'}</td></tr>`;}).join('')}
   </table>
-  ${r.rl.melhorMes?`<div class="insight bom">O melhor mês já registrado foi <b>${MES[r.rl.melhorMes.mesIdx]} de ${r.rl.melhorMes.ano}</b>, com ${comp(r.rl.melhorMes.valor)}${r.rl.melhorMes.mesIdx===10?' — mês de Black Friday, então vale olhar também o melhor mês "normal" abaixo':''}.</div>`:''}
-  ${(r.rl.melhorMesSemBF&&r.rl.melhorMes&&r.rl.melhorMes.mesIdx===10)?`<div class="insight">Excluindo novembro (Black Friday, que distorce a comparação), o melhor mês foi <b>${MES[r.rl.melhorMesSemBF.mesIdx]} de ${r.rl.melhorMesSemBF.ano}</b>, com ${comp(r.rl.melhorMesSemBF.valor)}.</div>`:''}
+  ${r.rl.melhorMes?`<div class="insight bom">O melhor mês já registrado foi <b>${MES[r.rl.melhorMes.mesIdx]} de ${r.rl.melhorMes.ano}</b>, com ${comp(r.rl.melhorMes.valor)}${r.rl.melhorMes.mesIdx===10?' — mês de Black Friday, veja o melhor mês "normal" na página de Sazonalidade':''}.</div>`:''}
 
   <div class="rodape"><span>Renova Be — Relatório interno</span><span>2 / 5</span></div>
 </div>
@@ -2408,13 +2411,17 @@ ${capaDashboardHtml_(r,'Relatório anual · confidencial',(r.rl.melhorMes&&r.rl.
     <div class="titulo-mini">Faturamento médio por dia da semana · últimos 12 meses</div>
     <div style="display:flex;align-items:flex-end;gap:12px;height:150px">${r.barrasSemanaHtml}</div>
   </div>
-  <div class="insight">Seu dia mais forte é <b>${r.DIAF[r.rl.diaForte]}-feira</b> (${comp(r.rl.mediaDiaSemana[r.rl.diaForte])}/dia em média); o mais fraco é <b>${r.DIAF[r.rl.diaFraco]}-feira</b>.</div>
+  <div class="insight">Seu dia mais forte é <b>${r.DIA_COMPLETO[r.rl.diaForte]}</b> (${comp(r.rl.mediaDiaSemana[r.rl.diaForte])}/dia em média); o mais fraco é <b>${r.DIA_COMPLETO[r.rl.diaFraco]}</b>.</div>
 
   <h2>Melhor e pior mês da história</h2>
-  <div class="kgrid" style="grid-template-columns:repeat(2,1fr)">
-    <div class="kcard" style="border-left:3px solid #1f8a15"><div class="lbl">Melhor mês registrado</div><div class="val">${r.rl.melhorMes?MES[r.rl.melhorMes.mesIdx]+' '+r.rl.melhorMes.ano:'—'}</div><div class="sub" style="color:#75695f">${r.rl.melhorMes?comp(r.rl.melhorMes.valor)+' faturados':''}</div></div>
+  ${(()=>{
+    const mostrarSemBF=r.rl.melhorMesSemBF&&r.rl.melhorMes&&r.rl.melhorMes.mesIdx===10;
+    return `<div class="kgrid" style="grid-template-columns:repeat(${mostrarSemBF?3:2},1fr)">
+    <div class="kcard" style="border-left:3px solid #1f8a15"><div class="lbl">Melhor mês registrado</div><div class="val">${r.rl.melhorMes?MES[r.rl.melhorMes.mesIdx]+' '+r.rl.melhorMes.ano:'—'}</div><div class="sub" style="color:#75695f">${r.rl.melhorMes?comp(r.rl.melhorMes.valor)+' faturados'+(mostrarSemBF?' · mês de Black Friday':''):''}</div></div>
+    ${mostrarSemBF?`<div class="kcard" style="border-left:3px solid #ea5339"><div class="lbl">Melhor mês "normal" (sem Black Friday)</div><div class="val">${MES[r.rl.melhorMesSemBF.mesIdx]} ${r.rl.melhorMesSemBF.ano}</div><div class="sub" style="color:#75695f">${comp(r.rl.melhorMesSemBF.valor)} faturados</div></div>`:''}
     <div class="kcard" style="border-left:3px solid #c92f14"><div class="lbl">Mês mais fraco</div><div class="val">${r.rl.piorMes?MES[r.rl.piorMes.mesIdx]+' '+r.rl.piorMes.ano:'—'}</div><div class="sub" style="color:#75695f">${r.rl.piorMes?comp(r.rl.piorMes.valor)+' faturados':''}</div></div>
-  </div>
+  </div>`;
+  })()}
 
   <div class="rodape"><span>Renova Be — Relatório interno</span><span>5 / 5</span></div>
 </div>
@@ -2438,9 +2445,9 @@ function gerarRelatorioTrimestralHTML(d,cfg){
   }
   *{box-sizing:border-box}
   body{font-family:'Zalando Sans',system-ui,sans-serif;color:var(--ink);background:#ddd3c6;margin:0;line-height:1.55}
-  .page{max-width:920px;margin:0 auto 28px;padding:56px;background:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.12)}
+  .page{max-width:min(94vw,920px);margin:0 auto 28px;padding:56px;background:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.12)}
   @media screen and (min-width:1180px){
-    .page{max-width:1100px;padding:64px 72px}
+    .page{max-width:min(90vw,1400px);padding:64px 72px}
   }
 
   .capa{background:var(--dark);color:#f5efe8;min-height:1000px;display:flex;flex-direction:column;justify-content:space-between}
