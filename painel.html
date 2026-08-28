@@ -344,7 +344,7 @@
     </div>
     <div class="showing" id="showing"></div>
   </div>
-  <div class="wrap"><p class="hint" id="hint"></p><div id="horaHoraLive"></div><div id="board"></div><div id="horaHoraPanel" style="display:none"></div></div>
+  <div class="wrap"><p class="hint" id="hint"></p><div id="avisoFalhaCarga" style="display:none;background:rgba(255,58,26,.12);border:1px solid var(--neg);color:var(--ink);border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px"></div><div id="horaHoraLive"></div><div id="board"></div><div id="horaHoraPanel" style="display:none"></div></div>
 
   <div class="overlay" id="overlay"><div class="modal">
     <h3>Configurações</h3><p>Cole os links CSV (Publicar na web) de cada aba e defina as metas por nível.</p>
@@ -372,6 +372,7 @@ const SHEET_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM6NRFxSThF
 const GIDS = { adsRenova:'432173951', adsTiktok:'178673841', retroRenova:'80783708', retroTiktok:'611256132', horaHora:'1619182165' };
 const rawCsvUrl = (gid) => `${SHEET_BASE}/pub?gid=${gid}&single=true&output=csv&_cb=${Date.now()}`;
 const PROXIES = [
+  (u) => 'https://script.google.com/macros/s/AKfycbxzPTubRGj0-yVS_DWNynx4P4RKChknYzthkItn0WKHMX_e24_qG-OsH5HdASAwCrYT/exec?proxyUrl=' + encodeURIComponent(u), // seu próprio Apps Script — o mais confiável, roda na infra do Google
   (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
   (u) => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u),
   (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u), // por último: limite de 1MB/arquivo na conta grátis, pode falhar com o Retroativo (3+ anos de histórico)
@@ -1014,6 +1015,18 @@ function montaNivelSeg(sel){const el=document.getElementById('nivelSeg');el.inne
 
 function bloco(id,span,inner){return `<section class="block ${span}" data-block="${id}">${inner}</section>`;}
 function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.projecao;const mostrarMes=pj.projecaoMes.diasDecorridos>=5;const mostrarQuarter=((pj.projecaoMes.mesNum-1)%3)>=1;document.getElementById('hint').textContent='Arraste os blocos pelo ⠿ para reorganizar — fica salvo no seu perfil.';
+  // Se não achou NENHUM canal, é sinal de que a planilha de dados falhou ao
+  // carregar (não é "faturamento zero de verdade") — avisa isso claramente,
+  // em vez de deixar o painel mostrando tudo R$0 silenciosamente.
+  const avisoFalha=document.getElementById('avisoFalhaCarga');
+  if(avisoFalha){
+    if(!d.canaisDisponiveis||!d.canaisDisponiveis.length){
+      avisoFalha.style.display='block';
+      avisoFalha.innerHTML='⚠️ Não consegui carregar os dados da planilha agora (0 canais encontrados) — os números abaixo provavelmente estão zerados por causa disso, não é o faturamento real. Tenta atualizar a página (Ctrl+F5). Se persistir, pode ser instabilidade passageira do serviço que buscamos os dados.';
+    }else{
+      avisoFalha.style.display='none';
+    }
+  }
   const tri=c.triAtual;const rp=c.metaRoas?`<span class="pill ${c.roasAtingido?'ok':'bad'}">meta ${c.metaRoas}</span>`:'';const gran=d.periodo.gran;const A=d.comparativoAnos.anos;const hasVar=A.length>=2;
   const blocks=[];
   blocks.push(bloco('mesatual','',(()=>{const pm=pj.projecaoMes;const rm=d.resumoMes;const cp=v=>v==null?'var(--muted)':v>=0?'var(--pos)':'var(--neg)';const cbg=v=>'var(--surface2)';const cbd=v=>'var(--line)';const sc=d.semaforo.status;const scol=sc==='verde'?'var(--pos)':sc==='amarelo'?'var(--accent2)':sc==='vermelho'?'var(--neg)':'var(--muted)';const fp=v=>v==null?'—':(v>0?'+':'')+v.toFixed(0)+'%';
