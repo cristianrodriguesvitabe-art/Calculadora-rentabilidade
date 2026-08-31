@@ -1075,7 +1075,61 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
     const canaisNovos=evolucaoCanais.filter(x=>x.ehNovo);
     const canaisSairam=evolucaoCanais.filter(x=>x.sumiu);
 
-    return {ytdPorAno,mesAtualIdx,melhorMes,piorMes,melhorMesSemBF,mediaDiaSemana,mediaGeralSemana:r2(mediaGeralSemana),diaForte,diaFraco,ultimos4Tri,concentracaoPct,maiorCanal,diasRestantesTri,viabilidadeMetas,totalPorAno,top5Meses,trimestrePorAno,evolucaoCanais,canaisGanhandoForca,canaisPerdendoForca,canaisNovos,canaisSairam,anoAnteriorN};
+    // -------- comparação do MÊS ATUAL: vs mesmo mês ano passado, vs mês
+    // anterior (mesmo ano), e melhor/pior mês entre todos os "mesmo mês" já
+    // registrados (ex: comparar agosto só com outros agostos, não com
+    // novembro) --------
+    const hojeISOStr=isoLocal(hoje);
+    const mesAtualNum=mesAtualIdx+1;
+    const serieAno=(ano)=>{const s=evolucaoAno.series.find(x=>x.ano===ano);return s?s.dados:null;};
+    const valorMesFechado=(ano,mesIdx0)=>{
+      // pra ano/mês correntes, soma revF excluindo hoje (dia não fechado);
+      // pra meses/anos passados, usa o total já pronto do evolucaoAno
+      if(ano===hoje.getFullYear()&&mesIdx0===mesAtualIdx){
+        let soma2=0;
+        revF.forEach(x=>{if(x.date===hojeISOStr)return;if(yOf(x.date)===ano&&mOf(x.date)===mesIdx0+1)soma2+=x.faturamento;});
+        return r2(soma2);
+      }
+      const s=serieAno(ano);
+      return s?(s[mesIdx0]||0):0;
+    };
+    const valorMesAtual=valorMesFechado(anoAtualN,mesAtualIdx);
+    const mesAnteriorIdx=mesAtualIdx===0?11:mesAtualIdx-1;
+    const anoDoMesAnterior=mesAtualIdx===0?anoAtualN-1:anoAtualN;
+    const valorMesAnterior=valorMesFechado(anoDoMesAnterior,mesAnteriorIdx);
+    const valorMesmoMesAnoPassado=valorMesFechado(anoAnteriorN,mesAtualIdx);
+    const varVsMesAnterior=valorMesAnterior?r2((valorMesAtual-valorMesAnterior)/valorMesAnterior*100):null;
+    const varVsMesmoMesAnoPassado=valorMesmoMesAnoPassado?r2((valorMesAtual-valorMesmoMesAnoPassado)/valorMesmoMesAnoPassado*100):null;
+    // melhor/pior entre todos os "mesmo mês" (ex: todos os agostos) já registrados
+    let melhorMesmoMes=null,piorMesmoMes=null;
+    evolucaoAno.series.forEach(s=>{
+      const valorReal=s.ano===anoAtualN?valorMesAtual:s.dados[mesAtualIdx];
+      if(valorReal==null||valorReal<=0)return;
+      if(!melhorMesmoMes||valorReal>melhorMesmoMes.valor)melhorMesmoMes={ano:s.ano,valor:r2(valorReal)};
+      if(!piorMesmoMes||valorReal<piorMesmoMes.valor)piorMesmoMes={ano:s.ano,valor:r2(valorReal)};
+    });
+    // -------- movimentação de canais só dentro deste mês (vs mesmo mês ano passado) --------
+    const canalMesAtualPorAno={};
+    revF.forEach(x=>{
+      if(x.date===hojeISOStr)return;
+      const ano=yOf(x.date),mes=mOf(x.date);
+      if(mes!==mesAtualNum||(ano!==anoAtualN&&ano!==anoAnteriorN))return;
+      if(!canalMesAtualPorAno[x.canal])canalMesAtualPorAno[x.canal]={};
+      canalMesAtualPorAno[x.canal][ano]=(canalMesAtualPorAno[x.canal][ano]||0)+x.faturamento;
+    });
+    const movCanaisMesAtual=Object.keys(canalMesAtualPorAno).map(c=>{
+      const valAtual=canalMesAtualPorAno[c][anoAtualN]||0;
+      const valAnterior=canalMesAtualPorAno[c][anoAnteriorN]||0;
+      const variacaoPct=valAnterior?r2((valAtual-valAnterior)/valAnterior*100):(valAtual>0?null:null);
+      return {canal:c,valAtual:r2(valAtual),valAnterior:r2(valAnterior),variacaoPct};
+    }).filter(x=>(x.valAtual>0||x.valAnterior>0)&&x.variacaoPct!=null).sort((a,b)=>b.variacaoPct-a.variacaoPct);
+    const mesAtualResumo={
+      valorMesAtual:r2(valorMesAtual),valorMesAnterior:r2(valorMesAnterior),valorMesmoMesAnoPassado:r2(valorMesmoMesAnoPassado),
+      varVsMesAnterior,varVsMesmoMesAnoPassado,melhorMesmoMes,piorMesmoMes,movCanaisMesAtual,
+      nomeMesAnterior:MES[mesAnteriorIdx],anoDoMesAnterior
+    };
+
+    return {ytdPorAno,mesAtualIdx,melhorMes,piorMes,melhorMesSemBF,mediaDiaSemana,mediaGeralSemana:r2(mediaGeralSemana),diaForte,diaFraco,ultimos4Tri,concentracaoPct,maiorCanal,diasRestantesTri,viabilidadeMetas,totalPorAno,top5Meses,trimestrePorAno,evolucaoCanais,canaisGanhandoForca,canaisPerdendoForca,canaisNovos,canaisSairam,anoAnteriorN,mesAtualResumo};
   })();
 
   return {
@@ -2048,11 +2102,13 @@ function dadosRelatorio_(d,cfg){
   });
 
   const maxCanal=Math.max(...d.porCanal.map(x=>x.faturamento),1);
+  const totalCanaisRanking=d.porCanal.reduce((a,x)=>a+x.faturamento,0)||1;
   const coresCanal=['#e0a800','#ee4d2d','#8b5cf6','#ff9900','#96908d','#5b8def','#1f8a15'];
   const rankingCanaisHtml=d.porCanal.slice(0,6).map((x,i)=>{
     const rc=d.roasPorCanal.find(r=>r.canal===x.canal);
     const pct=Math.max(2,Math.round(x.faturamento/maxCanal*100));
-    return `<div class="rankrow"><span>${x.canal}</span><span class="bar"><span style="width:${pct}%;background:${coresCanal[i%coresCanal.length]}"></span></span><span class="num">${comp(x.faturamento)}</span><span class="num" style="color:#75695f">${rc&&rc.roas!=null?'ROAS '+rc.roas.toFixed(2):'—'}</span></div>`;
+    const pctTotal=r2(x.faturamento/totalCanaisRanking*100);
+    return `<div class="rankrow"><span>${x.canal}</span><span class="bar"><span style="width:${pct}%;background:${coresCanal[i%coresCanal.length]}"></span></span><span class="num">${comp(x.faturamento)}</span><span class="num" style="font-weight:700">${pctTotal.toFixed(0)}%</span><span class="num" style="color:#75695f">${rc&&rc.roas!=null?'ROAS '+rc.roas.toFixed(2):'—'}</span></div>`;
   }).join('');
 
   const totalCanaisPeriodo=d.porCanal.reduce((a,x)=>a+x.faturamento,0)||1;
@@ -2148,7 +2204,7 @@ function capaDashboardHtml_(r,kicker,titulo,alertasCapa){
         <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Acumulado no ano</div>
         <div style="font-size:21px;font-weight:800">${comp(r.ytdAtual.total)}</div>
         ${spAcum}
-        <div style="font-size:11px;color:${r.ytdGrowth>=0?'#2ebb22':'#ff3a1a'};font-weight:700;margin-top:2px">${r.ytdGrowth!=null?(r.ytdGrowth>=0?'▲ ':'▼ ')+Math.abs(r.ytdGrowth).toFixed(0)+'% vs '+r.ytdAnterior.ano:'—'}</div>
+        <div style="font-size:11px;color:${r.ytdGrowth>=0?'#2ebb22':'#ff3a1a'};font-weight:700;margin-top:2px">${r.ytdGrowth!=null?(r.ytdGrowth>=0?'▲ ':'▼ ')+Math.abs(r.ytdGrowth).toFixed(0)+'% vs '+r.ytdAnterior.ano+' ('+comp(r.ytdAnterior.total)+')':'—'}</div>
       </div>
       <div style="background:#231e1c;border-radius:12px;padding:16px;${r.pctRealizado<r.pctEsperado?'border:1px solid #ff3a1a44':''}">
         <div style="font-size:10px;color:#96908d;text-transform:uppercase;margin-bottom:6px">Ritmo do trimestre</div>
@@ -2238,7 +2294,7 @@ function gerarRelatorioAnualHTML(d,cfg){
   .insight.alerta{border-left-color:var(--neg);background:#fdece9}
   .insight.bom{border-left-color:var(--pos);background:#eaf6e7}
 
-  .rankrow{display:grid;grid-template-columns:150px 1fr 68px 50px;gap:10px;align-items:center;font-size:12.5px;margin-bottom:7px}
+  .rankrow{display:grid;grid-template-columns:150px 1fr 68px 46px 56px;gap:10px;align-items:center;font-size:12.5px;margin-bottom:7px}
   .bar{background:var(--line);border-radius:4px;height:9px;overflow:hidden}
   .bar span{display:block;height:100%;border-radius:4px}
 
@@ -2620,7 +2676,7 @@ function gerarRelatorioTrimestralHTML(d,cfg){
   .insight.alerta{border-left-color:var(--neg);background:#fdece9}
   .insight.bom{border-left-color:var(--pos);background:#eaf6e7}
 
-  .rankrow{display:grid;grid-template-columns:150px 1fr 68px 50px;gap:10px;align-items:center;font-size:12.5px;margin-bottom:7px}
+  .rankrow{display:grid;grid-template-columns:150px 1fr 68px 46px 56px;gap:10px;align-items:center;font-size:12.5px;margin-bottom:7px}
   .bar{background:var(--line);border-radius:4px;height:9px;overflow:hidden}
   .bar span{display:block;height:100%;border-radius:4px}
 
@@ -2666,7 +2722,7 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
 
   <div class="kgrid">
     <div class="kcard"><div class="lbl">Faturado no mês</div><div class="val">${comp(r.pm.realizado)}</div><div class="sub" style="color:#75695f">meta ${comp(r.pm.meta)}</div></div>
-    <div class="kcard"><div class="lbl">Acumulado no ano</div><div class="val">${comp(r.ytdAtual.total)}</div><div class="sub" style="color:${r.ytdGrowth>=0?'#1f8a15':'#c92f14'}">${r.ytdGrowth!=null?(r.ytdGrowth>=0?'▲ ':'▼ ')+Math.abs(r.ytdGrowth).toFixed(0)+'% vs '+r.ytdAnterior.ano:'—'}</div></div>
+    <div class="kcard"><div class="lbl">Acumulado no ano</div><div class="val">${comp(r.ytdAtual.total)}</div><div class="sub" style="color:${r.ytdGrowth>=0?'#1f8a15':'#c92f14'}">${r.ytdGrowth!=null?(r.ytdGrowth>=0?'▲ ':'▼ ')+Math.abs(r.ytdGrowth).toFixed(0)+'% vs '+r.ytdAnterior.ano+' ('+comp(r.ytdAnterior.total)+')':'—'}</div></div>
     <div class="kcard"><div class="lbl">Projeção do trimestre</div><div class="val">${comp(r.rq.faturamento)}</div><div class="sub" style="color:#75695f">meta ${comp(r.rq.meta)}</div></div>
     <div class="kcard"><div class="lbl">ROAS geral</div><div class="val">${r.c.roasGeral!=null?r.c.roasGeral.toFixed(2):'—'}</div><div class="sub" style="color:${r.c.roasAtingido?'#1f8a15':'#c92f14'}">meta ${(r.c.metaRoas||0).toFixed(1)}</div></div>
   </div>
@@ -2687,7 +2743,66 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
   </div>
   ${r.hiatoRS>0?`<div class="insight alerta">Estamos <b>${Math.abs(r.pctEsperado-r.pctRealizado).toFixed(0)} pontos percentuais atrás</b> do ritmo esperado — um hiato de ${comp(r.hiatoRS)}.</div>`:`<div class="insight bom">O ritmo está <b>dentro ou acima</b> do esperado pelo calendário do trimestre.</div>`}
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>2 / 6</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>2 / 7</span></div>
+</div>
+
+<div class="page">
+  <div class="topo"><span class="logo">RENOVA BE</span><span class="secname">Este mês</span></div>
+  <h1 class="pagetitle">${MES[r.rl.mesAtualIdx]}, comparado ao mês anterior e ao mesmo mês do ano passado</h1>
+
+  <div class="kgrid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kcard">
+      <div class="lbl">${MES[r.rl.mesAtualIdx]}/${r.anoAtual} até ontem</div>
+      <div class="val">${comp(r.rl.mesAtualResumo.valorMesAtual)}</div>
+    </div>
+    <div class="kcard">
+      <div class="lbl">vs. ${r.rl.mesAtualResumo.nomeMesAnterior}/${r.rl.mesAtualResumo.anoDoMesAnterior} (mês anterior)</div>
+      <div class="val" style="color:${r.rl.mesAtualResumo.varVsMesAnterior>=0?'#1f8a15':'#c92f14'}">${r.rl.mesAtualResumo.varVsMesAnterior!=null?(r.rl.mesAtualResumo.varVsMesAnterior>=0?'+':'')+r.rl.mesAtualResumo.varVsMesAnterior.toFixed(0)+'%':'—'}</div>
+      <div class="sub" style="color:#75695f">${comp(r.rl.mesAtualResumo.valorMesAnterior)}</div>
+    </div>
+    <div class="kcard">
+      <div class="lbl">vs. ${MES[r.rl.mesAtualIdx]}/${r.rl.anoAnteriorN} (mesmo mês ano passado)</div>
+      <div class="val" style="color:${r.rl.mesAtualResumo.varVsMesmoMesAnoPassado>=0?'#1f8a15':'#c92f14'}">${r.rl.mesAtualResumo.varVsMesmoMesAnoPassado!=null?(r.rl.mesAtualResumo.varVsMesmoMesAnoPassado>=0?'+':'')+r.rl.mesAtualResumo.varVsMesmoMesAnoPassado.toFixed(0)+'%':'—'}</div>
+      <div class="sub" style="color:#75695f">${comp(r.rl.mesAtualResumo.valorMesmoMesAnoPassado)}</div>
+    </div>
+  </div>
+
+  <h2>Comparando só com outros "${MES[r.rl.mesAtualIdx]}"</h2>
+  <p class="lead">Não com o ano inteiro, nem com outros meses (que podem ter sazonalidade diferente) — só entre todos os ${MES[r.rl.mesAtualIdx]}s já registrados.</p>
+  <div class="kgrid" style="grid-template-columns:repeat(2,1fr)">
+    <div class="kcard" style="border-left:3px solid #1f8a15"><div class="lbl">Melhor ${MES[r.rl.mesAtualIdx]} já registrado</div><div class="val">${r.rl.mesAtualResumo.melhorMesmoMes?r.rl.mesAtualResumo.melhorMesmoMes.ano:'—'}</div><div class="sub" style="color:#75695f">${r.rl.mesAtualResumo.melhorMesmoMes?comp(r.rl.mesAtualResumo.melhorMesmoMes.valor):''}</div></div>
+    <div class="kcard" style="border-left:3px solid #c92f14"><div class="lbl">Pior ${MES[r.rl.mesAtualIdx]} registrado</div><div class="val">${r.rl.mesAtualResumo.piorMesmoMes?r.rl.mesAtualResumo.piorMesmoMes.ano:'—'}</div><div class="sub" style="color:#75695f">${r.rl.mesAtualResumo.piorMesmoMes?comp(r.rl.mesAtualResumo.piorMesmoMes.valor):''}</div></div>
+  </div>
+  ${r.rl.mesAtualResumo.melhorMesmoMes&&r.rl.mesAtualResumo.melhorMesmoMes.ano===r.anoAtual?`<div class="insight bom">Este é o <b>melhor ${MES[r.rl.mesAtualIdx]} já registrado</b> na história da operação.</div>`:''}
+
+  <h2>Movimentação de canais neste mês</h2>
+  <p class="lead">Só dentro de ${MES[r.rl.mesAtualIdx]}, comparado ao mesmo mês do ano passado (não é o acumulado do ano).</p>
+  ${r.rl.mesAtualResumo.movCanaisMesAtual.length?`<div class="chartcard">
+    ${r.rl.mesAtualResumo.movCanaisMesAtual.slice(0,6).map(c=>{
+      const cor=c.variacaoPct>0?'#1f8a15':(c.variacaoPct<0?'#c92f14':'#96908d');
+      const sinal=c.variacaoPct>=0?'+':'';
+      const maxV=Math.max(...r.rl.mesAtualResumo.movCanaisMesAtual.map(x=>Math.abs(x.variacaoPct)),1);
+      const w=Math.max((Math.abs(c.variacaoPct)/maxV)*100,3);
+      return `<div style="margin-bottom:11px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span>${c.canal}</span>
+          <span style="color:${cor};font-weight:700">${sinal}${c.variacaoPct.toFixed(0)}%</span>
+        </div>
+        <div style="height:8px;background:#eee6da;border-radius:4px"><div style="width:${w}%;height:100%;background:${cor};border-radius:4px"></div></div>
+        <div style="font-size:10px;color:#96908d;margin-top:2px">${comp(c.valAnterior)} → ${comp(c.valAtual)}</div>
+      </div>`;
+    }).join('')}
+  </div>`:'<div class="insight">Sem base de comparação suficiente pra esse mês ainda.</div>'}
+  ${(()=>{
+    const top=r.rl.mesAtualResumo.movCanaisMesAtual[0];
+    if(!top||r.rl.mesAtualResumo.varVsMesmoMesAnoPassado==null)return '';
+    const v=r.rl.mesAtualResumo.varVsMesmoMesAnoPassado;
+    const base=v>=0?`${MES[r.rl.mesAtualIdx]} está ${v.toFixed(0)}% acima do mesmo mês do ano passado`:`${MES[r.rl.mesAtualIdx]} está ${Math.abs(v).toFixed(0)}% abaixo do mesmo mês do ano passado`;
+    const puxado=top.variacaoPct>=0?`, puxado por <b>${top.canal}</b> (+${top.variacaoPct.toFixed(0)}%)`:`, mesmo com queda em <b>${top.canal}</b> (${top.variacaoPct.toFixed(0)}%)`;
+    return `<div class="insight">${base}${puxado}.</div>`;
+  })()}
+
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>3 / 7</span></div>
 </div>
 
 <div class="page">
@@ -2713,7 +2828,7 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
   </div>
   ${r.rl.concentracaoPct!=null?`<div class="insight ${r.rl.concentracaoPct>=55?'alerta':''}">${r.rl.concentracaoPct>=55?'Um único canal':'O canal principal'} (<b>${r.rl.maiorCanal.canal}</b>) responde por <b>${r.rl.concentracaoPct.toFixed(0)}% do faturamento</b> do período${r.rl.concentracaoPct>=55?' — acima do que se considera saudável em diversificação (referência: nenhum canal isolado acima de ~50%)':''}.</div>`:''}
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>3 / 6</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>4 / 7</span></div>
 </div>
 
 <div class="page">
@@ -2729,7 +2844,7 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
   <h2>ROAS — últimos trimestres com dado</h2>
   <div class="chartcard">${r.roasTriHtml}</div>
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>4 / 6</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>5 / 7</span></div>
 </div>
 
 <div class="page">
@@ -2741,10 +2856,23 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
     ${r.metasRows}
   </table>
 
+  <h2>Histórico de trimestres deste ano</h2>
+  <p class="lead">O que já foi realizado em cada trimestre, e qual nível (M1-M4) foi atingido.</p>
+  <table>
+    <tr><th>Trimestre</th><th class="num">Realizado</th><th class="num">Meta (nível atual)</th><th class="num">% atingido</th><th>Nível atingido</th></tr>
+    ${d.trimestres.map(t=>`<tr>
+      <td>${t.trimestre}${t.emAndamento?' <span style="color:#c9a300;font-size:10.5px">(em andamento)</span>':''}</td>
+      <td class="num">${t.realizado>0?comp(t.realizado):'—'}</td>
+      <td class="num">${t.meta>0?comp(t.meta):'—'}</td>
+      <td class="num ${t.atingimento!=null?(t.atingimento>=100?'up':'down'):''}">${t.atingimento!=null?t.atingimento.toFixed(0)+'%':'—'}</td>
+      <td>${t.nivelAtingido?`<span class="pill ok">${t.nivelAtingido}</span>`:(t.realizado>0?'<span class="pill risco">nenhum</span>':'—')}</td>
+    </tr>`).join('')}
+  </table>
+
   <h2>Pontos de atenção</h2>
   ${r.alertasHtml}
 
-  <div class="rodape"><span>Renova Be — Relatório interno</span><span>5 / 6</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno</span><span>6 / 7</span></div>
 </div>
 
 <div class="page">
@@ -2753,7 +2881,7 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
 
   <div class="recgrid">${r.recomendacoesHtml}</div>
 
-  <div class="rodape"><span>Renova Be — Relatório interno · dados fechados até o dia anterior à geração</span><span>6 / 6</span></div>
+  <div class="rodape"><span>Renova Be — Relatório interno · dados fechados até o dia anterior à geração</span><span>7 / 7</span></div>
 </div>
 
 </body>
