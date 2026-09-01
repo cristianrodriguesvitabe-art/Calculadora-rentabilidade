@@ -1542,7 +1542,7 @@ const RANGE_LBL={mes:'Mês vigente',ultmes:'Último mês',ano:'Este ano',anoant:
 function fmtBR(iso){return iso?iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4):'—';}
 function atualizaShowing(tipo){const el=document.getElementById('showing');if(!el)return;const nome=RANGE_LBL[tipo]||'Período personalizado';const de=state.de||(document.getElementById('de')||{}).value;const ate=state.ate||(document.getElementById('ate')||{}).value;const nc=(state.canais&&state.canais.length)?state.canais.length:(canaisDisp.length||0);el.innerHTML=`Mostrando: <span class="cor">${nome}</span> · <b>${fmtBR(de)}</b> até <b>${fmtBR(ate)}</b>${nc?` · <b>${nc} ${nc===1?'canal':'canais'}</b>`:''}`;}
 function setRange(tipo){marcaRange(tipo);const ey=anos[anos.length-1]||new Date().getFullYear();const hoje=new Date();const ontem=new Date(hoje);ontem.setDate(ontem.getDate()-1);const isoD=isoLocal;const pad=n=>String(n).padStart(2,'0');
-  if(tipo==='mes'){state.de=isoD(new Date(hoje.getFullYear(),hoje.getMonth(),1));state.ate=isoD(ontem);}
+  if(tipo==='mes'){const primeiroDoMes=new Date(hoje.getFullYear(),hoje.getMonth(),1);const ateEfetivo=ontem<primeiroDoMes?primeiroDoMes:ontem;state.de=isoD(primeiroDoMes);state.ate=isoD(ateEfetivo);}
   else if(tipo==='ultmes'){const pmDate=new Date(hoje.getFullYear(),hoje.getMonth()-1,1);const y=pmDate.getFullYear(),m=pmDate.getMonth();state.de=isoD(new Date(y,m,1));state.ate=isoD(new Date(y,m+1,0));}
   else if(tipo==='ano'){state.de=ey+'-01-01';state.ate=(maxData&&+maxData.slice(0,4)===ey)?maxData:ey+'-12-31';}
   else if(tipo==='anoant'){state.de=(ey-1)+'-01-01';state.ate=(ey-1)+'-12-31';}
