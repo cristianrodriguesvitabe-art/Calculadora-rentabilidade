@@ -646,8 +646,9 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   const hoje=new Date();
   const ontem=new Date(hoje);ontem.setDate(ontem.getDate()-1);
   const iso=isoLocal;
-  if(!ate) ate=iso(ontem);
-  if(!de) de=iso(new Date(hoje.getFullYear(),hoje.getMonth(),1));
+  const primeiroDoMesAtual=new Date(hoje.getFullYear(),hoje.getMonth(),1);
+  if(!ate) ate=iso(ontem<primeiroDoMesAtual?primeiroDoMesAtual:ontem);
+  if(!de) de=iso(primeiroDoMesAtual);
   const anoRef=yOf(ate);
   const nivelSel=(nivel&&cfg.metas.niveis[nivel])?nivel:cfg.metas.nivelPrincipal;
   const metaNivel=cfg.metas.niveis[nivelSel]||{q1:0,q2:0,q3:0,q4:0};
@@ -1141,7 +1142,7 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
 
   return {
     configurado:Boolean(cfg.urls.adsRenova||cfg.urls.retroRenova||cfg.urls.adsTiktok||cfg.urls.retroTiktok),
-    periodo:{de,ate:(maxData&&ate&&ate>maxData)?maxData:ate,gran,compara},anoRef,anosDisponiveis:anos,maxData,
+    periodo:{de,ate:(maxData&&ate&&ate>maxData)?(maxData<de?de:maxData):ate,gran,compara},anoRef,anosDisponiveis:anos,maxData,
     nivelSelecionado:nivelSel,canaisDisponiveis,canaisSelecionados:canaisSel,mesesDisponiveis,
     erros,diagnostico:diag,
     cards:{faturamentoPeriodo:r2(faturamentoPeriodo),crescimentoPeriodo,comparaLabel,investimento:r2(investimento),receitaAds:r2(receitaAds),roasGeral,metaRoas:Number(cfg.metas.roas)||0,roasAtingido:(Number(cfg.metas.roas)||0)?(roasGeral!=null&&roasGeral>=cfg.metas.roas):null,triAtual,metaAnual:r2(metaAnual),atingimentoAnual,faturamentoAno:r2(faturamentoAno),faltaAnual:metaAnual?r2(Math.max(metaAnual-faturamentoAno,0)):null},
