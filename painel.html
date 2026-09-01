@@ -943,6 +943,13 @@ async function buildAnalytics({ de, ate, gran='dia', nivel, canais, compara='mes
   // lógica com o que já existe pro painel do dia a dia.
   // ==========================================================================
   const relatorio=(()=>{
+    // Se o filtro "Quando" está olhando um período FECHADO no passado (ex:
+    // "Último mês"), usa a data final desse período como referência de "hoje"
+    // pra este relatório — evita mostrar o mês/trimestre seguinte (ainda sem
+    // dado) quando a intenção era ver o período selecionado.
+    const hojeReal=new Date();
+    const hojeReal_ISO=isoLocal(hojeReal);
+    const hoje=(ate&&ate<hojeReal_ISO)?new Date(ate+'T00:00:00'):hojeReal;
     // -------- YTD (mesmos meses do ano, todos os anos) --------
     const mesAtualIdx=hoje.getMonth(); // 0-based; YTD = meses 0..mesAtualIdx
     const ytdPorAno=evolucaoAno.series.map(s=>({
@@ -1296,6 +1303,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
       </div>`;})()));
   blocks.push(bloco('hhresumostats','',(()=>{
     const hojeStr=hojeISO();
+    if(state.ate&&state.ate<hojeStr)return '';
     const hojeD=new Date();const ontemD=new Date(hojeD);ontemD.setDate(ontemD.getDate()-1);
     const ontemStr=isoLocal(ontemD);
     const resumo=montaHhResumo(hojeStr,ontemStr,false);
@@ -1304,6 +1312,7 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
   })()));
   blocks.push(bloco('hhresumocanais','',(()=>{
     const hojeStr=hojeISO();
+    if(state.ate&&state.ate<hojeStr)return '';
     const hojeD=new Date();const ontemD=new Date(hojeD);ontemD.setDate(ontemD.getDate()-1);
     const ontemStr=isoLocal(ontemD);
     const resumo=montaHhResumo(hojeStr,ontemStr);
@@ -1312,10 +1321,20 @@ function render(d){TC=tc();const c=d.cards,p2=d.pace,rt=d.realizadoTri,pj=d.proj
   })()));
   blocks.push(bloco('fatdiario','',(()=>{
     const hoje=new Date();
-    const hm=d.heatmap;const chaveAtual=hm&&hm.chaveAtual;const diasMes=(chaveAtual&&hm.meses[chaveAtual])||[];
+    const hm=d.heatmap;
+    // usa o mês do período selecionado no filtro "Quando" (state.de), se
+    // existir dado pra ele — só cai pro mês atual real se nada foi selecionado
+    // ou se o mês escolhido não tiver dado no heatmap
+    let chaveAtual=hm&&hm.chaveAtual;
+    if(hm&&state.de){
+      const chaveFiltro=state.de.slice(0,7);
+      if(hm.meses[chaveFiltro])chaveAtual=chaveFiltro;
+    }
+    const diasMes=(chaveAtual&&hm.meses[chaveAtual])||[];
     if(!diasMes.length)return '<div class="card"><div class="empty">sem dados p/ o faturamento diário</div></div>';
-    // pontos com dado real (heatmap já corta em ontem); se hoje já tiver
-    // valor ao vivo no Hora a Hora, acrescenta como ponto extra "em andamento"
+    // pontos com dado real (heatmap já corta em ontem, só no mês corrente); se
+    // hoje já tiver valor ao vivo no Hora a Hora, acrescenta como ponto extra
+    // "em andamento" — só faz sentido se o mês exibido for realmente o atual
     const pontos=diasMes.filter(x=>x.fat!=null).map(x=>({d:x.d,dow:x.dow,fat:x.fat,canais:x.canais,emAndamento:false}));
     const hojeStr=hojeISO?hojeISO():isoLocal(new Date());
     const linhasHojeHH=(horaHoraCache&&horaHoraCache.linhas||[]).filter(l=>l.date===hojeStr);
@@ -1859,6 +1878,9 @@ async function carregarHoraHora(){
 function renderHoraHoraLive(){
   const el=document.getElementById('horaHoraLive');if(!el)return;
   const hoje=hojeISO();
+  // se o período selecionado no filtro "Quando" não inclui hoje (ex: "Último
+  // mês" olhando pra um mês já fechado), não faz sentido mostrar dado ao vivo
+  if(state.ate&&state.ate<hoje){el.innerHTML='';return;}
   const linhasHoje=(horaHoraCache.linhas||[]).filter(l=>l.date===hoje);
   if(!linhasHoje.length){el.innerHTML='';return;}
   const ultima=linhasHoje[linhasHoje.length-1];
@@ -2020,8 +2042,14 @@ function dadosRelatorio_(d,cfg){
   const c=d.cards,pj=d.projecao,pm=pj.projecaoMes,rl=d.relatorio,rq=d.resumoQuarter;
   const DIAF=['dom','seg','ter','qua','qui','sex','sáb'];
   const DIA_COMPLETO=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
-  const hoje=new Date();
-  const dataGeracao=hoje.toLocaleDateString('pt-BR');
+  // mesma regra do cálculo em buildAnalytics: se o período selecionado no
+  // filtro "Quando" termina no passado, usa essa data como referência de
+  // "hoje" pro relatório, em vez do dia real de hoje
+  const hojeReal=new Date();
+  const hojeReal_ISO=isoLocal(hojeReal);
+  const ateSelecionado=d.periodo&&d.periodo.ate;
+  const hoje=(ateSelecionado&&ateSelecionado<hojeReal_ISO)?new Date(ateSelecionado+'T00:00:00'):hojeReal;
+  const dataGeracao=hojeReal.toLocaleDateString('pt-BR');
   const anoAtual=hoje.getFullYear();
 
   const statusCor=d.semaforo.status==='verde'?'#1f8a15':d.semaforo.status==='amarelo'?'#c9a300':'#c92f14';
