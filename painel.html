@@ -2743,7 +2743,7 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
   <h1 class="pagetitle">Como o mês e o trimestre estão, em uma leitura</h1>
 
   <div class="resumo">
-    ${MES[r.hoje.getMonth()]} está ${r.pm.realizado>0?'em andamento':''}, somando <b>${comp(r.pm.realizado)}</b> até agora${r.pm.emAndamento?' (mês em curso)':''}.
+    ${MES[r.hoje.getMonth()]}${r.pm.emAndamento?' está em andamento':' fechou'}, somando <b>${comp(r.pm.realizado)}</b>${r.pm.emAndamento?' até agora':''}.
     O trimestre está a <b>${r.pctRealizado.toFixed(0)}%</b> da meta, quando o esperado pelo calendário seria <b>${r.pctEsperado.toFixed(0)}%</b>.
     ${r.rl.concentracaoPct!=null?` O faturamento segue concentrado em <b>${r.rl.maiorCanal.canal}</b> (${r.rl.concentracaoPct.toFixed(0)}% do período).`:''}
   </div>
@@ -2780,7 +2780,7 @@ ${capaDashboardHtml_(r,'Relatório trimestral · confidencial · Q'+r.triAtualNu
 
   <div class="kgrid" style="grid-template-columns:repeat(3,1fr)">
     <div class="kcard">
-      <div class="lbl">${MES[r.rl.mesAtualIdx]}/${r.anoAtual} até ontem</div>
+      <div class="lbl">${MES[r.rl.mesAtualIdx]}/${r.anoAtual}${r.pm.emAndamento?' até ontem':' (fechado)'}</div>
       <div class="val">${comp(r.rl.mesAtualResumo.valorMesAtual)}</div>
     </div>
     <div class="kcard">
